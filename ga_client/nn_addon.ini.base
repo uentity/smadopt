@@ -1,0 +1,18 @@
+AddonScheme = FitnessFcnAsTargets
+TarNormType = LinearNorm
+MinTar = 0.8
+MaxTar = 0.9
+IsFFRestricted = 1
+InfFF = 0
+SupFF = 200
+PredictionRatio = 0
+GoalQuota = 0
+BestCount = 300
+UsePCA = 0
+NormalizeInput = 0
+InitNetEveryIter = 0
+InitPCAEveryIter = 0
+PrinCompNum = 0
+Layers =
+100 1
+0 0

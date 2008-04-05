@@ -1,0 +1,13 @@
+#Fri Mar 02 12:22:32 GMT 2007
+environment/buildEnvironmentInclude/cdt.managedbuild.config.gnu.so.debug.2060088369=<?xml version\="1.0"?>\n<environment>\n  <variable name\="CPLUS_INCLUDE_PATH" operation\="remove"/>\n  <variable name\="CPATH" operation\="remove"/>\n  <variable name\="C_INCLUDE_PATH" operation\="remove"/>\n</environment>
+environment/project=<?xml version\="1.0"?>\n<environment/>
+environment/buildEnvironmentInclude/cdt.managedbuild.config.gnu.so.release.1304301413=<?xml version\="1.0"?>\n<environment>\n  <variable name\="CPLUS_INCLUDE_PATH" operation\="remove"/>\n  <variable name\="CPATH" operation\="remove"/>\n  <variable name\="C_INCLUDE_PATH" operation\="remove"/>\n</environment>
+environment/buildEnvironmentLibrary/cdt.managedbuild.config.gnu.so.release.1304301413=<?xml version\="1.0"?>\n<environment>\n  <variable name\="LIBRARY_PATH" operation\="remove"/>\n</environment>
+environment/project/cdt.managedbuild.config.gnu.so.debug.2060088369=<?xml version\="1.0"?>\n<environment/>
+environment/project/cdt.managedbuild.config.gnu.so.release.1304301413=<?xml version\="1.0"?>\n<environment/>
+cdt.managedbuild.config.gnu.so.debug.2060088369/internalBuilder/ignoreErr=true
+environment/buildEnvironmentLibrary/cdt.managedbuild.config.gnu.so.debug.2060088369=<?xml version\="1.0"?>\n<environment>\n  <variable name\="LIBRARY_PATH" operation\="remove"/>\n</environment>
+cdt.managedbuild.config.gnu.so.release.1304301413/internalBuilder/ignoreErr=true
+cdt.managedbuild.config.gnu.so.debug.2060088369/internalBuilder/enabled=false
+eclipse.preferences.version=1
+cdt.managedbuild.config.gnu.so.release.1304301413/internalBuilder/enabled=false
