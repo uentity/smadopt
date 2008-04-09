@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="ha_alg" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="debug_lin">
+				<Option output="../exe/debug/libha_alg" prefix_auto="1" extension_auto="1" />
+				<Option object_output="build/Debug/" />
+				<Option external_deps="../exe/debug/libha_utils.so;" />
+				<Option type="3" />
+				<Option compiler="gcc" />
+				<Option createDefFile="1" />
+				<Option createStaticLib="1" />
+				<Compiler>
+					<Add option="-ggdb" />
+					<Add directory="../utils/src" />
+				</Compiler>
+				<Linker>
+					<Add library="ha_utils" />
+					<Add directory="../exe/debug" />
+				</Linker>
+			</Target>
+			<Target title="release_lin">
+				<Option output="../exe/release/libha_alg" prefix_auto="1" extension_auto="1" />
+				<Option object_output="build/Release/" />
+				<Option external_deps="../exe/release/libha_utils.so;" />
+				<Option type="3" />
+				<Option compiler="gcc" />
+				<Option createDefFile="1" />
+				<Option createStaticLib="1" />
+				<Compiler>
+					<Add option="-O2" />
+					<Add directory="../utils/src" />
+				</Compiler>
+				<Linker>
+					<Add library="ha_utils" />
+					<Add directory="../exe/release" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+		</Compiler>
+		<Unit filename="src/alg.cpp" />
+		<Unit filename="src/alg_api.cpp" />
+		<Unit filename="src/alg_api.h" />
+		<Unit filename="src/ccn.h" />
+		<Unit filename="src/ga.cpp" />
+		<Unit filename="src/ga.h" />
+		<Unit filename="src/ga_common.h" />
+		<Unit filename="src/ga_opt.cpp" />
+		<Unit filename="src/ga_stat.cpp" />
+		<Unit filename="src/km_opt.cpp" />
+		<Unit filename="src/kmeans.cpp" />
+		<Unit filename="src/kmeans.h" />
+		<Unit filename="src/kmeans_common.h" />
+		<Unit filename="src/layer.h" />
+		<Unit filename="src/mlp.h" />
+		<Unit filename="src/mnet.cpp" />
+		<Unit filename="src/mnet.h" />
+		<Unit filename="src/neuron.h" />
+		<Unit filename="src/nn_addon.cpp" />
+		<Unit filename="src/nn_addon.h" />
+		<Unit filename="src/nn_addon_common.h" />
+		<Unit filename="src/nn_common.h" />
+		<Unit filename="src/nn_except.cpp" />
+		<Unit filename="src/nn_opt.cpp" />
+		<Unit filename="src/nna_opt.cpp" />
+		<Unit filename="src/objnet.cpp" />
+		<Unit filename="src/objnet.h" />
+		<Unit filename="src/objnet_impl.h" />
+		<Unit filename="src/pca.h" />
+		<Unit filename="src/rbn.h" />
+		<Extensions>
+			<code_completion />
+			<envvars />
+			<debugger />
+			<lib_finder disable_auto="1" />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>
