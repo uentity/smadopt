@@ -11,6 +11,7 @@
 
 using namespace std;
 using namespace prg;
+using namespace hybrid_adapt;
 
 typedef unsigned long ulong;
 
@@ -82,11 +83,11 @@ public:
 	}
 
 	virtual long randInt(long a, long b) {
-		return round(rand01()*(b - a) + a);
+		return ha_round(rand01()*(b - a) + a);
 	}
 
 	virtual ulong randIntUB(ulong upper_bound) {
-		return round(rand01()*(upper_bound - 1));
+		return ha_round(rand01()*(upper_bound - 1));
 	}
 };
 

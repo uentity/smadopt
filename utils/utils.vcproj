@@ -4,6 +4,7 @@
 	Version="8,00"
 	Name="utils"
 	ProjectGUID="{7D5E91A2-91B1-4841-B3FD-D990C508AC59}"
+	RootNamespace="ha_utils"
 	Keyword="Win32Proj"
 	>
 	<Platforms>
@@ -16,8 +17,8 @@
 	<Configurations>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory="Debug"
-			IntermediateDirectory="Debug"
+			OutputDirectory="build/Debug"
+			IntermediateDirectory="build/Debug"
 			ConfigurationType="2"
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
 			CharacterSet="2"
@@ -61,13 +62,13 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				OutputFile="$(SolutionDir)alldebug\utils.dll"
+				OutputFile="$(SolutionDir)exe/debug/ha_utils.dll"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories=""
 				GenerateDebugInformation="true"
-				ProgramDatabaseFile="$(OutDir)/utils.pdb"
+				ProgramDatabaseFile="$(OutDir)/$(TargetName).pdb"
 				SubSystem="2"
-				ImportLibrary="$(OutDir)/utils.lib"
+				ImportLibrary="$(TargetDir)/$(TargetName).lib"
 				TargetMachine="1"
 			/>
 			<Tool
@@ -97,8 +98,8 @@
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory="Release"
-			IntermediateDirectory="Release"
+			OutputDirectory="build/Release"
+			IntermediateDirectory="build/Release"
 			ConfigurationType="2"
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
 			CharacterSet="2"
@@ -139,15 +140,16 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				OutputFile="$(SolutionDir)allrelease\utils.dll"
+				OutputFile="$(SolutionDir)exe/release/ha_utils.dll"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories=""
 				IgnoreDefaultLibraryNames="libcmt"
 				GenerateDebugInformation="true"
+				ProgramDatabaseFile="$(OutDir)/$(TargetName).pdb"
 				SubSystem="2"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
-				ImportLibrary="$(OutDir)/utils.lib"
+				ImportLibrary="$(TargetDir)/$(TargetName).lib"
 				TargetMachine="1"
 			/>
 			<Tool
@@ -185,31 +187,31 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath=".\alg_except.cpp"
+				RelativePath=".\src\alg_except.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\alg_opt.cpp"
+				RelativePath=".\src\alg_opt.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\common.cpp"
+				RelativePath=".\src\common.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\m_algorithm.cpp"
+				RelativePath=".\src\m_algorithm.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\matrix.cpp"
+				RelativePath=".\src\matrix.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\prg.cpp"
+				RelativePath=".\src\prg.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\utils.cpp"
+				RelativePath=".\src\utils.cpp"
 				>
 			</File>
 		</Filter>
@@ -219,138 +221,138 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
-				RelativePath=".\alg_except.h"
+				RelativePath=".\src\alg_except.h"
 				>
 			</File>
 			<File
-				RelativePath=".\alg_opt.h"
+				RelativePath=".\src\alg_opt.h"
 				>
 			</File>
 			<File
-				RelativePath=".\common.h"
+				RelativePath=".\src\common.h"
 				>
 			</File>
 			<File
-				RelativePath=".\m_algorithm.h"
+				RelativePath=".\src\m_algorithm.h"
 				>
 			</File>
 			<File
-				RelativePath=".\matrix.h"
+				RelativePath=".\src\matrix.h"
 				>
 			</File>
 			<File
-				RelativePath=".\mbuf_traits.h"
+				RelativePath=".\src\mbuf_traits.h"
 				>
 			</File>
 			<File
-				RelativePath=".\prg.h"
+				RelativePath=".\src\prg.h"
 				>
 			</File>
 			<Filter
 				Name="jama"
 				>
 				<File
-					RelativePath=".\jama\jama_cholesky.h"
+					RelativePath=".\src\jama\jama_cholesky.h"
 					>
 				</File>
 				<File
-					RelativePath=".\jama\jama_eig.h"
+					RelativePath=".\src\jama\jama_eig.h"
 					>
 				</File>
 				<File
-					RelativePath=".\jama\jama_lu.h"
+					RelativePath=".\src\jama\jama_lu.h"
 					>
 				</File>
 				<File
-					RelativePath=".\jama\jama_qr.h"
+					RelativePath=".\src\jama\jama_qr.h"
 					>
 				</File>
 				<File
-					RelativePath=".\jama\jama_svd.h"
+					RelativePath=".\src\jama\jama_svd.h"
 					>
 				</File>
 				<File
-					RelativePath=".\jama\tnt.h"
+					RelativePath=".\src\jama\tnt.h"
 					>
 				</File>
 				<File
-					RelativePath=".\jama\tnt_array1d.h"
+					RelativePath=".\src\jama\tnt_array1d.h"
 					>
 				</File>
 				<File
-					RelativePath=".\jama\tnt_array1d_utils.h"
+					RelativePath=".\src\jama\tnt_array1d_utils.h"
 					>
 				</File>
 				<File
-					RelativePath=".\jama\tnt_array2d.h"
+					RelativePath=".\src\jama\tnt_array2d.h"
 					>
 				</File>
 				<File
-					RelativePath=".\jama\tnt_array2d_utils.h"
+					RelativePath=".\src\jama\tnt_array2d_utils.h"
 					>
 				</File>
 				<File
-					RelativePath=".\jama\tnt_array3d.h"
+					RelativePath=".\src\jama\tnt_array3d.h"
 					>
 				</File>
 				<File
-					RelativePath=".\jama\tnt_array3d_utils.h"
+					RelativePath=".\src\jama\tnt_array3d_utils.h"
 					>
 				</File>
 				<File
-					RelativePath=".\jama\tnt_cmat.h"
+					RelativePath=".\src\jama\tnt_cmat.h"
 					>
 				</File>
 				<File
-					RelativePath=".\jama\tnt_fortran_array1d.h"
+					RelativePath=".\src\jama\tnt_fortran_array1d.h"
 					>
 				</File>
 				<File
-					RelativePath=".\jama\tnt_fortran_array1d_utils.h"
+					RelativePath=".\src\jama\tnt_fortran_array1d_utils.h"
 					>
 				</File>
 				<File
-					RelativePath=".\jama\tnt_fortran_array2d.h"
+					RelativePath=".\src\jama\tnt_fortran_array2d.h"
 					>
 				</File>
 				<File
-					RelativePath=".\jama\tnt_fortran_array2d_utils.h"
+					RelativePath=".\src\jama\tnt_fortran_array2d_utils.h"
 					>
 				</File>
 				<File
-					RelativePath=".\jama\tnt_fortran_array3d.h"
+					RelativePath=".\src\jama\tnt_fortran_array3d.h"
 					>
 				</File>
 				<File
-					RelativePath=".\jama\tnt_fortran_array3d_utils.h"
+					RelativePath=".\src\jama\tnt_fortran_array3d_utils.h"
 					>
 				</File>
 				<File
-					RelativePath=".\jama\tnt_i_refvec.h"
+					RelativePath=".\src\jama\tnt_i_refvec.h"
 					>
 				</File>
 				<File
-					RelativePath=".\jama\tnt_math_utils.h"
+					RelativePath=".\src\jama\tnt_math_utils.h"
 					>
 				</File>
 				<File
-					RelativePath=".\jama\tnt_sparse_matrix_csr.h"
+					RelativePath=".\src\jama\tnt_sparse_matrix_csr.h"
 					>
 				</File>
 				<File
-					RelativePath=".\jama\tnt_stopwatch.h"
+					RelativePath=".\src\jama\tnt_stopwatch.h"
 					>
 				</File>
 				<File
-					RelativePath=".\jama\tnt_subscript.h"
+					RelativePath=".\src\jama\tnt_subscript.h"
 					>
 				</File>
 				<File
-					RelativePath=".\jama\tnt_vec.h"
+					RelativePath=".\src\jama\tnt_vec.h"
 					>
 				</File>
 				<File
-					RelativePath=".\jama\tnt_version.h"
+					RelativePath=".\src\jama\tnt_version.h"
 					>
 				</File>
 			</Filter>
@@ -361,10 +363,6 @@
 			UniqueIdentifier="{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}"
 			>
 		</Filter>
-		<File
-			RelativePath=".\ReadMe.txt"
-			>
-		</File>
 	</Files>
 	<Globals>
 	</Globals>

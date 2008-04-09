@@ -17,8 +17,8 @@
 	<Configurations>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory="Debug"
-			IntermediateDirectory="Debug"
+			OutputDirectory="build/Debug"
+			IntermediateDirectory="build/Debug"
 			ConfigurationType="2"
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
 			CharacterSet="2"
@@ -41,7 +41,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="$(ProjectDir);$(SolutionDir)utils;$(SolutionDir)ga;$(SolutionDir)nnet"
+				AdditionalIncludeDirectories="&quot;$(ProjectDir)/src&quot;;&quot;$(SolutionDir)utils/src&quot;"
 				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;__EXPORTING"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -63,13 +63,14 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				OutputFile="$(SolutionDir)alldebug\alg.dll"
+				AdditionalDependencies="ha_utils.lib"
+				OutputFile="$(SolutionDir)exe/debug/ha_alg.dll"
 				LinkIncremental="2"
-				AdditionalLibraryDirectories=""
+				AdditionalLibraryDirectories="&quot;$(SolutionDir)/exe/debug&quot;"
 				GenerateDebugInformation="true"
-				ProgramDatabaseFile="$(OutDir)/alg.pdb"
+				ProgramDatabaseFile="$(OutDir)$(TargetName).pdb"
 				SubSystem="2"
-				ImportLibrary="$(OutDir)/alg.lib"
+				ImportLibrary="$(TargetDir)/$(TargetName).lib"
 				TargetMachine="1"
 			/>
 			<Tool
@@ -99,8 +100,8 @@
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory="Release"
-			IntermediateDirectory="Release"
+			OutputDirectory="build/Release"
+			IntermediateDirectory="build/Release"
 			ConfigurationType="2"
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
 			CharacterSet="2"
@@ -122,7 +123,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="$(ProjectDir);$(SolutionDir)utils;$(SolutionDir)ga;$(SolutionDir)nnet"
+				AdditionalIncludeDirectories="&quot;$(ProjectDir)/src&quot;;&quot;$(SolutionDir)utils/src&quot;"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;__EXPORTING"
 				RuntimeLibrary="2"
 				RuntimeTypeInfo="true"
@@ -142,14 +143,16 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				OutputFile="$(SolutionDir)allrelease\alg.dll"
+				AdditionalDependencies="ha_utils.lib"
+				OutputFile="$(SolutionDir)exe/release/ha_alg.dll"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories=""
+				AdditionalLibraryDirectories="&quot;$(SolutionDir)/exe/release&quot;"
 				GenerateDebugInformation="true"
+				ProgramDatabaseFile="$(OutDir)$(TargetName).pdb"
 				SubSystem="2"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
-				ImportLibrary="$(OutDir)/alg.lib"
+				ImportLibrary="$(TargetDir)/$(TargetName).lib"
 				TargetMachine="1"
 			/>
 			<Tool
@@ -187,11 +190,11 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath=".\alg.cpp"
+				RelativePath=".\src\alg.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\alg_api.cpp"
+				RelativePath=".\src\alg_api.cpp"
 				>
 			</File>
 		</Filter>
@@ -201,7 +204,7 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
-				RelativePath=".\alg_api.h"
+				RelativePath=".\src\alg_api.h"
 				>
 			</File>
 		</Filter>
@@ -209,59 +212,63 @@
 			Name="nnet"
 			>
 			<File
-				RelativePath=".\ccn.h"
+				RelativePath=".\src\ccn.h"
 				>
 			</File>
 			<File
-				RelativePath=".\layer.h"
+				RelativePath=".\src\layer.h"
 				>
 			</File>
 			<File
-				RelativePath=".\mlp.h"
+				RelativePath=".\src\mlp.h"
 				>
 			</File>
 			<File
-				RelativePath=".\mnet.cpp"
+				RelativePath=".\src\mnet.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\mnet.h"
+				RelativePath=".\src\mnet.h"
 				>
 			</File>
 			<File
-				RelativePath=".\neuron.h"
+				RelativePath=".\src\neuron.h"
 				>
 			</File>
 			<File
-				RelativePath=".\nn_common.h"
+				RelativePath=".\src\nn_common.h"
 				>
 			</File>
 			<File
-				RelativePath=".\nn_except.cpp"
+				RelativePath=".\src\nn_except.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\nn_opt.cpp"
+				RelativePath=".\src\nn_opt.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\objnet.cpp"
+				RelativePath=".\src\nna_opt.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\objnet.h"
+				RelativePath=".\src\objnet.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\objnet_impl.h"
+				RelativePath=".\src\objnet.h"
 				>
 			</File>
 			<File
-				RelativePath=".\pca.h"
+				RelativePath=".\src\objnet_impl.h"
 				>
 			</File>
 			<File
-				RelativePath=".\rbn.h"
+				RelativePath=".\src\pca.h"
+				>
+			</File>
+			<File
+				RelativePath=".\src\rbn.h"
 				>
 			</File>
 		</Filter>
@@ -269,39 +276,35 @@
 			Name="ga"
 			>
 			<File
-				RelativePath=".\ga.cpp"
+				RelativePath=".\src\ga.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\ga.h"
+				RelativePath=".\src\ga.h"
 				>
 			</File>
 			<File
-				RelativePath=".\ga_common.h"
+				RelativePath=".\src\ga_common.h"
 				>
 			</File>
 			<File
-				RelativePath=".\ga_opt.cpp"
+				RelativePath=".\src\ga_opt.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\ga_stat.cpp"
+				RelativePath=".\src\ga_stat.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\nn_addon.cpp"
+				RelativePath=".\src\nn_addon.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\nn_addon.h"
+				RelativePath=".\src\nn_addon.h"
 				>
 			</File>
 			<File
-				RelativePath=".\nn_addon_common.h"
-				>
-			</File>
-			<File
-				RelativePath=".\nna_opt.cpp"
+				RelativePath=".\src\nn_addon_common.h"
 				>
 			</File>
 		</Filter>
@@ -309,19 +312,19 @@
 			Name="kmeans"
 			>
 			<File
-				RelativePath=".\km_opt.cpp"
+				RelativePath=".\src\km_opt.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\kmeans.cpp"
+				RelativePath=".\src\kmeans.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\kmeans.h"
+				RelativePath=".\src\kmeans.h"
 				>
 			</File>
 			<File
-				RelativePath=".\kmeans_common.h"
+				RelativePath=".\src\kmeans_common.h"
 				>
 			</File>
 		</Filter>
@@ -331,10 +334,6 @@
 			UniqueIdentifier="{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}"
 			>
 		</Filter>
-		<File
-			RelativePath=".\ReadMe.txt"
-			>
-		</File>
 	</Files>
 	<Globals>
 	</Globals>

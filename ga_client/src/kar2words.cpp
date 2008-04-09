@@ -8,6 +8,7 @@
 #include <iostream>
 
 using namespace std;
+using namespace hybrid_adapt;
 
 Matrix interp(const Matrix& src, int new_dim)
 {
@@ -57,7 +58,7 @@ void find_word(int nVars, int nPopSize, double* pPop, double* pScore)
 			if(pos >= kar.size() - 1)
 				break;
 			if(j < nVars - 1)
-				k = min<ulong>(round(chrom[j]*kar.size()/sk), kar.size() - pos);
+				k = min<ulong>(ha_round(chrom[j]*kar.size()/sk), kar.size() - pos);
 			else k = kar.size() - pos;
 			if(k < 2) continue;
 
