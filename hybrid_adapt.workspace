@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <CodeBlocks_workspace_file>
 	<Workspace title="Workspace">
-		<Project filename="utils/ha_utils.cbp" active="1" />
+		<Project filename="utils/ha_utils.cbp" />
+		<Project filename="alg/ha_alg.cbp">
+			<Depends filename="utils/ha_utils.cbp" />
+		</Project>
+		<Project filename="ga_client/ga_client.cbp" active="1">
+			<Depends filename="utils/ha_utils.cbp" />
+			<Depends filename="alg/ha_alg.cbp" />
+		</Project>
 	</Workspace>
 </CodeBlocks_workspace_file>

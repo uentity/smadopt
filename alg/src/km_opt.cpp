@@ -24,7 +24,7 @@ void km_opt::set_def_opt(bool create_defs)
 void km_opt::set_embopt_def(iopt_ref emb_opt)
 {
 	//emb_opt.set_def_opt();
-	if(emb_opt.get_opt_type() == "ga_opt") {
+	if(std::string(emb_opt.get_opt_type()) == "ga_opt") {
 		ga_opt* pGA = (ga_opt*)emb_opt.get_wrapper_opt();
 		pGAopt = pGA;
 		pGA->iniFname_ = iniFname_;
@@ -64,7 +64,7 @@ void km_opt::set_data_opt(const data_opt* pOpt)
 {
 	if(pOpt == NULL) return;
 	wrapper_opt::set_data_opt(pOpt);
-	
+
 	iopt_ptr piOpt;
 	if((piOpt = get_embopt("ga_opt")))
 		piOpt->SetOptions(pOpt->pGAopt);
@@ -76,7 +76,7 @@ bool km_opt::process_option(std::istream& inif, std::string& word)
 	const string sNormT = " Euclidian";
 	const string sSeedT = " Sample Uniform";
 	const string sECPol = " DoNothing Drop Singleton";
-	
+
 	ulong nPos;
 	if((nPos = word_pos(sOpts, word)) > 0) {
 		switch(nPos) {

@@ -470,7 +470,7 @@ bool nn_addon::InitStd(ulong addon_count, ulong chromLength, const Matrix& searc
 		//set input size
 		net_.SetInputSize(chromLength);
 		//set layers
-		for(int i=0; i<opt_.layers_.size(); ++i)
+		for(ulong i=0; i<opt_.layers_.size(); ++i)
 			net_.SetLayer(i, opt_.layers_[i], opt_.lTypes_[i]);
 		state_.init_nn = true;
 	}
@@ -479,7 +479,7 @@ bool nn_addon::InitStd(ulong addon_count, ulong chromLength, const Matrix& searc
 			(*p_net)->set_input_size(chromLength);
 			switch(opt_.netType) {
 				case mlp_nn:
-					for(int i=0; i<opt_.layers_.size(); ++i)
+					for(ulong i=0; i<opt_.layers_.size(); ++i)
 						((mlp*)(*p_net).get())->add_layer(opt_.layers_[i], opt_.lTypes_[i]);
 					state_.init_nn = true;
 					break;
@@ -548,7 +548,7 @@ bool nn_addon::InitAlt(ulong addon_count, ulong chromLength, const Matrix& searc
 	state_.init_nn = false;
 	if(opt_.netType == matrix_nn) {
 		net_.SetInputSize(1);
-		for(int i=0; i < opt_.layers_.size(); ++i)
+		for(ulong i=0; i < opt_.layers_.size(); ++i)
 			net_.SetLayer(i, opt_.layers_[i], opt_.lTypes_[i]);
 		state_.init_nn = true;
 	}
@@ -557,7 +557,7 @@ bool nn_addon::InitAlt(ulong addon_count, ulong chromLength, const Matrix& searc
 			(*p_net)->set_input_size(1);
 			switch(opt_.netType) {
 				case mlp_nn:
-					for(int i=0; i < opt_.layers_.size(); ++i)
+					for(ulong i=0; i < opt_.layers_.size(); ++i)
 						((mlp*)(*p_net).get())->add_layer(opt_.layers_[i], opt_.lTypes_[i]);
 					state_.init_nn = true;
 					break;
@@ -861,10 +861,11 @@ Matrix nn_addon::_kmeans_filter(const Matrix& p, const Matrix& f, Matrix& lp, Ma
 	//do a clusterization of learning data
 	//kmeans km;
 	//state_.km.opt_.nu = 0.0001;
-	//Matrix c = state_.km.drops_hetero_simple(p, f, opt_.kmf_cmult, 200);
-	state_.km.find_clusters_f(p, f, max< ulong >(p.row_num() * opt_.kmf_cmult, 1), 200, NULL, false);
-	//_state.km.find_clusters(p, max<ulong>(p.row_num() * opt_.kmf_cmult, 1), 200, false, NULL, true);
-	//_state.km.opt_.use_prev_cent = true;
+	state_.km.drops_hetero_simple(p, f, opt_.kmf_cmult, 200);
+	//state_.km.find_clusters_f(p, f, max< ulong >(p.row_num() * opt_.kmf_cmult, 1), 200, NULL, false);
+
+	//state_.km.find_clusters(p, max<ulong>(p.row_num() * opt_.kmf_cmult, 1), 200, false, NULL, true);
+	//state_.km.opt_.use_prev_cent = true;
 
 	Matrix c = state_.km.get_centers();
 	ulMatrix ind = state_.km.get_ind();
@@ -900,7 +901,7 @@ Matrix nn_addon::_kmeans_filter(const Matrix& p, const Matrix& f, Matrix& lp, Ma
 		ulong* cur_aff = (ulong*)&aff[ci[c_ind]][0];
 		for(ulong j = 0; j < aff[ci[c_ind]].size(); ++j) {
 			lp &= p.GetRows(cur_aff[j]); lf &= f.GetRows(cur_aff[j]);
-			if(lp.row_num() >= opt_.bestCount) learn_built = true;
+			if(lp.row_num() >= (ulong)opt_.bestCount) learn_built = true;
 			if(!search_built) ++search_bound;
 		}
 		/*

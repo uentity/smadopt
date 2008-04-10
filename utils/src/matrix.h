@@ -171,7 +171,7 @@ public:
 				pos_ -= data_->size();
 				if(!cycled_) {
 					++pos_;
-					if(pos_ - data_->begin() >= cols_)
+					if((size_type)(pos_ - data_->begin()) >= cols_)
 						pos_ = data_->end();
 					//if(pos_ - data_->buf_begin() >= cols_) pos_ -= cols_;
 				}
@@ -193,7 +193,7 @@ public:
 					pos_ = data_->begin() + (pos_ - data_->end()) % data_->size();
 				else {
 					pos_ += 1 - data_->size();
-					if(pos_ - data_->begin() >= cols_) pos_ = data_->end();
+					if((size_type)(pos_ - data_->begin()) >= cols_) pos_ = data_->end();
 				}
 			}
 
@@ -217,7 +217,7 @@ public:
 				pos_ += data_->size();
 				if(!cycled_) {
 					--pos_;
-					if(data_->end() - pos_ > cols_) pos_ = data_->begin();
+					if((size_type)(data_->end() - pos_) > cols_) pos_ = data_->begin();
 					//if(data_->buf_end() - pos_ > cols_) pos_ += cols_;
 				}
 			}
@@ -238,7 +238,7 @@ public:
 					pos_ = data_->end() - (data_->begin() - pos_)%data_->size();
 				else {
 					pos_ += data_->size() - 1;
-					if(data_->end() - pos_ > cols_) pos_ = data_->begin();
+					if((size_type)(data_->end() - pos_) > cols_) pos_ = data_->begin();
 				}
 			}
 

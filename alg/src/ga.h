@@ -72,7 +72,7 @@ namespace GA {
 		void inline _print_err(const char* pErr);
 		ulong inline _getXoverParentsCount(ulong xoverKidsCount);
 		double inline _nonUniformMutDelta(ulong t, double y);
-		inline void _sepRepeats(Matrix& source, const ulMatrix& rep_ind, Matrix* pRepeats = NULL, 
+		inline void _sepRepeats(Matrix& source, const ulMatrix& rep_ind, Matrix* pRepeats = NULL,
 			ul_vec* pPrevReps = NULL);
 		inline void _filterParents(Matrix& thisPop, Matrix& thisScore, ulong parents_num);
 		inline Matrix _restoreScore(const Matrix& newScore, const ulMatrix& reps);
@@ -186,10 +186,10 @@ namespace GA {
 		void SetOptions(const gaOptions* pOpt = NULL);
 		bool SetAddonOptions(const void* pOpt, ulong addon_num = 0);
 		void* GetAddonOptions(ulong addon_num = 0);
-		
+
 		Matrix InterpretBitPop(const Matrix& bit_pop);
 		Matrix Convert2BitPop(const Matrix& pop);
-		ga_addon* const GetAddonObject(ulong addon_num) const;
+		ga_addon* GetAddonObject(ulong addon_num);
 
 		const ga_stat& GetStatistics() { return stat_; }
 	};

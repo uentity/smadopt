@@ -135,7 +135,7 @@ void VspWrapperSum(int nVars, int nPopSize, const double* pPop, double* pScore, 
 	//Matrix res(nPopSize, 1);
 	//res = 0;
 	ulong offs = 0, score_offs = 0;
-	for(ulong i = 0; i<vspNum; ++i) {
+	for(ulong i = 0; i < (ulong)vspNum; ++i) {
 		(*f)(nspVars, nPopSize, &(pop.GetColumns(offs, nspVars) - deliver_mult*i)[0], &score[score_offs]);
 		//score.SetColumns(curScore, i);
 		//res += curScore;
@@ -159,7 +159,7 @@ void VspWrapperOverlap(int nVars, int nPopSize, const double* pPop, double* pSco
 	res = 0;
 	int offs = 0;
 	ulong subpop_sz;
-	for(ulong i = 0; i < vspNum; ++i) {
+	for(ulong i = 0; i < (ulong)vspNum; ++i) {
 		subpop_sz = min(nVars + overlap, nVars - offs);
 		(*f)(subpop_sz, nPopSize, &(pop.GetColumns(offs, subpop_sz) - deliver_mult*i)[0], &curScore[0]);
 		score.SetColumns(curScore, i);
@@ -182,7 +182,7 @@ void VspWrapperDep(int nVars, int nPopSize, const double* pPop, double* pScore, 
 
 	int offs = 0;
 	//calc average X over VSP
-	for(ulong i = 0; i < vspNum; ++i) {
+	for(ulong i = 0; i < (ulong)vspNum; ++i) {
 		//subpop = pop; subpop.DelColumns(offs, nspVars);
 		//dep_col |= subpop.vMean(true);
 		dep_col |= pop.GetColumns(offs, nspVars).vMean(true) * infl_factor;
@@ -190,10 +190,10 @@ void VspWrapperDep(int nVars, int nPopSize, const double* pPop, double* pScore, 
 	}
 	offs = 0;
 	//calc objectives
-	for(ulong i = 0; i < vspNum; ++i) {
+	for(ulong i = 0; i < (ulong)vspNum; ++i) {
 		subpop <<= pop.GetColumns(offs, nspVars) - deliver_mult*i;
 		//subpop |= dep_col.GetColumns(i);
-		for(ulong j = 0; j < vspNum; ++j)
+		for(ulong j = 0; j < (ulong)vspNum; ++j)
 			if(j != i) subpop |= dep_col.GetColumns(j);
 
 		(*f)(subpop.col_num(), nPopSize, &subpop[0], &curScore[0]);
@@ -214,7 +214,7 @@ void VspWrapperMultInfl(int nVars, int nPopSize, const double* pPop, double* pSc
 	Matrix res(nPopSize, 1);
 
 	ulong offs = 0, score_offs = 0;
-	for(ulong i = 0; i<vspNum; ++i) {
+	for(ulong i = 0; i < (ulong)vspNum; ++i) {
 		(*f)(nspVars, nPopSize, &(pop.GetColumns(offs, nspVars) - deliver_mult*i)[0], &curScore[score_offs]);
 		offs += nspVars;
 		score_offs += nPopSize;
@@ -232,7 +232,7 @@ void VspWrapperMultInfl(int nVars, int nPopSize, const double* pPop, double* pSc
 
 		curScore <<= score.GetColumns(i);
 		offs = 0;
-		for(ulong j = 0; j < vspNum; ++j) {
+		for(ulong j = 0; j < (ulong)vspNum; ++j) {
 			if(j != i) {
 				(*f)(nspVars, nPopSize, &pop.GetColumns(offs, nspVars)[0], &tmp[0]);
 				//tmp <<= score.GetColumns(j);
@@ -274,20 +274,20 @@ void PolynomFcn(int nVars, int nPopSize, const double* pPop, double* pScore)
 		add_coeffs = g_a.GetRows(g_a.row_num() - 1);
 	}
 	//extract coeffs in row
-	for(ulong i=0; i<nVars; ++i)
+	for(ulong i=0; i < (ulong)nVars; ++i)
 		a_row |= g_a.GetRows(i).GetColumns(i, g_a.col_num() - i);
 
 	int offs;
 	double dSum;
-	for(ulong i = 0; i<nPopSize; ++i) {
+	for(ulong i = 0; i < (ulong)nPopSize; ++i) {
 		//calc result for cur chrom
 		chrom = pop.GetRows(i) + add_coeffs;
 		pol = (!chrom)*chrom;
 		//calc each subpop results
 		offs = 0;
-		for(ulong j=0; j<vspNum; ++j) {
+		for(ulong j=0; j < (ulong)vspNum; ++j) {
 			dSum = 0;
-			for(ulong k=0; k<nspVars; ++k)
+			for(ulong k=0; k < (ulong)nspVars; ++k)
 				dSum += pol.GetRows(offs + k).GetColumns(offs + k, nspVars - k).Mul(g_a.GetRows(offs + k).GetColumns(offs + k, nspVars - k)).Sum();
 			dSum += chrom.GetColumns(offs, nspVars).Mul(mul_coeffs.GetColumns(offs, nspVars)).Sum();
 

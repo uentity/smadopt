@@ -34,7 +34,7 @@ void lu_gepp(Matrix& m)
 		}
 		//exchange i & ind_max
 		if(ind_max != i) m.permutate_rows(i, ind_max);
-		
+
 		// L
 		p_col = p_row;
 		transform(++p_col, p_col + (n - i), p_col, bind2nd(divides<double>(), max_col));
@@ -68,8 +68,8 @@ void assign_mat_ar2d(Matrix& m, const Array2D<double>& a)
 {
 	m.NewMatrix(a.dim1(), a.dim2());
 	Matrix::r_iterator p_m(m.begin());
-	for(ulong i = 0; i < a.dim1(); ++i)
-		for(ulong j = 0; j < a.dim2(); ++j) {
+	for(long i = 0; i < a.dim1(); ++i)
+		for(long j = 0; j < a.dim2(); ++j) {
 			*p_m = a[i][j];
 			++p_m;
 		}

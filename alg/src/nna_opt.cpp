@@ -140,7 +140,7 @@ void nna_opt::set_embopt_def(iopt_ref emb_opt)
 	//string a_name = GetName();
 
 	//emb_opt.set_def_opt();
-	if(emb_opt.get_opt_type() == "ga_opt") {
+	if(std::string(emb_opt.get_opt_type()) == "ga_opt") {
 		//set inner ga options
 		ga_opt* pGAo = (ga_opt*)emb_opt.get_wrapper_opt();
 		pInnerGAOpt = pGAo;
@@ -155,7 +155,7 @@ void nna_opt::set_embopt_def(iopt_ref emb_opt)
 		pGAo->iniFname_ = "nn_addon_ga.ini";
 		emb_opt.update_embopt_defs();
 	}
-	else if(emb_opt.get_opt_type() == "mnn_opt") {
+	else if(std::string(emb_opt.get_opt_type()) == "mnn_opt") {
 		mnn_opt* pMNNo = (mnn_opt*)emb_opt.get_wrapper_opt();
 		pMNNo->goal = 0.01;
 		pMNNo->maxCycles = 200;
@@ -172,7 +172,7 @@ void nna_opt::set_embopt_def(iopt_ref emb_opt)
 		pMNNo->iniFname_ = "nn.ini";
 		emb_opt.update_embopt_defs();
 	}
-	else if(emb_opt.get_opt_type() == "nn_opt") {
+	else if(std::string(emb_opt.get_opt_type()) == "nn_opt") {
 		nn_opt* pNNo = (nn_opt*)emb_opt.get_wrapper_opt();
 		pNNo->set_def_opt();
 		pNNo->goal = 0.01;
@@ -189,7 +189,7 @@ void nna_opt::set_embopt_def(iopt_ref emb_opt)
 		pNNo->iniFname_ = "nn.ini";
 		emb_opt.update_embopt_defs();
 	}
-	else if(emb_opt.get_opt_type() == "km_opt") {
+	else if(std::string(emb_opt.get_opt_type()) == "km_opt") {
 		km_opt& kmo = *(km_opt*)emb_opt.get_wrapper_opt();
 		pKMopt = &kmo;
 		//read options from the same file

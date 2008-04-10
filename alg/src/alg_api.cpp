@@ -20,7 +20,7 @@ void SetGAOptions(const void* pGAopts)
 	//TODO: this is only for PPP
 	((gaOptions*)pGAopts)->addonCount = 1;
 
-	g_ga.SetOptions((gaOptions*)pGAopts);	
+	g_ga.SetOptions((gaOptions*)pGAopts);
 }
 
 void* GetGAOptions()
@@ -62,7 +62,7 @@ const char* GetGAFname(int ga_fname)
 
 const char* GetAddonFname(int addon_fname, int addon_num)
 {
-	ga_addon* const pAddon = g_ga.GetAddonObject(addon_num);
+	const ga_addon* pAddon = g_ga.GetAddonObject(addon_num);
 	if(pAddon) return pAddon->GetFname(addon_fname);
 	else return NULL;
 }
@@ -89,7 +89,7 @@ bool SetGAFname(int ga_fname, const char* pNewFname)
 
 bool SetAddonFname(int addon_fname, unsigned long addon_num, const char* pNewFname)
 {
-	ga_addon* const pAddon = g_ga.GetAddonObject(addon_num);
+	ga_addon* pAddon = g_ga.GetAddonObject(addon_num);
 	if(pAddon) return pAddon->SetFname(addon_fname, pNewFname);
 	else return false;
 }

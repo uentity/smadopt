@@ -763,8 +763,8 @@ Matrix ga::CreationUniform()
 	prg::prepare_streams(GenLen_);
 
 	Matrix initPop(opt_.popSize, GenLen_);
-	for(ulong i=0; i<opt_.popSize; ++i) {
-		for(ulong j=0; j<GenLen_; ++j) {
+	for(ulong i=0; i < (ulong)opt_.popSize; ++i) {
+		for(ulong j=0; j < (ulong)GenLen_; ++j) {
 			prg::switch_stream(j + 1);
 			if(opt_.useBitString)
 				initPop(i, j) = prg::rand01() < 0.5 ? 0 : 1;
@@ -1136,7 +1136,7 @@ Matrix ga::VSPStepGA(const Matrix& thisPop, const Matrix& thisScore, ul_vec& eli
 	for(ulong i = 0; i < vm_subpop.size(); ++i) {
 		//manually find best
 		srt_ind = state_.mainScore.GetRows(h_offs, opt_.hspSize[i]).RawSort();
-		for(ulong j=0; j < opt_.eliteCount; ++j) {
+		for(ulong j=0; j < (ulong)opt_.eliteCount; ++j) {
 			elite_ind.push_back(j + h_offs);
 			newPop &= thisPop.GetRows(srt_ind[j] + h_offs);
 		}
@@ -1703,7 +1703,7 @@ Matrix ga::Run(FitnessFcnCallback FitFcn, int genomeLength, bool bReadOptFromIni
 
 			InformWorld();
 
-			if(state_.nStallGen == opt_.stallGenLimit) {
+			if(state_.nStallGen == (ulong)opt_.stallGenLimit) {
 				state_.nStatus = FinishStallGenLim;
 				//break;
 			}
@@ -1814,7 +1814,7 @@ bool ga::NextPop(double* pPrevScore, double* pNextPop, unsigned long* pPopSize)
 
 		InformWorld();
 
-		if(state_.nStallGen == opt_.stallGenLimit) {
+		if(state_.nStallGen == (ulong)opt_.stallGenLimit) {
 			throw (int)FinishStallGenLim;
 			//state_.nStatus = FinishStallGenLim;
 			//FinishGA(pNextPop, pPrevScore);
@@ -2082,7 +2082,7 @@ Matrix Read2rows(istream& is)
 	string sWord;
 	Matrix val(1, 1);
 	Matrix row(1, 1);
-	int nPos = 0;
+	uint nPos = 0;
 	while(is >> sWord) {
 		val[0] = atof(sWord.c_str());
 		if(nPos == 0) row[0] = val[0];
@@ -2221,7 +2221,7 @@ void ga::AddonsCreation()
 	//}
 }
 
-ga_addon* const ga::GetAddonObject(ulong addon_num) const
+ga_addon* ga::GetAddonObject(ulong addon_num)
 {
 	if(addon_num >= apAddon_.size()) return NULL;
 	else return apAddon_[addon_num].get();
@@ -2289,7 +2289,7 @@ void ga::ValidateOptions()
 		opt_.vspSize.NewMatrix(0, 0);
 	}
 
-	if(opt_.eliteCount < 0 || opt_.eliteCount >= popS) {
+	if(opt_.eliteCount < 0 || (ulong)opt_.eliteCount >= popS) {
 		//_print_err("WRN: Elite count exeeds possible bounds - corrected");
 		opt_.eliteCount = max<uint>(0, min<uint>(2, popS - 1));
 	}
