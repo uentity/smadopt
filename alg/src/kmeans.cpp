@@ -169,7 +169,7 @@ private:
 	void gen_uniform_cent(const Matrix& bound, const Matrix& dim, Matrix& dv, drops_map& drops, const double quant);
 
 	template< int method >
-	Matrix calc_dist_matrix(const Matrix& data, double& md, double& qd);
+	Matrix calc_dist_matrix(const Matrix& data, double& md, double& qd, double& mnnd);
 
 public:
 
@@ -620,7 +620,7 @@ void kmeans::kmeans_impl::online_phase_simple(ulong maxiter)
 }
 
 template< >
-Matrix kmeans::kmeans_impl::calc_dist_matrix< 0 >( const Matrix& data, double& md, double& qd )
+Matrix kmeans::kmeans_impl::calc_dist_matrix< 0 >( const Matrix& data, double& md, double& qd, double& mnnd )
 {
 	//check for empty input matrix
 	assert(data.size());
@@ -628,10 +628,12 @@ Matrix kmeans::kmeans_impl::calc_dist_matrix< 0 >( const Matrix& data, double& m
 	Matrix data_cpy(data.row_num(), data.col_num(), data.GetBuffer());
 	Matrix dist(data.row_num(), data.row_num()), dist_row(1, data.row_num()), dv, norm;
 
+	const double mult = 2.0/(data.row_num()*(data.row_num() - 1));
+	const double mult1 = 1.0/data.row_num();
+
 	double md2 = 0;
-	double mult = 2.0/(data.row_num()*(data.row_num() - 1));
 	double mind = 0, cur_md;
-	md = 0;
+	md = 0; mnnd = 0;
 	for(ulong i = 0; i < data.row_num() - 1; ++i) {
 		dv <<= data_cpy.GetRows(0);
 		data_cpy.DelRows(0);
@@ -641,9 +643,11 @@ Matrix kmeans::kmeans_impl::calc_dist_matrix< 0 >( const Matrix& data, double& m
 		dist.SetRows(dist_row, i);
 		//calc mean
 		md += mult * norm.Sum();
-		//calc min distance
+		//calc distance to nearest neighbour
 		cur_md = norm.Min();
 		if(i == 0 || cur_md < mind) mind = cur_md;
+		//update mean distance to nearest neighbour
+		mnnd += cur_md * mult1;
 		//norm = norm^2
 		transform(norm, norm, multiplies<double>());
 		//calc mean(norm^2)
@@ -656,10 +660,11 @@ Matrix kmeans::kmeans_impl::calc_dist_matrix< 0 >( const Matrix& data, double& m
 }
 
 template< >
-Matrix kmeans::kmeans_impl::calc_dist_matrix< 1 >( const Matrix& data, double& md, double& qd )
+Matrix kmeans::kmeans_impl::calc_dist_matrix< 1 >( const Matrix& data, double& md, double& qd, double& mnnd )
 {
-	ulong points_num = data.row_num();
-	double mult = 2.0/(points_num * (points_num - 1));
+	const ulong points_num = data.row_num();
+	const double mult = 2.0/(points_num * (points_num - 1));
+	const double mult1 = 1.0/data.row_num();
 	//calc distances from each point to each other point
 	Matrix dv, norm, _data;
 	//Matrix _data(data.row_num(), data.col_num(), data.GetBuffer());
@@ -668,7 +673,7 @@ Matrix kmeans::kmeans_impl::calc_dist_matrix< 1 >( const Matrix& data, double& m
 	//double tmp;
 	double cur_mind;
 
-	md = 0;
+	md = 0; mnnd = 0;
 	for(ulong i = 0; i < points_num - 1; ++i) {
 		dv <<= data.GetRows(i);
 		dist_row = 0;
@@ -687,6 +692,8 @@ Matrix kmeans::kmeans_impl::calc_dist_matrix< 1 >( const Matrix& data, double& m
 		cur_mind = *min_element(dist_row.begin() + i + 1, dist_row.end());
 		if(i == 0 || cur_mind < mind) mind = cur_mind;
 		md += mult * dist_row.Sum();
+		//update mean distance to nearest neighbour
+		mnnd += cur_mind * mult1;
 
 		//set first elements of dist_row
 		if(i > 0) {
@@ -717,7 +724,7 @@ bool kmeans::kmeans_impl::join_phase(ulong maxiter)
 {
 	//find closest centers
 	//first calc distance matrix
-	double md, qd;
+	double md, qd, mnnd;
 	Matrix dist;
 	Matrix::indMatrix asc_di;
 	//merged centers indexes
@@ -730,10 +737,10 @@ bool kmeans::kmeans_impl::join_phase(ulong maxiter)
 	pat_sel& ps = get_ps();
 
 	//calc distances matrix
-	dist <<= calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(c_, md, qd);
+	dist <<= calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(c_, md, qd, mnnd);
 	//sort distances by ascending
 	asc_di <<= dist.RawSort();
-	//remove indixes of first zero elements
+	//remove indexes of first zero elements
 	asc_di.DelColumns(0, c_.row_num());
 	//remove indexes of every second duplicating element
 	for(ulong i = dist.size() - 1; i < dist.size(); i-=2)
@@ -904,8 +911,8 @@ Matrix kmeans::kmeans_impl::drops_homo(const Matrix& data, const Matrix& f, doub
 	}
 
 	//calc distance matrix
-	double md, qd;
-	Matrix dist = calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(data, md, qd);
+	double md, qd, mnnd;
+	Matrix dist = calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(data, md, qd, mnnd);
 	//calc drop radius
 	const double drop_r = (md - qd)*quant_mult;
 	//const double drop_r = 2*mind;
@@ -1026,8 +1033,8 @@ Matrix kmeans::kmeans_impl::drops_hetero(const Matrix& data, const Matrix& f, do
 	const double rev_dim = 1.0/dim;
 
 	//calc distance matrix
-	double md, qd;
-	Matrix dist = calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(data, md, qd);
+	double md, qd, mnnd;
+	Matrix dist = calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(data, md, qd, mnnd);
 	//calc drop radius
 	const double quant = (md - qd)*quant_mult;
 	//const double quant = 2*mind;
@@ -1222,10 +1229,10 @@ Matrix kmeans::kmeans_impl::drops_hetero_map(const Matrix& data, const Matrix& f
 	const double rev_dim = 1.0/dim;
 
 	//calc distance matrix
-	double md, qd;
-	Matrix dist = calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(data, md, qd);
+	double md, qd, mnnd;
+	Matrix dist = calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(data, md, qd, mnnd);
 	//calc drop radius
-	const double quant = (md - qd)*quant_mult;
+	const double quant = mnnd; //(md - qd)*quant_mult;
 	//const double quant = 2*mind;
 	const double quant_v = pow(quant, dim);
 
@@ -1387,10 +1394,10 @@ Matrix kmeans::kmeans_impl::drops_hetero_simple(const Matrix& data, const Matrix
 	const double rev_dim = 1.0/dim;
 
 	//calc distance matrix
-	double md, qd;
-	Matrix dist = calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(data, md, qd);
+	double md, qd, mnnd;
+	Matrix dist = calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(data, md, qd, mnnd);
 	//calc drop radius
-	const double quant = (md - qd)*quant_mult;
+	const double quant = mnnd; //(md - qd)*quant_mult;
 	_drop_params::init_r_ = quant;
 	//const double quant = 2*mind;
 	//const double quant_v = pow(quant, dim);

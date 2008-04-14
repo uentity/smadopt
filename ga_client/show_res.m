@@ -7,7 +7,8 @@ real_c = load('real_c.txt');
 ind = ind + 1;
 
 %sequental colored cluster plot
-cm = colormap('lines');
+%cm = colormap('lines');
+cm = colormap('gmap40');
 hold on
 for i=1:size(centers, 1)
     ind_c = find(ind == i);
