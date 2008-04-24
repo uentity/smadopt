@@ -562,8 +562,8 @@ void TestKmeans()
 	km.opt_.seed_t = KM::sample;
 	//km.find_clusters(t, 10, 200);
 
-	//km.find_clusters_f(t, f, f.size()*0.3, 200);
-	km.drops_hetero_map(t, f, f.size()*0.5, 200);
+	km.find_clusters_f(t, f, f.size()*0.5, 200);
+	//km.drops_hetero_simple(t, f, 0.7, 200);
 	const Matrix c = km.get_centers();
 
 	//Matrix c;
@@ -599,7 +599,7 @@ int main(int argc, char* argv[])
 		TestKmeans();
 	}
 	else
-		TestFcnOpt(5, rastrigins);
+		TestFcnOpt(2, rastrigins);
 	//Kar2Words();
 	//vsp_test_mig_rates();
 

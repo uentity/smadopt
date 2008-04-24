@@ -8,11 +8,11 @@ ind = ind + 1;
 
 %sequental colored cluster plot
 %cm = colormap('lines');
-cm = colormap('gmap40');
+cm = colormap(gmap40(size(centers, 1)))
 hold on
 for i=1:size(centers, 1)
     ind_c = find(ind == i);
-    plot3(p(ind_c, 1), p(ind_c, 2), f(ind_c), '.', 'MarkerSize', 14, 'MarkerEdgeColor', cm(i, :));
+    plot3(p(ind_c, 1), p(ind_c, 2), f(ind_c), '+3', 'MarkerSize', 14, 'MarkerEdgeColor', cm(i, :));
     plot3(centers(i, 1), centers(i, 2), zeros(1, 1), 'vk', 'LineWidth', 2, 'MarkerSize', 11, 'MarkerFaceColor', 'r');
 end
 plot3(real_c(:, 1), real_c(:, 2), zeros(size(real_c, 1), 1), 'ok', 'LineWidth', 3, 'MarkerSize', 12);

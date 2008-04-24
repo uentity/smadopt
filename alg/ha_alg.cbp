@@ -48,6 +48,8 @@
 		<Unit filename="src/alg_api.cpp" />
 		<Unit filename="src/alg_api.h" />
 		<Unit filename="src/ccn.h" />
+		<Unit filename="src/determ_annealing.cpp" />
+		<Unit filename="src/determ_annealing.h" />
 		<Unit filename="src/ga.cpp" />
 		<Unit filename="src/ga.h" />
 		<Unit filename="src/ga_common.h" />

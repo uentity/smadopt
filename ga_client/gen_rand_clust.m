@@ -3,8 +3,8 @@ rand('state',sum(100*clock));
 
 %generate cluster centers
 range = [-3 3];
-%cs = gen_rastr_cent(clust_num, range);
-cs = gen_rand_cent(clust_num, range);
+cs = gen_rastr_cent(clust_num, range);
+%cs = gen_rand_cent(clust_num, range);
 
 randn('state',sum(100*clock));
 points = [];
@@ -13,11 +13,11 @@ for i = 1:clust_num
     dist = cs - repmat(cs(i, :), clust_num, 1);
     dist = dist.*dist;
     dist = sqrt(sum(dist'));
-    mult = min(dist(find(dist > 0)))*0.5;
+    mult = min(dist(find(dist > 0)))*0.25;
     %mult = 10;
     
     cur_cp = repmat(cs(i, :), p_num, 1);
-    distr = randn(size(cur_cp))*0.5*mult;
+    distr = randn(size(cur_cp))*mult;
     p = cur_cp + distr;
     points = [points; p];
     %calc f
@@ -25,9 +25,12 @@ for i = 1:clust_num
     
     %simple parabola
     cur_f = sqrt(sum((distr.*distr)')');
+
+    %gauss bell
+    %cur_f = exp(sum((distr.*distr)')');
     
     %use rastrigin's function
-    %cur_f = rastriginsfcn(p);
+    cur_f = rastriginsfcn(p);
     
     f = [f; cur_f];
 end

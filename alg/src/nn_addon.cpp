@@ -694,8 +694,8 @@ int nn_addon::_learn_network(const Matrix& input, const Matrix& targets, ulong n
 					pInformer = StandardInformer;
 					break;
 				case ccn_nn:
-					if(state_.init_nn && opt_.samples_filter != GA::best_filter)
-						((ccn*)p_net)->add_rb_layer(inp, tar, state_.learn_cl_cent, opt_.rbn_cmult);
+					//if(state_.init_nn && opt_.samples_filter != GA::best_filter)
+					//	((ccn*)p_net)->add_rb_layer(inp, tar, state_.learn_cl_cent, opt_.rbn_cmult);
 					pInformer = CcnInformer;
 					break;
 			}
@@ -715,7 +715,7 @@ int nn_addon::_learn_network(const Matrix& input, const Matrix& targets, ulong n
 		DumpMatrix(tres, "tres.txt");
 
 		//if(inp.row_num() <= 2) {
-			_build_surf(net_ind);
+			_build_surf(net_ind, input, targets);
 			char c;
 			cin >> c;
 		//}
@@ -1338,7 +1338,7 @@ Matrix nn_addon::NormalizePop(const Matrix& pop)
 	return npop;
 }
 
-void GA::nn_addon::_build_surf(ulong net_ind)
+void GA::nn_addon::_build_surf(ulong net_ind, const Matrix& input, const Matrix& targets)
 {
 	/*
 	Matrix x(1, 100), y(100, 1);
@@ -1363,12 +1363,23 @@ void GA::nn_addon::_build_surf(ulong net_ind)
 
 	Matrix points(ga_.opt_.initRange.col_num(), 10000);
 	generate(points.begin(), points.end(), prg::rand01);
+	const ulong pnum = points.col_num();
+	//range matrix
+	Matrix range = input.minmax(false);
+	//lower bound
+	Matrix a = range.GetRows(0);
+	//difference between bounds
+	Matrix scale = range.GetRows(1) - a;
+	//start moving points
 	Matrix::r_iterator pos = points.begin();
-	for(ulong i = 0; i < points.row_num(); ++i) {
-		transform(pos, pos + points.col_num(), pos, bind2nd(multiplies<double>(),
-			ga_.opt_.initRange(1, i) - ga_.opt_.initRange(0, i)));
-		transform(pos, pos + points.col_num(), pos, bind2nd(plus<double>(), ga_.opt_.initRange(0, i)));
-		pos += points.col_num();
+	Matrix::r_iterator p_a = a.begin();
+	Matrix::r_iterator p_sc = scale.begin();
+	for(ulong i = 0; i < points.row_num(); ++i, ++p_a, ++p_sc) 
+	{
+		//x = x*(b - a)
+		transform(pos, pos + pnum, pos, bind2nd(multiplies<double>(), *p_sc));
+		pos = transform(pos, pos + pnum, pos, bind2nd(plus<double>(), *p_a));
+		//pos += points.col_num();
 	}
 	DumpMatrix(points, "y.txt");
 

@@ -58,7 +58,7 @@ namespace GA {
 
 		void _get_learnData(Matrix& p, Matrix& s, Matrix& learn, Matrix& targets);
 		int _learn_network(const Matrix& input, const Matrix& targets, ulong net_ind = 0);
-		void _build_surf(ulong net_ind = 0);
+		void _build_surf(ulong net_ind, const Matrix&, const Matrix&);
 
 		double _calc_goalQuota(const Matrix& targets);
 		NN::objnet* onet_fab();

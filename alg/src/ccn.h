@@ -88,7 +88,7 @@ void falman_layer::propagate()
 }
 //-------------------------------Cascade correlation network implementation-------------------
 ccn::ccn() :
-	objnet(new ccn_opt), opt_((ccn_opt&)*opt_holder_)
+	objnet(new ccn_opt), opt_((ccn_opt&)*opt_holder_), rbfl_(false)
 {
 	cur_fl_ = NULL;
 	//opt_.set_def_opt(false);
@@ -646,10 +646,8 @@ void ccn::reset()
 	layer& outl(*layers_.begin());
 	if(!opt_.insert_between_) {
 		outl.set_links(create_ptr_mat(input_.neurons()));
-		if(rbfl_) outl.add_links(create_ptr_mat(flayers_.begin()->neurons()));
 	}
-	else 
-		if(rbfl_) outl.set_links(create_ptr_mat(flayers_.begin()->neurons()));
+	if(rbfl_ && flayers_.size() > 0) outl.set_links(create_ptr_mat(flayers_.begin()->neurons()));
 
 	//delete falman layers
 	if(!rbfl_)

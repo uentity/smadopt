@@ -16,7 +16,7 @@ using namespace std;
 using namespace GA;
 using namespace KM;
 
-#define KM_CALC_DIST_MAT_METHOD 0
+#define KM_CALC_DIST_MAT_METHOD 1
 
 /*
 void DumpM(ulMatrix* m, char* pFname = NULL)
@@ -32,18 +32,47 @@ void DumpM(ulMatrix* m, char* pFname = NULL)
 //---------------------------- kmeans_impl  declaration ----------------------------------------------
 namespace KM {
 
-class kmeans::kmeans_impl
+struct km_data {
+	//matrix of input data, cluster centers and distances from points to corresponding centers
+	Matrix data_, c_, norms_;
+	//winners matrix - point->center relation
+	ulMatrix w_;
+	//points affiliation - center->points collection
+	kmeans::vvul aff_;
+	//sum of distances from points to corresponding cluster centers
+	double e_;
+
+	km_data() : e_(0) {}
+};
+
+class kmeans::kmeans_impl : public km_data
 {
 	friend class kmeans;
 	friend class pat_sel;
 
 private:
+	//misc structures
+	struct dist_stat {
+		//minimum point-to-point distance
+		double min_;
+		//mean distance between points
+		double mean_;
+		//mean square error of distances
+		double mse_;
+		//mean distance between nearest neighbours
+		double mean_nn_;
+		//mean square error of distances between nearest neighbours
+		double mse_nn_;
+
+		dist_stat() : min_(0), mean_(0), mse_(0), mean_nn_(0), mse_nn_(0) {}
+	};
+
 	//---------------------------- pat_sel implementation ----------------------------------------------
 	class pat_sel
 	{
 		typedef Matrix::indMatrix indMatrix;
 
-		kmeans_impl& km_;
+		//kmeans_impl& km_;
 
 		indMatrix _selection(const Matrix& f)
 		{
@@ -69,28 +98,27 @@ private:
 	public:
 		ga ga_;
 
-		pat_sel(kmeans_impl& km) : km_(km)
+		pat_sel(kmeans_impl& km) //: km_(km)
 		{
-			km_.opt_.add_embopt(ga_.opt_);
+			km.opt_.add_embopt(ga_.opt_);
 			//set_def_opt();
 			ga_.prepare2run(false);
 		}
 		~pat_sel() {};
 
-		ulMatrix select_by_f()
-		{
+		ulMatrix select_by_f(const km_data& kmd, const Matrix& f_all) {
 			//assume that w_ filled with patterns affiliations
-			ulMatrix res(km_.data_.row_num(), 1), p_ind(km_.data_.row_num(), 1);
+			ulMatrix res(kmd.data_.row_num(), 1), p_ind(kmd.data_.row_num(), 1);
 			indMatrix sel_ind;
-			Matrix expect, f(km_.data_.row_num(), 1);
+			Matrix expect, f(kmd.data_.row_num(), 1);
 			ulong cnt, res_ind = 0;
-			for(ulong i = 0; i < km_.c_.row_num(); ++i) {
+			for(ulong i = 0; i < kmd.c_.row_num(); ++i) {
 				//collect points that belongs to current center
 				//f.Resize(data.row_num(), 1); p_ind.Resize(data.row_num(), 1);
 				cnt = 0;
-				for(ulong j = 0; j < km_.data_.row_num(); ++j) {
-					if(km_.w_[j] == i) {
-						f[cnt] = km_.f_[j];
+				for(ulong j = 0; j < kmd.data_.row_num(); ++j) {
+					if(kmd.w_[j] == i) {
+						f[cnt] = f_all[j];
 						p_ind[cnt++] = j;
 					}
 				}
@@ -106,6 +134,44 @@ private:
 			}
 
 			return res;
+		}
+
+		//just performes selection of given values and return the result
+		ulMatrix selection(const Matrix& f, ulong how_many = 0) {
+			Matrix expect = ga_.ScalingCall(f);
+			if(how_many == 0) how_many = expect.size();
+			return ga_.SelectionCall(expect, how_many);
+		}
+
+		Matrix selection_prob(const Matrix& f, ulong maxcycles = 100) {
+			const ulong how_many = f.size(); //min(max(f.size(), (ulong)1000), (ulong)1000);
+			const double prob_quant = 1.0/how_many;
+			Matrix prob(1, f.size(), 0);
+			Matrix new_prob(1, f.size(), 0);
+			Matrix diff;
+			ulMatrix sel_ind;
+			double dist;
+			bool stop_patience = false;
+			for(ulong i = 0; i < maxcycles && !stop_patience; ++i) {
+				//first of all invoke selection
+				sel_ind <<= selection(f, how_many);
+				//parse selection results
+				new_prob = 0;
+				for(ulMatrix::r_iterator pos = sel_ind.begin(), end = sel_ind.end(); pos != end; ++pos)
+					new_prob[*pos] += prob_quant;
+				//new_prob = (new_prob + prob)/2
+				new_prob += prob;
+				new_prob /= 2;
+				//now we have updated probability distribution - check patience
+				//diff = distance between prob & new_prob
+				diff <<= new_prob - prob;
+				diff *= diff;
+				dist = sqrt(diff.Sum());
+				if(dist < sqrt(prob.Mul(prob).Sum()) * 0.05)
+					stop_patience = true;
+				prob = new_prob;
+			}
+			return prob;
 		}
 	};
 
@@ -128,31 +194,29 @@ private:
 	typedef drops_map::iterator drops_iterator;
 	typedef pair< ulong, _drop_params > drop_pair;
 
-
-	//smart_ptr<pat_sel> ps_;
-
-	Matrix data_, f_, v_, c_, oldc_, norms_;
-	ulMatrix w_;
-	vvul aff_;
-	double e_, preve_;
+	//data members
+	Matrix f_, v_, oldc_;
+	double preve_;
 	ulong cycle_, ni_cycles_;
 
-	void (kmeans_impl::*_pNormFcn)(const Matrix&, const Matrix&, Matrix&);
-	Matrix (kmeans_impl::*_pDerivFcn)(ulong, const Matrix&);
+	void (kmeans_impl::*_pNormFcn)(const Matrix&, const Matrix&, Matrix&) const;
+	Matrix (kmeans_impl::*_pDerivFcn)(ulong, const Matrix&) const;
 	void (kmeans_impl::*_pBUFcn)();
 	void (kmeans_impl::*_pOrderFcn)(ul_vec&);
 
-	void l2_norm(const Matrix& dv, const Matrix& points, Matrix& norm);
-	Matrix l2_deriv(ulong dv_ind, const Matrix& center);
-	Matrix l2f_deriv(ulong dv_ind, const Matrix& center);
+	void l2_norm(const Matrix& dv, const Matrix& points, Matrix& norm) const;
+	Matrix l2_deriv(ulong dv_ind, const Matrix& center) const;
+	Matrix l2f_deriv(ulong dv_ind, const Matrix& center) const;
 
-	inline void calc_winners();
+	void calc_winners(km_data& kmd) const;
 	void l2_batch_update();
+	void selection_batch_update();
+	void selection_prob_batch_update();
 	void empty_bu() {};
 
 	//patterns order processing
-	inline void simple_shuffle(ul_vec& porder);
-	inline void selection_based_order(ul_vec& porder);
+	void simple_shuffle(ul_vec& porder);
+	void selection_based_order(ul_vec& porder);
 
 	void seed(const Matrix& data, ulong clust_num, const Matrix* pCent = NULL, bool use_prev_cent = false);
 	void proc_empty_cent(ulMatrix& empty_idx);
@@ -162,6 +226,8 @@ private:
 	bool join_phase(ulong maxiter);
 
 	bool patience_check();
+	//Xie-Beni validity check for current partitioning
+	double xie_beni_validity(const km_data& kmd, double sep = 0) const;
 
 	//helper function to access dist matrix
 	template<class dist_buf>
@@ -169,7 +235,7 @@ private:
 	void gen_uniform_cent(const Matrix& bound, const Matrix& dim, Matrix& dv, drops_map& drops, const double quant);
 
 	template< int method >
-	Matrix calc_dist_matrix(const Matrix& data, double& md, double& qd, double& mnnd);
+	dist_stat calc_dist_matrix(const Matrix& data, Matrix& dist) const;
 
 public:
 
@@ -184,18 +250,21 @@ public:
 	void restart(const Matrix& data, ulong clust_num = 0, ulong maxiter = 100,
 		bool skip_online = false, const Matrix* pCent = NULL, bool use_prev_cent = false);
 
-	Matrix drops_homo(const Matrix& data, const Matrix& f, double drops_mult = 0.8, ulong maxiter = 100, double quant_mult = 0.3);
-	Matrix drops_hetero(const Matrix& data, const Matrix& f, double drops_mult = 0.8, ulong maxiter = 100, double quant_mult = 0.3);
-	Matrix drops_hetero_map(const Matrix& data, const Matrix& f, double drops_mult = 0.8, ulong maxiter = 100, double quant_mult = 0.3);
-	Matrix drops_hetero_simple(const Matrix& data, const Matrix& f, double drops_mult = 0.8, ulong maxiter = 100, double quant_mult = 0.3);
+	Matrix drops_homo(const Matrix& data, const Matrix& f, double drops_mult = 0.8, ulong maxiter = 100,
+		double quant_mult = 0.3);
+	Matrix drops_hetero(const Matrix& data, const Matrix& f, double drops_mult = 0.8, ulong maxiter = 100,
+		double quant_mult = 0.3);
+	Matrix drops_hetero_map(const Matrix& data, const Matrix& f, double drops_mult = 0.8, ulong maxiter = 100,
+		double quant_mult = 0.3);
+	Matrix drops_hetero_simple(const Matrix& data, const Matrix& f, double drops_mult = 0.8, ulong maxiter = 100,
+		double quant_mult = 0.3);
 };
 
 
 //----------------------------kmeans_impl implementation--------------------------------------------------------------
 double kmeans::kmeans_impl::_drop_params::init_r_ = 0;
 
-void kmeans::kmeans_impl::l2_norm(const Matrix& dv, const Matrix& points, Matrix& norm)
-{
+void kmeans::kmeans_impl::l2_norm(const Matrix& dv, const Matrix& points, Matrix& norm) const {
 	norm.Resize(1, points.row_num());
 	//Matrix diff;
 	for(ulong i = 0; i < points.row_num(); ++i) {
@@ -203,13 +272,11 @@ void kmeans::kmeans_impl::l2_norm(const Matrix& dv, const Matrix& points, Matrix
 	}
 }
 
-Matrix kmeans::kmeans_impl::l2_deriv(ulong dv_ind, const Matrix& center)
-{
+Matrix kmeans::kmeans_impl::l2_deriv(ulong dv_ind, const Matrix& center) const {
 	return (data_.GetRows(dv_ind) - center);
 }
 
-Matrix kmeans::kmeans_impl::l2f_deriv(ulong dv_ind, const Matrix& center)
-{
+Matrix kmeans::kmeans_impl::l2f_deriv(ulong dv_ind, const Matrix& center) const {
 	double mult = 1;
 	//find minimum in current cluster
 	//double fmin = f_[dv_ind];
@@ -256,6 +323,28 @@ Matrix kmeans::kmeans_impl::l2f_deriv(ulong dv_ind, const Matrix& center)
 	//}
 	//g /= data_.row_num();
 	//return (dv - center + g)/2;
+}
+
+void kmeans::kmeans_impl::simple_shuffle(ul_vec& porder)
+{
+	random_shuffle(porder.begin(), porder.end(), prg::randIntUB);
+}
+
+void kmeans::kmeans_impl::selection_based_order(ul_vec& porder)
+{
+	//first determine points affiliation
+	calc_winners(*this);
+
+	//now do a selection
+	ulMatrix sel_ind = get_ps().select_by_f(*this, f_);
+
+	//porder = sel_ind
+	//for(ulong i = 0; i < porder.size(); ++i)
+	//	porder[i] = sel_ind[i];
+	copy(sel_ind.begin(), sel_ind.begin() + porder.size(), porder.begin());
+
+	//shuffle order obtained
+	random_shuffle(porder.begin(), porder.end(), prg::randIntUB);
 }
 
 bool kmeans::kmeans_impl::patience_check()
@@ -366,6 +455,32 @@ void kmeans::kmeans_impl::seed(const Matrix& data, ulong clust_num, const Matrix
 	cycle_ = 0;
 }
 
+void kmeans::kmeans_impl::calc_winners(km_data& kmd) const
+{
+	Matrix dv, norm;
+
+	//clear affiliation list
+	kmd.aff_.clear();
+	kmd.aff_.resize(kmd.data_.row_num());
+	//for(ulong i = 0; i < aff_.size(); ++i)
+	//	aff_[i].clear();
+
+	kmd.e_ = 0;
+	//calc centers-winners for each data point
+	for(ulong i = 0; i < kmd.data_.row_num(); ++i) {
+		dv <<= kmd.data_.GetRows(i);
+		(this->*_pNormFcn)(dv, kmd.c_, norm);
+		//save winner
+		kmd.w_[i] = norm.min_ind();
+		//save affiliation
+		kmd.aff_[kmd.w_[i]].push_back(i);
+
+		kmd.norms_[i] = norm[kmd.w_[i]];
+		kmd.e_ += kmd.norms_[i];
+	}
+	kmd.e_ /= kmd.data_.row_num();
+}
+
 void kmeans::kmeans_impl::proc_empty_cent(ulMatrix& empty_idx)
 {
 	if(empty_idx.size() == 0) return;
@@ -394,13 +509,13 @@ void kmeans::kmeans_impl::proc_empty_cent(ulMatrix& empty_idx)
 			}
 
 			for(ulMatrix::r_iterator p_idx = empty_idx.begin(); p_idx != empty_idx.end(); ++p_idx) {
-				//find furthest point
+				//find farthest point
 				p = norms_.max_ind();
 				//replace empty center with found point
 				new_c <<= data_.GetRows(p);
 				c_.SetRows(new_c, *p_idx);
 				w_[p] = *p_idx;
-				//update norm
+				//set norm to zero to prevent selecting this point again
 				norms_[p] = 0;
 			}
 			//update altered centers
@@ -425,7 +540,7 @@ void kmeans::kmeans_impl::l2_batch_update()
 		//affilation-based algorithm
 		ul_vec& cent_aff = aff_[i];
 		for(ulong j = 0; j < cent_aff.size(); ++j) {
-			new_c += data_[cent_aff[j]];
+			new_c += data_.GetRows(cent_aff[j]);
 			++pat_cnt;
 		}
 		if(pat_cnt > 0) {
@@ -439,28 +554,61 @@ void kmeans::kmeans_impl::l2_batch_update()
 		proc_empty_cent(empty_c);
 }
 
-void kmeans::kmeans_impl::calc_winners()
+void kmeans::kmeans_impl::selection_prob_batch_update()
 {
-	Matrix dv, norm;
-
-	//clear affiliation list
-	for(ulong i = 0; i < aff_.size(); ++i)
-		aff_[i].resize(0);
-
-	e_ = 0;
-	//calc centers-winners for each data point
-	for(ulong i = 0; i < data_.row_num(); ++i) {
-		dv <<= data_.GetRows(i);
-		(this->*_pNormFcn)(dv, c_, norm);
-		//save winner
-		w_[i] = norm.min_ind();
-		//save affiliation
-		aff_[w_[i]].push_back(i);
-
-		norms_[i] = norm[w_[i]];
-		e_ += norms_[i];
+	Matrix new_c(1, c_.col_num()), norm;
+	ulong pat_cnt;
+	ulMatrix empty_c;
+	Matrix f, prob;
+	for(ulong i = 0; i < c_.row_num(); ++i) {
+		new_c = 0; pat_cnt = 0;
+		//affilation-based algorithm
+		ul_vec& cent_aff = aff_[i];
+		f.clear();
+		for(ulong j = 0; j < cent_aff.size(); ++j)
+			f.push_back(f_[cent_aff[j]], false);
+		if(f.size()) {
+			//calc probabilities of selection
+			prob <<= get_ps().selection_prob(f);
+			//calculate new center position based on selection prob
+			for(ulong j = 0; j < cent_aff.size(); ++j)
+				new_c += data_.GetRows(cent_aff[j]) * prob[j];
+		}
+		else empty_c.push_back(i);
 	}
-	e_ /= data_.row_num();
+
+	if(empty_c.size() > 0)
+		proc_empty_cent(empty_c);
+}
+
+void kmeans::kmeans_impl::selection_batch_update()
+{
+	Matrix new_c(1, c_.col_num()), norm;
+	ulong pat_cnt;
+	ulMatrix empty_c, sel_ind;
+	Matrix f;
+	for(ulong i = 0; i < c_.row_num(); ++i) {
+		new_c = 0; pat_cnt = 0;
+		//affilation-based algorithm
+		//collect function values of given cluster
+		ul_vec& cent_aff = aff_[i];
+		f.clear();
+		for(ulong j = 0; j < cent_aff.size(); ++j)
+			f.push_back(f_[cent_aff[j]], false);
+		//calculate new center
+		if(f.size()) {
+			//calc probabilities of selection
+			sel_ind <<= get_ps().selection(f);
+			//calculate new center position based on selection indices
+			for(ulong j = 0; j < sel_ind.size(); ++j)
+				new_c += data_.GetRows(cent_aff[sel_ind[j]]);
+			new_c /= sel_ind.size();
+		}
+		else empty_c.push_back(i);
+	}
+
+	if(empty_c.size() > 0)
+		proc_empty_cent(empty_c);
 }
 
 void kmeans::kmeans_impl::batch_phase(ulong maxiter)
@@ -470,7 +618,7 @@ void kmeans::kmeans_impl::batch_phase(ulong maxiter)
 
 	for(cycle_ = 0; cycle_ < maxiter; ++cycle_) {
 		//points affilations
-		calc_winners();
+		calc_winners(*this);
 
 		//check patience
 		if(patience_check()) break;
@@ -479,29 +627,7 @@ void kmeans::kmeans_impl::batch_phase(ulong maxiter)
 		(this->*_pBUFcn)();
 	}
 	//ensure correct winners & norms are calculated
-	calc_winners();
-}
-
-void kmeans::kmeans_impl::simple_shuffle(ul_vec& porder)
-{
-	random_shuffle(porder.begin(), porder.end(), prg::randIntUB);
-}
-
-void kmeans::kmeans_impl::selection_based_order(ul_vec& porder)
-{
-	//first determine points affiliation
-	calc_winners();
-
-	//now do a selection
-	ulMatrix sel_ind = get_ps().select_by_f();
-
-	//porder = sel_ind
-	//for(ulong i = 0; i < porder.size(); ++i)
-	//	porder[i] = sel_ind[i];
-	copy(sel_ind.begin(), sel_ind.begin() + porder.size(), porder.begin());
-
-	//shuffle order obtained
-	random_shuffle(porder.begin(), porder.end(), prg::randIntUB);
+	calc_winners(*this);
 }
 
 void kmeans::kmeans_impl::online_phase(ulong maxiter)
@@ -567,7 +693,7 @@ void kmeans::kmeans_impl::online_phase(ulong maxiter)
 		if(patience_check()) break;
 	}
 	//ensure correct winners & norms are calculated
-	calc_winners();
+	calc_winners(*this);
 }
 
 void kmeans::kmeans_impl::online_phase_simple(ulong maxiter)
@@ -616,25 +742,31 @@ void kmeans::kmeans_impl::online_phase_simple(ulong maxiter)
 		if(patience_check()) break;
 	}
 	//ensure correct winners & norms are calculated
-	calc_winners();
+	calc_winners(*this);
 }
 
 template< >
-Matrix kmeans::kmeans_impl::calc_dist_matrix< 0 >( const Matrix& data, double& md, double& qd, double& mnnd )
+kmeans::kmeans_impl::dist_stat kmeans::kmeans_impl::calc_dist_matrix< 0 >(const Matrix& data, Matrix& dist) const
 {
-	//check for empty input matrix
-	assert(data.size());
-	//calc distances from each point to each other point
-	Matrix data_cpy(data.row_num(), data.col_num(), data.GetBuffer());
-	Matrix dist(data.row_num(), data.row_num()), dist_row(1, data.row_num()), dv, norm;
-
-	const double mult = 2.0/(data.row_num()*(data.row_num() - 1));
+	//some constant values used
+	const ulong points_num = data.row_num();
+	const double mult = 2.0/(points_num * (points_num - 1));
 	const double mult1 = 1.0/data.row_num();
 
-	double md2 = 0;
-	double mind = 0, cur_md;
-	md = 0; mnnd = 0;
-	for(ulong i = 0; i < data.row_num() - 1; ++i) {
+	//resize distance matrix
+	dist(points_num, points_num);
+	//statistics
+	dist_stat stat;
+	//make a copy of input data
+	Matrix data_cpy(data.row_num(), data.col_num(), data.GetBuffer());
+	//locally used matrices
+	Matrix dist_row(1, data.row_num()), dv, norm;
+	//mean distance^2
+	double meand2 = 0, meand2_nn = 0;
+	//current min distance (between nearest neighbours)
+	double cur_mind;
+
+	for(ulong i = 0; i < points_num - 1; ++i) {
 		dv <<= data_cpy.GetRows(0);
 		data_cpy.DelRows(0);
 		(this->*_pNormFcn)(dv, data_cpy, norm);
@@ -642,73 +774,84 @@ Matrix kmeans::kmeans_impl::calc_dist_matrix< 0 >( const Matrix& data, double& m
 		dist_row.SetColumns(norm, i + 1, norm.size());
 		dist.SetRows(dist_row, i);
 		//calc mean
-		md += mult * norm.Sum();
+		stat.mean_ += mult * norm.Sum();
 		//calc distance to nearest neighbour
-		cur_md = norm.Min();
-		if(i == 0 || cur_md < mind) mind = cur_md;
+		cur_mind = norm.Min();
+		if(i == 0 || cur_mind < stat.min_) stat.min_ = cur_mind;
 		//update mean distance to nearest neighbour
-		mnnd += cur_md * mult1;
+		stat.mean_nn_ += cur_mind * mult1;
 		//norm = norm^2
-		transform(norm, norm, multiplies<double>());
-		//calc mean(norm^2)
-		md2 += mult * norm.Sum();
+		transform(norm, norm, multiplies< double >());
+		//update mean distance^2
+		meand2 += mult * norm.Sum();
+		//update mean nn distance^2
+		meand2_nn += mult1 * cur_mind * cur_mind;
 	}
+	//fill lower triangle of distance matrix
 	dist <<= dist + !dist;
-	//calc std
-	qd = sqrt(md*(md2/md - md));
-	return dist;
+
+	//calc mse
+	stat.mse_ = sqrt(stat.mean_*(meand2/stat.mean_ - stat.mean_));
+	stat.mse_nn_ = sqrt(stat.mean_nn_*(meand2_nn/stat.mean_nn_ - stat.mean_nn_));
+	return stat;
 }
 
 template< >
-Matrix kmeans::kmeans_impl::calc_dist_matrix< 1 >( const Matrix& data, double& md, double& qd, double& mnnd )
+kmeans::kmeans_impl::dist_stat kmeans::kmeans_impl::calc_dist_matrix< 1 >(const Matrix& data, Matrix& dist) const
 {
+	//some constant values used
 	const ulong points_num = data.row_num();
 	const double mult = 2.0/(points_num * (points_num - 1));
-	const double mult1 = 1.0/data.row_num();
-	//calc distances from each point to each other point
-	Matrix dv, norm, _data;
-	//Matrix _data(data.row_num(), data.col_num(), data.GetBuffer());
-	Matrix dist(points_num, points_num), dist_row(1, points_num);
-	double mind = 0, meand2 = 0;
-	//double tmp;
-	double cur_mind;
+	const double mult1 = 1.0/(points_num - 1);
 
-	md = 0; mnnd = 0;
+	//localy used matrices
+	Matrix dv, norm; //, dist_row(1, points_num);
+	//statistics
+	dist_stat stat;
+	//meand distance^2 & meand distance^2 between nearest neighbours
+	double meand2 = 0, meand2_nn = 0;
+	//current distance & minimum distances
+	double cur_dist, cur_mind = 0, cur_mind2 = 0;
+
+	//resize distance matrix
+	dist.Resize(points_num, points_num);
+	//zero distance matrix
+	dist = 0;
+	//start distances calculation
 	for(ulong i = 0; i < points_num - 1; ++i) {
 		dv <<= data.GetRows(i);
-		dist_row = 0;
 		//calc dist^2 to all other rows
 		for(ulong j = i + 1; j < points_num; ++j) {
 			norm <<= dv - data.GetRows(j);
 			//calc dist^2
 			transform(norm, norm, multiplies<double>());
-			dist_row[j] = norm.Sum();
+			//cur_dist = distance^2
+			cur_dist = norm.Sum();
+			//update mean of distance^2
+			meand2 += mult * cur_dist;
+			//update current min distance^2
+			if(j == i + 1 || cur_dist < cur_mind2) cur_mind2 = cur_dist;
+			//cur_dist = pure l2 distance
+			cur_dist = sqrt(cur_dist);
+			//update current minimum distance (to nearest neighbour)
+			if(j == i + 1 || cur_dist < cur_mind) cur_mind = cur_dist;
+			//save it into matrix elements (i,j) and (j, i)
+			dist(i, j) = cur_dist; dist(j, i) = cur_dist;
+			//update global mean distance
+			stat.mean_ += cur_dist * mult;
 		}
-		//update mean of dist^2
-		meand2 += mult * dist_row.Sum();
-		//calc distances
-		transform(dist_row, ptr_fun< double, double >(sqrt));
-		//update min & mean distances
-		cur_mind = *min_element(dist_row.begin() + i + 1, dist_row.end());
-		if(i == 0 || cur_mind < mind) mind = cur_mind;
-		md += mult * dist_row.Sum();
-		//update mean distance to nearest neighbour
-		mnnd += cur_mind * mult1;
-
-		//set first elements of dist_row
-		if(i > 0) {
-			dv <<= dist.GetColumns(i);
-			copy(dv.begin(), dv.begin() + i, dist_row.begin());
-		}
-		//save dist_row
-		dist.SetRows(dist_row, i);
+		//update global min distance
+		if(i == 0 || cur_mind < stat.min_) stat.min_ = cur_mind;
+		//update mean nearest neighbour distance
+		stat.mean_nn_ += cur_mind * mult1;
+		//update mean nearest neighbour distance^2
+		meand2_nn += cur_mind2 * mult1;
 	}
-	//append last row
-	dist.SetRows(!dist.GetColumns(points_num - 1), points_num - 1);
-	//dist <<= dist + !dist;
-	//calc std
-	qd = sqrt(md*(meand2/md - md));
-	return dist;
+
+	//calc mse
+	stat.mse_ = sqrt(stat.mean_*(meand2/stat.mean_ - stat.mean_));
+	stat.mse_nn_ = sqrt(stat.mean_nn_*(meand2_nn/stat.mean_nn_ - stat.mean_nn_));
+	return stat;
 }
 
 template< class T >
@@ -720,24 +863,45 @@ struct less_except_null {
 	}
 };
 
+double kmeans::kmeans_impl::xie_beni_validity(const km_data& kmd, double sep) const {
+	//iterate through centers
+	double cov = 0;
+	double tmp;
+	for(ulong i = 0; i < kmd.c_.row_num(); ++i) {
+		//find points that belongs to this center
+		for(ulong j = 0, end = kmd.aff_[i].size(); j < end; ++j) {
+			tmp = kmd.norms_[kmd.aff_[i][j]];
+			sep += tmp * tmp;
+		}
+	}
+	//calc separation if needed
+	if(sep == 0) {
+		Matrix cdist;
+		dist_stat ds = calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(kmd.c_, cdist);
+		sep = ds.min_;
+	}
+
+	return sep / (kmd.data_.row_num() * sep * sep);
+}
+
 bool kmeans::kmeans_impl::join_phase(ulong maxiter)
 {
 	//find closest centers
-	//first calc distance matrix
-	double md, qd, mnnd;
-	Matrix dist;
 	Matrix::indMatrix asc_di;
 	//merged centers indexes
 	typedef set< ulong, greater< ulong > > merged_idx;
 	merged_idx mc;
 
+	km_data kmd;
 	ulong c1, c2, f_ind;
 	Matrix f, p, c, norm, expect;
 	Matrix::indMatrix sel_ind;
 	pat_sel& ps = get_ps();
 
 	//calc distances matrix
-	dist <<= calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(c_, md, qd, mnnd);
+	Matrix dist;
+	dist_stat ds = calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(c_, dist);
+
 	//sort distances by ascending
 	asc_di <<= dist.RawSort();
 	//remove indexes of first zero elements
@@ -757,22 +921,22 @@ bool kmeans::kmeans_impl::join_phase(ulong maxiter)
 		//main cycle starts here
 
 		//c1 & c2 are centers to be merged
-		ulong c1 = asc_di[d] / dist.row_num(), c2 = asc_di[d] % dist.row_num();
+		c1 = asc_di[d] / dist.row_num(), c2 = asc_di[d] % dist.row_num();
 		//check if any of those centers are already marked to merge
 		if(mc.find(c1) != mc.end() || mc.find(c2) != mc.end())
 			continue;
 
 		//collect points belonging to c1 and c2
 		f.Resize(aff_[c1].size() + aff_[c2].size(), 1);
-		p.Resize(aff_[c1].size() + aff_[c2].size(), data_.col_num());
+		kmd.data_.Resize(aff_[c1].size() + aff_[c2].size(), data_.col_num());
 		f_ind = 0;
 		for(ulong i = 0; i < aff_[c1].size(); ++i) {
 			f[f_ind] = f_[aff_[c1][i]];
-			p.SetRows(data_.GetRows(aff_[c1][i]), f_ind++);
+			kmd.data_.SetRows(data_.GetRows(aff_[c1][i]), f_ind++);
 		}
 		for(ulong i = 0; i < aff_[c2].size(); ++i) {
 			f[f_ind] = f_[aff_[c2][i]];
-			p.SetRows(data_.GetRows(aff_[c2][i]), f_ind++);
+			kmd.data_.SetRows(data_.GetRows(aff_[c2][i]), f_ind++);
 		}
 
 		//move c1 to new location
@@ -790,6 +954,8 @@ bool kmeans::kmeans_impl::join_phase(ulong maxiter)
 			if(patience_check()) break;
 		}
 
+		do_merge = false;
+
 		//test if new merged cluster is better than two previous
 		//find closest points to each of centers c1, c2 and c
 		//and test which one has better function value
@@ -800,7 +966,6 @@ bool kmeans::kmeans_impl::join_phase(ulong maxiter)
 		(this->*_pNormFcn)(c, p, norm);
 		ulong cl_c = norm.min_ind();
 
-		do_merge = false;
 		if(f[cl_c] <= f[cl_c1] && f[cl_c] <= f[cl_c2]) {
 			do_merge = true;
 		}
@@ -887,10 +1052,18 @@ void kmeans::kmeans_impl::find_clusters_f(const Matrix& data, const Matrix& f, u
 	//now start main online phase
 	//pDerivFcn = &kmeans_impl::l2f_deriv;
 	_pOrderFcn = &kmeans_impl::selection_based_order;
+	_pBUFcn = &kmeans_impl::selection_prob_batch_update;
 
+	ulong i = 0;
 	do {
+		cout << "find_clusters_f: iteration " << i << " started" << endl;
 		online_phase(maxiter);
+		++i;
 	} while(join_phase(maxiter));
+	//ensure correct center locations after last merging
+	calc_winners(*this);
+	//(this->*_pBUFcn)();
+	//batch_phase(maxiter);
 }
 
 template<class dist_buf>
@@ -899,7 +1072,8 @@ double kmeans::kmeans_impl::_dist_ij(const dist_buf& db, ulong i, ulong j)
 	return 0;
 }
 
-Matrix kmeans::kmeans_impl::drops_homo(const Matrix& data, const Matrix& f, double drops_mult, ulong maxiter, double quant_mult)
+Matrix kmeans::kmeans_impl::drops_homo(const Matrix& data, const Matrix& f, double drops_mult, ulong maxiter,
+	double quant_mult)
 {
 	switch(opt_.norm_t) {
 		default:
@@ -911,10 +1085,10 @@ Matrix kmeans::kmeans_impl::drops_homo(const Matrix& data, const Matrix& f, doub
 	}
 
 	//calc distance matrix
-	double md, qd, mnnd;
-	Matrix dist = calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(data, md, qd, mnnd);
+	Matrix dist;
+	dist_stat ds = calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(data, dist);
 	//calc drop radius
-	const double drop_r = (md - qd)*quant_mult;
+	const double drop_r = (ds.mean_ - ds.mse_)*quant_mult;
 	//const double drop_r = 2*mind;
 
 	//generate random initial drops ind
@@ -1008,12 +1182,13 @@ Matrix kmeans::kmeans_impl::drops_homo(const Matrix& data, const Matrix& f, doub
 
 	aff_.resize(data.row_num());
 	//calc affilations
-	calc_winners();
+	calc_winners(*this);
 
 	return c_;
 }
 
-Matrix kmeans::kmeans_impl::drops_hetero(const Matrix& data, const Matrix& f, double drops_mult, ulong maxiter, double quant_mult)
+Matrix kmeans::kmeans_impl::drops_hetero(const Matrix& data, const Matrix& f, double drops_mult, ulong maxiter,
+	double quant_mult)
 {
 	return drops_hetero_map(data, f, drops_mult, maxiter);
 
@@ -1033,10 +1208,10 @@ Matrix kmeans::kmeans_impl::drops_hetero(const Matrix& data, const Matrix& f, do
 	const double rev_dim = 1.0/dim;
 
 	//calc distance matrix
-	double md, qd, mnnd;
-	Matrix dist = calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(data, md, qd, mnnd);
+	Matrix dist;
+	dist_stat ds = calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(data, dist);
 	//calc drop radius
-	const double quant = (md - qd)*quant_mult;
+	const double quant = (ds.mean_ - ds.mse_)*quant_mult;
 	//const double quant = 2*mind;
 	const double quant_v = pow(quant, dim);
 
@@ -1206,12 +1381,13 @@ Matrix kmeans::kmeans_impl::drops_hetero(const Matrix& data, const Matrix& f, do
 	norms_.NewMatrix(1, data.row_num());
 
 	//calc affilations
-	calc_winners();
+	calc_winners(*this);
 
 	return c_;
 }
 
-Matrix kmeans::kmeans_impl::drops_hetero_map(const Matrix& data, const Matrix& f, double drops_mult, ulong maxiter, double quant_mult)
+Matrix kmeans::kmeans_impl::drops_hetero_map(const Matrix& data, const Matrix& f, double drops_mult, ulong maxiter,
+	double quant_mult)
 {
 	switch(opt_.norm_t) {
 		default:
@@ -1229,10 +1405,10 @@ Matrix kmeans::kmeans_impl::drops_hetero_map(const Matrix& data, const Matrix& f
 	const double rev_dim = 1.0/dim;
 
 	//calc distance matrix
-	double md, qd, mnnd;
-	Matrix dist = calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(data, md, qd, mnnd);
+	Matrix dist;
+	dist_stat ds = calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(data, dist);
 	//calc drop radius
-	const double quant = mnnd; //(md - qd)*quant_mult;
+	const double quant = ds.mean_nn_; //(md - qd)*quant_mult;
 	//const double quant = 2*mind;
 	const double quant_v = pow(quant, dim);
 
@@ -1314,6 +1490,9 @@ Matrix kmeans::kmeans_impl::drops_hetero_map(const Matrix& data, const Matrix& f
 			dst_drop.r_ = pow(quant_v * dst_drop.qcnt_, rev_dim);
 		}
 
+		//verbose print
+		cout << "kmeans.drops_hetero_map iteration " << cycle_ << "; moves_cnt = " << moves_cnt << endl;
+
 		//no moves - exit
 		if(moves_cnt == 0) break;
 
@@ -1345,7 +1524,7 @@ Matrix kmeans::kmeans_impl::drops_hetero_map(const Matrix& data, const Matrix& f
 	norms_.NewMatrix(1, data.row_num());
 
 	//calc affilations
-	calc_winners();
+	calc_winners(*this);
 
 	return c_;
 }
@@ -1374,7 +1553,8 @@ void kmeans::kmeans_impl::gen_uniform_cent(const Matrix& bound, const Matrix& di
 	}
 }
 
-Matrix kmeans::kmeans_impl::drops_hetero_simple(const Matrix& data, const Matrix& f, double drops_mult, ulong maxiter, double quant_mult)
+Matrix kmeans::kmeans_impl::drops_hetero_simple(const Matrix& data, const Matrix& f, double drops_mult, ulong maxiter,
+	double quant_mult)
 {
 	switch(opt_.norm_t) {
 		default:
@@ -1394,10 +1574,10 @@ Matrix kmeans::kmeans_impl::drops_hetero_simple(const Matrix& data, const Matrix
 	const double rev_dim = 1.0/dim;
 
 	//calc distance matrix
-	double md, qd, mnnd;
-	Matrix dist = calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(data, md, qd, mnnd);
+	Matrix dist;
+	dist_stat ds = calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(data, dist);
 	//calc drop radius
-	const double quant = mnnd; //(md - qd)*quant_mult;
+	const double quant = ds.mean_nn_; //(md - qd)*quant_mult;
 	_drop_params::init_r_ = quant;
 	//const double quant = 2*mind;
 	//const double quant_v = pow(quant, dim);
@@ -1406,14 +1586,13 @@ Matrix kmeans::kmeans_impl::drops_hetero_simple(const Matrix& data, const Matrix
 	//drops containing map instantiation
 	drops_map drops;
 
-	//calc drops count
-	_data <<= data.minmax();
 	ulong init_cnt, ind;
-
 	//calculate based on given ratio
 	init_cnt = static_cast<ulong>(drops_mult * points_num);
 
 	//heuristic calculation assuming uniform coverage by drops
+	//calc drops count
+	_data <<= data.minmax();
 	init_cnt = 1;
 	Matrix dcnt_bydim(1, dim);
 	for(ulong i = 0; i < dim; ++i) {
@@ -1523,7 +1702,7 @@ Matrix kmeans::kmeans_impl::drops_hetero_simple(const Matrix& data, const Matrix
 	norms_.NewMatrix(1, points_num);
 
 	//calc affilations
-	calc_winners();
+	calc_winners(*this);
 
 	return c_;
 }
