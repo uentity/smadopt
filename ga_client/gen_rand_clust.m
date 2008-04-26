@@ -3,8 +3,8 @@ rand('state',sum(100*clock));
 
 %generate cluster centers
 range = [-3 3];
-cs = gen_rastr_cent(clust_num, range);
-%cs = gen_rand_cent(clust_num, range);
+%cs = gen_rastr_cent(clust_num, range);
+cs = gen_rand_cent(clust_num, range);
 
 randn('state',sum(100*clock));
 points = [];
@@ -30,7 +30,7 @@ for i = 1:clust_num
     %cur_f = exp(sum((distr.*distr)')');
     
     %use rastrigin's function
-    cur_f = rastriginsfcn(p);
+    %cur_f = rastriginsfcn(p);
     
     f = [f; cur_f];
 end

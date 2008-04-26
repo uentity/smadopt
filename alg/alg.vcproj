@@ -334,6 +334,18 @@
 			UniqueIdentifier="{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}"
 			>
 		</Filter>
+		<Filter
+			Name="da"
+			>
+			<File
+				RelativePath=".\src\determ_annealing.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\src\determ_annealing.h"
+				>
+			</File>
+		</Filter>
 	</Files>
 	<Globals>
 	</Globals>

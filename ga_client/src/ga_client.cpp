@@ -7,6 +7,7 @@
 #include "objnet.h"
 #include "alg_api.h"
 #include "kmeans.h"
+#include "determ_annealing.h"
 
 #include "kar2words.h"
 
@@ -23,6 +24,7 @@ using namespace std;
 using namespace GA;
 using namespace NN;
 using namespace KM;
+using namespace DA;
 
 int vspNum = 0;
 double deliver_mult = 100;
@@ -562,9 +564,11 @@ void TestKmeans()
 	km.opt_.seed_t = KM::sample;
 	//km.find_clusters(t, 10, 200);
 
-	km.find_clusters_f(t, f, f.size()*0.5, 200);
+	//km.find_clusters_f(t, f, f.size()*0.5, 200);
 	//km.drops_hetero_simple(t, f, 0.7, 200);
-	const Matrix c = km.get_centers();
+	determ_annealing da;
+	da.find_clusters(t, f, 5, 200);
+	const Matrix c = da.get_centers();
 
 	//Matrix c;
 	//double quant_mult;
@@ -590,7 +594,7 @@ void TestKmeans()
 	c.Print(f2);
 	f2.close(); f2.clear();
 	f2.open("ind.txt", ios::out | ios::trunc);
-	km.get_ind().Print(f2);
+	da.get_ind().Print(f2);
 }
 
 int main(int argc, char* argv[])

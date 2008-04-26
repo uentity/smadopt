@@ -499,7 +499,12 @@ class SVD
          for (int j = 0; j < n; j++) {
             A[i][j] = 0.0;
          }
-         A[i][i] = s[i];
+		 //patched by uentity
+		 //
+         if(i < s.dim()) A[i][i] = s[i];
+		 else A[i][i] = 0.0;
+		 //
+		 //
       }
    }
 
