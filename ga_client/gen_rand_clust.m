@@ -24,13 +24,13 @@ for i = 1:clust_num
     %cur_f = p - cur_cp;
     
     %simple parabola
-    cur_f = sqrt(sum((distr.*distr)')');
+    %cur_f = sqrt(sum((distr.*distr)')');
 
     %gauss bell
     %cur_f = exp(sum((distr.*distr)')');
     
     %use rastrigin's function
-    %cur_f = rastriginsfcn(p);
+    cur_f = rastriginsfcn(p);
     
     f = [f; cur_f];
 end

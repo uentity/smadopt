@@ -33,6 +33,8 @@ struct da_data {
 	Matrix p_yx;
 	//temperature
 	double T_;
+	//beta = 1/T
+	double beta_;
 };
 
 struct hard_clusters_data {
@@ -58,15 +60,6 @@ class determ_annealing::da_impl : public da_data {
 	{
 		typedef Matrix::indMatrix indMatrix;
 
-		indMatrix _selection(const Matrix& f)
-		{
-			Matrix expect;
-
-			expect <<= ga_.ScalingCall(f);
-			return ga_.SelectionCall(expect, expect.size());
-
-		}
-
 	public:
 		ga ga_;
 
@@ -86,9 +79,14 @@ class determ_annealing::da_impl : public da_data {
 			return ga_.SelectionCall(expect, how_many);
 		}
 
-		Matrix selection_prob(const Matrix& f, ulong maxcycles = 100) {
-			const ulong how_many = f.size(); //min(max(f.size(), (ulong)1000), (ulong)1000);
-			const double prob_quant = 1.0/how_many;
+		Matrix scaling(const Matrix& f) {
+			return ga_.ScalingCall(f);
+		}
+
+		Matrix selection_prob(const Matrix& f, ulong maxcycles = 100, ulong buf_size = 0) {
+			//const ulong how_many = f.size(); //min(max(f.size(), (ulong)1000), (ulong)1000);
+			if(buf_size == 0) buf_size = f.size();
+			const double prob_quant = 1.0/buf_size;
 			Matrix prob(1, f.size(), 0);
 			Matrix new_prob(1, f.size(), 0);
 			Matrix diff;
@@ -97,7 +95,7 @@ class determ_annealing::da_impl : public da_data {
 			bool stop_patience = false;
 			for(ulong i = 0; i < maxcycles && !stop_patience; ++i) {
 				//first of all invoke selection
-				sel_ind <<= selection(f, how_many);
+				sel_ind <<= selection(f, buf_size);
 				//parse selection results
 				new_prob = 0;
 				for(ulMatrix::r_iterator pos = sel_ind.begin(), end = sel_ind.end(); pos != end; ++pos)
@@ -141,9 +139,10 @@ public:
 	double (*norm2_fcn_)(const Matrix&, const Matrix&);
 	Matrix (*deriv_fcn_)(const Matrix&, const Matrix&);
 	void (da_impl::*order_fcn_)(ulong, ul_vec&) const;
+	Matrix (da_impl::*px_fcn_)(ulong) const;
 
 	da_impl()
-		: prob_thresh_(1.0/3), alfa_(0.97), Tmin_(0.5), patience_(0.05), patience_cycles_(5)
+		: prob_thresh_(1.0/3), alfa_(0.97), Tmin_(0.01), patience_(0.05), patience_cycles_(5)
 	{}
 
 	void calc_winners(const da_data& dad, hard_clusters_data& hcd) const
@@ -242,21 +241,6 @@ public:
 		hcd.e_ /= dad.x_.row_num();
 	}
 
-	bool patience_check(ulong cycle, double e)
-	{
-		static ulong ni_cycles = 0;
-		static double preve = 0;
-
-		if(cycle == 0 || preve - e > patience_ * preve) {
-			ni_cycles = 0;
-			preve = e;
-		}
-		else if(++ni_cycles >= patience_cycles_)
-			return true;
-
-		return false;
-	}
-
 	//norms used - currently only l2
 	static double l2_norm(const Matrix& x1, const Matrix& x2) {
 		return (x1 - x2).norm2();
@@ -291,7 +275,7 @@ public:
 		porder.clear();
 		const ul_vec& aff_cv = hcd_.aff_[cv_ind];
 		for(ul_vec::const_iterator pos = aff_cv.begin(); pos != aff_cv.end(); ++pos)
-			porder.push_back(aff_cv[*pos]);
+			porder.push_back(*pos);
 
 		//random_shuffle(porder.begin(), porder.end(), prg::randIntUB);
 	}
@@ -321,6 +305,99 @@ public:
 
 		//shuffle order obtained
 		//random_shuffle(porder.begin(), porder.end(), prg::randIntUB);
+	}
+
+	//p(x) generators
+	//standard prob distribution where each p(x) = 1/N
+	Matrix unifrom_px(ulong cv_ind) const {
+		struct px {
+			Matrix expect_;
+			px(const Matrix& f) : expect_(1, f.size()) {
+				expect_ = 1.0/(double)f.size();
+			}
+		};
+		static px p(f_);
+		return p.expect_;
+	}
+
+	//p(x) distribution based on static GA.ScalingCall calculated only when first time called
+	Matrix scaling_px(ulong cv_ind) const {
+		static Matrix expect(get_ps().scaling(f_));
+		return expect;
+	}
+
+	//p(x) distribution based dynamically calculated expectation for given cluster from it's affiliation
+	Matrix scaling_px_aff(ulong cv_ind) const {
+		static Matrix expect(1, f_.size());
+
+		//assume that hard affiliation is already calculated
+		if(cv_ind >= hcd_.aff_.size()) return scaling_px(cv_ind);
+
+		//select f values belonging to given cluster
+		Matrix f_cv;
+		const ul_vec& aff_cv = hcd_.aff_[cv_ind];
+		for(ul_vec::const_iterator pos = aff_cv.begin(); pos != aff_cv.end(); ++pos)
+			f_cv.push_back(f_[*pos], false);
+
+		//calc expectation
+		Matrix exp_cv = get_ps().scaling(f_cv);
+
+		//make full expectation matrix
+		expect = 0;
+		for(ulong i = 0; i < exp_cv.size(); ++i) {
+			expect[aff_cv[i]] = exp_cv[i];
+		}
+		return expect;
+	}
+
+	//p(x) distribution based on estimated selection probabilities
+	Matrix selection_px(ulong cv_ind) const {
+		static Matrix expect(get_ps().selection_prob(f_, 100, 1000));
+		return expect;
+	}
+
+	Matrix selection_px_aff(ulong cv_ind) const {
+		static Matrix expect(1, f_.size());
+
+		//assume that hard affiliation is already calculated
+		if(cv_ind >= hcd_.aff_.size()) return scaling_px(cv_ind);
+
+		//select f values belonging to given cluster
+		Matrix f_cv;
+		const ul_vec& aff_cv = hcd_.aff_[cv_ind];
+		for(ul_vec::const_iterator pos = aff_cv.begin(); pos != aff_cv.end(); ++pos)
+			f_cv.push_back(f_[*pos], false);
+
+		//calc expectation
+		Matrix exp_cv = get_ps().selection_prob(f_cv);
+
+		//make full expectation matrix
+		expect = 0;
+		for(ulong i = 0; i < exp_cv.size(); ++i) {
+			expect[aff_cv[i]] = exp_cv[i];
+		}
+		return expect;
+	}
+
+	//order of patterns to p(x) distribution converter
+	Matrix order2px(ulong cv_ind) const {
+		static Matrix expect(1, f_.size());
+
+		//calc affiliation for given center
+		//calc_aff(*this, hcd_, cv_ind);
+
+		//assume that hard affiliation is already calculated
+		//build patterns order
+		ul_vec order;
+		(this->*order_fcn_)(cv_ind, order);
+
+		//convert order to expectation
+		expect = 0;
+		const double p_quant = 1.0/order.size();
+		for(ulong i = 0; i < order.size(); ++i) {
+			expect[order[i]] += p_quant;
+		}
+		return expect;
 	}
 
 	double calc_var(const da_data& dad, ulong cv_ind) const {
@@ -354,52 +431,48 @@ public:
 	void update_epoch() {
 		ul_vec x_order; //, uniq_xor;
 		Matrix::r_iterator cur_py = p_y.begin(), cur_pyx = p_yx.begin();
-		Matrix x, y;
+		Matrix x, y, new_y(1, y_.col_num());
+		double new_py;
 
 		//make hard clusters
-		//calc_winners_kmeans(*this, hcd_);
+		calc_winners(*this, hcd_);
 
 		hcd_.e_ = 0;
 		//main cycle starts here - update all available centers
 		for(ulong i = 0; i < y_.row_num(); ++i, ++cur_py) {
 			y <<= y_.GetRows(i);
 
+			//get p(x) distribution
+			const Matrix& px = (this->*px_fcn_)(i);
+
 			//update probabilities p(y[i] | x) - independent from custom p(x)
-			for(ulong j = 0; j < x_.row_num(); ++j) {
+			//update probabilities p(y[i]) & calculate new center position
+			new_py = 0;
+			new_y = 0;
+			for(ulong j = 0; j < x_.row_num(); ++j, ++cur_pyx) {
 				x <<= x_.GetRows(j);
 				//first calc denominator for further calculation of p_yx
 				double pyx_den = 0;
 				for(ulong k = 0; k < y_.row_num(); ++k)
 					//pyx_den += p(y[k]) * exp(-||x - y[k]||^2 / T)
-					pyx_den += p_y[k] * exp(-(*norm2_fcn_)(x, y_.GetRows(k)) / T_);
+					pyx_den += p_y[k] * exp(-(*norm2_fcn_)(x, y_.GetRows(k)) * beta_);
 
 				//update p(y[i] | x) = p(y[i]) * exp(-||x - y[i]||^2 / T)
-				cur_pyx[j] = (*cur_py) * exp(-(*norm2_fcn_)(x, y) / T_) / pyx_den;
+				*cur_pyx = (*cur_py) * exp(-(*norm2_fcn_)(x, y) * beta_) / pyx_den;
+
+				//update p(y[i])
+				new_py += (*cur_pyx) * px[j];
+				//update y position
+				new_y += x * (*cur_pyx) * px[j];
 			}
-
-			//calc affiliation based on just calculated probabilities
-			calc_aff(*this, hcd_, i);
-
-			//get patterns presentation order
-			(this->*order_fcn_)(i, x_order);
-
-			//update probabilities p(y[i]) & calculate new center position
-			//go through all patterns selected for that cluster
-			*cur_py = 0;
-			y = 0;
-			for(ul_vec::const_iterator pat = x_order.begin(), pat_end = x_order.end(); pat != pat_end; ++pat) {
-				y += x_.GetRows(*pat) * cur_pyx[*pat];
-				*cur_py += cur_pyx[*pat];
-			}
-			//complete calculations
-			*cur_py /= x_order.size();
-			y /= (*cur_py) * x_order.size();
+			//complete y calculations
+			new_y /= new_py;
 			//update error
-			hcd_.e_ += (*norm_fcn_)(y, y_.GetRows(i));
-			//save new center position
-			y_.SetRows(y, i);
-			//move cur_pyx to next row
-			cur_pyx += x_.row_num();
+			hcd_.e_ += (*norm_fcn_)(y, new_y);
+			//save values
+			*cur_py = new_py;
+			y_.SetRows(new_y, i);
+
 		}	//end of centers loop
 
 		//complete mse calculation
@@ -429,7 +502,7 @@ public:
 			//calc variance for current center
 			var = calc_var(*this, i);
 			//if current T below critical - add new center
-			if(T_ < 2 * var) {
+			if(T_ < var) {
 				//generate perturbation
 				generate(perturb.begin(), perturb.end(), prg::rand01);
 				perturb -= 0.5; perturb *= y.norm2() * 0.2;
@@ -450,6 +523,7 @@ public:
 
 	//clusterization using deterministic annealing
 	void find_clusters(const Matrix& data, const Matrix& f, ulong clust_num, ulong maxiter) {
+		px_fcn_ = &da_impl::order2px;
 		order_fcn_ = &da_impl::selection_based_order;
 		norm_fcn_ = &da_impl::l2_norm;
 		norm2_fcn_ = &da_impl::l2_norm2;
@@ -468,19 +542,19 @@ public:
 		p_y = 1; p_yx = 1;
 		//all points initially belongs to single center
 		hcd_.aff_.resize(1);
-		hcd_.aff_[0].clear();
 		for(ulong i = 0; i < x_.row_num(); ++i)
 			hcd_.aff_[0].push_back(i);
-		//get patterns presentation order
-		ul_vec x_order;
-		(this->*order_fcn_)(0, x_order);
+
 		//set position of the first center
-		double mult = 1.0 / x_order.size();
-		for(ulong i = 0; i < x_order.size(); ++i)
-			y_ += x_.GetRows(x_order[i]) * mult;
+		//get p(x) distribution
+		const Matrix& px = (this->*px_fcn_)(0);
+		for(ulong i = 0; i < x_.row_num(); ++i)
+			y_ += x_.GetRows(i) * px[i];
+
 		//set initial T > 2 * max variation along principal axis of all data
 		T_ = calc_var(*this, 0) * 2;
 		T_ *= 1.2;
+		beta_ = 1 / T_;
 
 		//main cycle starts here
 		for(cycle_ = 0; cycle_ < maxiter; ++cycle_) {
@@ -499,10 +573,26 @@ public:
 
 			//cooling step
 			T_ *= alfa_;
+			beta_ = 1 / T_;
 
 			//add new centers if nessessary
 			phase_transition_epoch(clust_num);
 		}	//end of main loop
+	}
+
+	bool patience_check(ulong cycle, double e)
+	{
+		static ulong ni_cycles = 0;
+		static double preve = 0;
+
+		if(cycle == 0 || preve - e > patience_ * preve) {
+			ni_cycles = 0;
+			preve = e;
+		}
+		else if(++ni_cycles >= patience_cycles_)
+			return true;
+
+		return false;
 	}
 
 };

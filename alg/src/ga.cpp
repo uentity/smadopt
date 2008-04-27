@@ -82,14 +82,14 @@ void ga::ReadAddonOptions()
 
 Matrix ga::ScalingSimplest(const Matrix& scores)
 {
-	//for selection that is based just on comparision
-	Matrix expect;
+	//for selection that is based just on comparison
+	//Matrix expect;
 	if(opt_.minimizing)
-		expect <<= -scores + scores.Max();
+		return -scores + scores.Max();
 	else
-		expect = scores;
+		return scores;
 
-	return expect;
+	//return expect;
 }
 
 Matrix ga::ScalingPropMean(const Matrix& scores)
@@ -245,9 +245,8 @@ Matrix ga::ScalingRankSqr(const Matrix& scores)
 	for(ulong i=0; i<scSize; ++i) {
 		expect[mInd[i]] = 1/sqrt((double)(i + 1));
 	}
-	expect /= expect.Sum();
 
-	return expect;
+	return expect/expect.Sum();
 }
 
 indMatrix ga::SelectionRoulette(Matrix& expect, ulong nParents)

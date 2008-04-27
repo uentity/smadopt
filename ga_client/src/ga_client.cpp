@@ -567,7 +567,7 @@ void TestKmeans()
 	//km.find_clusters_f(t, f, f.size()*0.5, 200);
 	//km.drops_hetero_simple(t, f, 0.7, 200);
 	determ_annealing da;
-	da.find_clusters(t, f, 5, 200);
+	da.find_clusters(t, f, 8, 200);
 	const Matrix c = da.get_centers();
 
 	//Matrix c;
