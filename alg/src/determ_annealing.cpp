@@ -139,7 +139,7 @@ public:
 	double (*norm2_fcn_)(const Matrix&, const Matrix&);
 	Matrix (*deriv_fcn_)(const Matrix&, const Matrix&);
 	void (da_impl::*order_fcn_)(ulong, ul_vec&) const;
-	Matrix (da_impl::*px_fcn_)(ulong) const;
+	const Matrix& (da_impl::*px_fcn_)(ulong) const;
 
 	da_impl()
 		: prob_thresh_(1.0/3), alfa_(0.97), Tmin_(0.01), patience_(0.05), patience_cycles_(5)
@@ -309,7 +309,7 @@ public:
 
 	//p(x) generators
 	//standard prob distribution where each p(x) = 1/N
-	Matrix unifrom_px(ulong cv_ind) const {
+	const Matrix& unifrom_px(ulong cv_ind) const {
 		struct px {
 			Matrix expect_;
 			px(const Matrix& f) : expect_(1, f.size()) {
@@ -321,13 +321,13 @@ public:
 	}
 
 	//p(x) distribution based on static GA.ScalingCall calculated only when first time called
-	Matrix scaling_px(ulong cv_ind) const {
+	const Matrix& scaling_px(ulong cv_ind) const {
 		static Matrix expect(get_ps().scaling(f_));
 		return expect;
 	}
 
 	//p(x) distribution based dynamically calculated expectation for given cluster from it's affiliation
-	Matrix scaling_px_aff(ulong cv_ind) const {
+	const Matrix& scaling_px_aff(ulong cv_ind) const {
 		static Matrix expect(1, f_.size());
 
 		//assume that hard affiliation is already calculated
@@ -351,12 +351,12 @@ public:
 	}
 
 	//p(x) distribution based on estimated selection probabilities
-	Matrix selection_px(ulong cv_ind) const {
+	const Matrix& selection_px(ulong cv_ind) const {
 		static Matrix expect(get_ps().selection_prob(f_, 100, 1000));
 		return expect;
 	}
 
-	Matrix selection_px_aff(ulong cv_ind) const {
+	const Matrix& selection_px_aff(ulong cv_ind) const {
 		static Matrix expect(1, f_.size());
 
 		//assume that hard affiliation is already calculated
@@ -380,7 +380,7 @@ public:
 	}
 
 	//order of patterns to p(x) distribution converter
-	Matrix order2px(ulong cv_ind) const {
+	const Matrix& order2px(ulong cv_ind) const {
 		static Matrix expect(1, f_.size());
 
 		//calc affiliation for given center
@@ -426,6 +426,34 @@ public:
 		//we need only maximum singular value
 		double var = E.Max();
 		return var * var / aff_cv.size();
+	}
+
+	double calc_var_honest(const da_data& dad, ulong cv_ind, const Matrix& p_x) const {
+		//assume that hard affiliation is already calculated
+		//if(cv_ind >= hcd_.aff_.size()) return 0;
+		//const ul_vec& aff_cv = hcd_.aff_[cv_ind];
+		//if(aff_cv.size() == 0) return 0;
+
+		//collect data vectors belonging to given cluster
+		const Matrix y = dad.y_.GetRows(cv_ind);
+
+		Matrix covar(x_.col_num(), x_.col_num()), x;
+		double p_xiy;
+		const double mult = 1.0 / p_y[cv_ind];
+		covar = 0;
+		for(ulong i = 0; i < x_.row_num(); ++i) {
+			p_xiy = p_yx(cv_ind, i) * p_x[i] * mult;
+			x <<= dad.x_.GetRows(i) - y;
+			covar += (!x) * x * p_xiy;
+		}
+
+		//calculate eigenvalues of covariance matrix
+		//first calc SVD
+		Matrix E;
+		eig(covar, E);
+		//we need only maximum singular value
+		return E.Max();
+		//return var * var / aff_cv.size();
 	}
 
 	void update_epoch() {
@@ -492,15 +520,19 @@ public:
 		cout << "centers & variances:" << endl;
 		for(ulong i = 0; i < y_.row_num(); ++i) {
 			y_.GetRows(i).Print(cout, false);
-			cout << " : " << calc_var(*this, i) << endl;
+			//get p(x) distribution
+			const Matrix& px = (this->*px_fcn_)(i);
+			cout << " : " << calc_var_honest(*this, i, px) << endl;
 		}
 		cout << endl;
 
 		//check every center for bifurcation
 		for(ulong i = 0; i < cnt && y_.row_num() < max_clust; ++i) {
 			y <<= y_.GetRows(i);
+			//get p(x) distribution
+			const Matrix& px = (this->*px_fcn_)(i);
 			//calc variance for current center
-			var = calc_var(*this, i);
+			var = calc_var_honest(*this, i, px);
 			//if current T below critical - add new center
 			if(T_ < var) {
 				//generate perturbation
@@ -552,7 +584,7 @@ public:
 			y_ += x_.GetRows(i) * px[i];
 
 		//set initial T > 2 * max variation along principal axis of all data
-		T_ = calc_var(*this, 0) * 2;
+		T_ = calc_var_honest(*this, 0, px) * 2;
 		T_ *= 1.2;
 		beta_ = 1 / T_;
 

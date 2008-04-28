@@ -595,6 +595,7 @@ void TestKmeans()
 	f2.close(); f2.clear();
 	f2.open("ind.txt", ios::out | ios::trunc);
 	da.get_ind().Print(f2);
+	//km.get_ind().Print(f2);
 }
 
 int main(int argc, char* argv[])

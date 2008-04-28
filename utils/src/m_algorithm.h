@@ -10,6 +10,7 @@
 _LIBAPI void lu_gepp(Matrix& m);
 _LIBAPI void svd(const Matrix& A, Matrix& U, Matrix& E, Matrix& V);
 _LIBAPI void pseudo_inv(const Matrix& A, Matrix& piA);
+_LIBAPI void eig(const Matrix& A, Matrix& E);
 
 //prints matrix to file or to cout
 template< class T, template <class> class buf_traits_type >

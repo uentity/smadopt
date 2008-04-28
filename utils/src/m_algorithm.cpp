@@ -1,6 +1,7 @@
 #include "m_algorithm.h"
 #include "prg.h"
 #include "jama/jama_svd.h"
+#include "jama/jama_eig.h"
 
 #define TOL 1.0e-15
 
@@ -75,6 +76,16 @@ void assign_mat_ar2d(Matrix& m, const Array2D<double>& a)
 		}
 }
 
+void assign_mat_ar1d(Matrix& m, const Array1D< double >& a)
+{
+	m.NewMatrix(1, a.dim());
+	Matrix::r_iterator p_m(m.begin());
+	for(long i = 0; i < a.dim(); ++i) {
+		*p_m = a[i];
+		++p_m;
+	}
+}
+
 void svd(const Matrix& A, Matrix& U, Matrix& E, Matrix& V)
 {
 	Array2D<double> AA(A.row_num(), A.col_num(), const_cast< double* >(A.GetBuffer()));
@@ -100,4 +111,12 @@ void pseudo_inv(const Matrix& A, Matrix& piA)
 	}
 	//calc pseudo inverse
 	piA = V * E * (!U);
+}
+
+void eig(const Matrix& A, Matrix& E) {
+	Array2D< double > AA(A.row_num(), A.col_num(), const_cast< double* >(A.GetBuffer()));
+	Eigenvalue< double > eig_core(AA);
+	Array1D< double > res_eigs;
+	eig_core.getRealEigenvalues(res_eigs);
+	assign_mat_ar1d(E, res_eigs);
 }

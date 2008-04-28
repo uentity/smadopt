@@ -1052,12 +1052,12 @@ void kmeans::kmeans_impl::find_clusters_f(const Matrix& data, const Matrix& f, u
 	//now start main online phase
 	//pDerivFcn = &kmeans_impl::l2f_deriv;
 	_pOrderFcn = &kmeans_impl::selection_based_order;
-	_pBUFcn = &kmeans_impl::selection_prob_batch_update;
+	_pBUFcn = &kmeans_impl::selection_batch_update;
 
 	ulong i = 0;
 	do {
 		cout << "find_clusters_f: iteration " << i << " started" << endl;
-		online_phase(maxiter);
+		batch_phase(maxiter);
 		++i;
 	} while(join_phase(maxiter));
 	//ensure correct center locations after last merging
