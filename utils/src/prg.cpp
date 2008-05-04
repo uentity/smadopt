@@ -97,11 +97,11 @@ bool randgen::_initialized = false;
 class prg::combinedLCG : public randgen
 {
 private:
-	long _s1, _s2;
+	int32_t _s1, _s2;
 	bool _initialized;
 public:
 	combinedLCG() : _initialized(false) { _s1 = 1; _s2 = 1; }
-	combinedLCG(const combinedLCG& rg) 
+	combinedLCG(const combinedLCG& rg)
 		: _s1(rg._s1), _s2(rg._s2),
 		_initialized(rg._initialized)
 		{
@@ -129,7 +129,7 @@ public:
 
 	double rand01()
 	{
-		long q, z;
+		int32_t q, z;
 		MODMUL(53668, 40014, 12211, 0x7FFFFFABL, _s1)
 		MODMUL(52774, 40692, 3791, 0x7FFFFF07L, _s2)
 		z = _s1 - _s2;
@@ -147,7 +147,7 @@ private:
 	bool _initialized;
 public:
 	shiftreg_rg() : _initialized(false) { _shiftr = 1; _os = os[0]; }
-	shiftreg_rg(const shiftreg_rg& rg) 
+	shiftreg_rg(const shiftreg_rg& rg)
 		: _shiftr(rg._shiftr), _os(rg._os),
 		_initialized(rg._initialized)
 		{
@@ -241,7 +241,7 @@ randgen* create_rg(int rg_type)
 	return pRG;
 }
 
-class prg::prg_store 
+class prg::prg_store
 {
 	vector<randgen*> _rg;
 	randgen* _pRG;
@@ -341,7 +341,7 @@ bool prg::switch_stream(unsigned int nStream)
 	return prgs.switch_stream(nStream);
 }
 
-unsigned int prg::streams_count() 
+unsigned int prg::streams_count()
 {
 	return prgs.streams_count();
 }

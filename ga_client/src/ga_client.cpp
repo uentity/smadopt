@@ -552,7 +552,7 @@ void vsp_test_mig_rates(double start = 0.01, double incr = 0.2, double end = 1.)
 	full_best.Print(f);
 }
 
-void TestKmeans()
+void TestKmeans(int c_num)
 {
 	kmeans km;
 	ifstream f1("t.txt");
@@ -567,7 +567,7 @@ void TestKmeans()
 	//km.find_clusters_f(t, f, f.size()*0.5, 200);
 	//km.drops_hetero_simple(t, f, 0.7, 200);
 	determ_annealing da;
-	da.find_clusters(t, f, 8, 200);
+	da.find_clusters(t, f, c_num, 200);
 	const Matrix c = da.get_centers();
 
 	//Matrix c;
@@ -601,7 +601,9 @@ void TestKmeans()
 int main(int argc, char* argv[])
 {
 	if(argc > 1 && strcmp(argv[1], "1") == 0) {
-		TestKmeans();
+		int c_num = 7;
+		if(argc > 2) c_num = atoi(argv[2]);
+		TestKmeans(c_num);
 	}
 	else
 		TestFcnOpt(2, rastrigins);

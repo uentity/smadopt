@@ -15,6 +15,8 @@
 				<Option createStaticLib="1" />
 				<Compiler>
 					<Add option="-ggdb" />
+					<Add option="-O0" />
+					<Add option="-D_DEBUG" />
 				</Compiler>
 			</Target>
 			<Target title="release_lin">
@@ -31,6 +33,7 @@
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />
+			<Add option="-fPIC" />
 		</Compiler>
 		<Unit filename="src/alg_except.cpp" />
 		<Unit filename="src/alg_except.h" />

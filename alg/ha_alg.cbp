@@ -16,10 +16,11 @@
 				<Option createStaticLib="1" />
 				<Compiler>
 					<Add option="-ggdb" />
+					<Add option="-O0" />
+					<Add option="-D_DEBUG" />
 					<Add directory="../utils/src" />
 				</Compiler>
 				<Linker>
-					<Add library="ha_utils" />
 					<Add directory="../exe/debug" />
 				</Linker>
 			</Target>
@@ -36,14 +37,17 @@
 					<Add directory="../utils/src" />
 				</Compiler>
 				<Linker>
-					<Add library="ha_utils" />
 					<Add directory="../exe/release" />
 				</Linker>
 			</Target>
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />
+			<Add option="-fPIC" />
 		</Compiler>
+		<Linker>
+			<Add library="ha_utils" />
+		</Linker>
 		<Unit filename="src/alg.cpp" />
 		<Unit filename="src/alg_api.cpp" />
 		<Unit filename="src/alg_api.h" />
