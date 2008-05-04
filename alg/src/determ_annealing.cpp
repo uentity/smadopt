@@ -11,6 +11,7 @@
 #include <iterator>
 
 #define EPS 0.0000001
+#define T_EPS 0.0001
 
 using namespace GA;
 using namespace prg;
@@ -35,6 +36,17 @@ struct da_data {
 	double T_;
 	//beta = 1/T
 	double beta_;
+	//variances of each cluster stored here
+	Matrix var_;
+};
+
+//structure to track annealing process
+struct da_hist {
+	Matrix y_;
+	Matrix p_y;
+	double T_;
+
+	da_hist(const da_data& dad) : y_(dad.y_), p_y(dad.p_y), T_(dad.T_) {}
 };
 
 struct hard_clusters_data {
@@ -456,6 +468,23 @@ public:
 		//return var * var / aff_cv.size();
 	}
 
+	void update_variances() {
+		//force winners calculation
+		calc_winners_kmeans(*this, hcd_);
+
+		var_.Resize(y_.row_num());
+		//DEBUG
+		cout << y_.row_num() << " centers & their variances:" << endl;
+		for(ulong i = 0; i < y_.row_num(); ++i) {
+			y_.GetRows(i).Print(cout, false);
+			//get p(x) distribution
+			const Matrix& px = (this->*px_fcn_)(i);
+			var_[i] = calc_var_honest(*this, i, px);
+			cout << " : " << var_[i] << endl;
+		}
+		cout << endl;
+	}
+
 	void update_epoch() {
 		ul_vec x_order; //, uniq_xor;
 		Matrix::r_iterator cur_py = p_y.begin(), cur_pyx = p_yx.begin();
@@ -507,50 +536,69 @@ public:
 		hcd_.e_ /= y_.row_num();
 	}
 
-	void phase_transition_epoch(ulong max_clust) {
-		//main cycle starts here - check all available centers
-		double var;
-		Matrix y;
-		Matrix perturb(1, y_.col_num());
-		ulong cnt = y_.row_num();
-		//force winners calculation
-		calc_winners_kmeans(*this, hcd_);
+	ulong cooling_step() {
+		//sort variances in descending order
+		Matrix svar;
+		svar = var_;
+		Matrix::indMatrix ind = svar.RawSort(greater< double >());
 
-		//DEBUG
-		cout << "centers & variances:" << endl;
-		for(ulong i = 0; i < y_.row_num(); ++i) {
-			y_.GetRows(i).Print(cout, false);
-			//get p(x) distribution
-			const Matrix& px = (this->*px_fcn_)(i);
-			cout << " : " << calc_var_honest(*this, i, px) << endl;
-		}
-		cout << endl;
+		//compute next bifurcation prediction
+		double pt_T;
+		ulong pt_ind = svar.size();
+		for(ulong i = 0; i < svar.size(); ++i)
+			if((pt_T = 2 * svar[i] - T_EPS) < T_) {
+				pt_ind = i;
+				break;
+			}
+
+		T_ *= alfa_;
+//		if(pt_ind < svar.size() && T_ < pt_T)
+//			T_ = pt_T;
+//		else pt_ind = svar.size();
+
+		beta_ = 1 / T_;
+		cout << "cooling step done, new T = " << T_ << endl;
+
+		return pt_ind;
+	}
+
+	void fork_center(ulong cv_ind) {
+		if(cv_ind >= y_.row_num()) return;
+
+		Matrix y = y_.GetRows(cv_ind);
+		//generate perturbation
+		Matrix perturb(1, y_.col_num());
+		generate(perturb.begin(), perturb.end(), prg::rand01);
+		perturb -= 0.5; perturb *= y.norm2() * 0.2;
+
+		//add new center
+		y_ &= y + perturb;
+		p_y[cv_ind] *= 0.5;
+		p_y.push_back(p_y[cv_ind], false);
+		//assign the same affiliation probability to new cluster as the parent had
+		p_yx &= p_yx.GetRows(cv_ind);
+		//p_yx.Resize(y_.row_num());
+
+		//resize affiliations
+		hcd_.aff_.resize(y_.row_num());
+	}
+
+	bool phase_transition_epoch(ulong max_clust) {
+		//main cycle starts here - check all available centers
+
+		//do cooling step
+		ulong pt_ind = cooling_step();
+		//check low-temp condition
+		if(T_ < Tmin_) return false;
+		//fork centers if any
+//		if(pt_ind < y_.row_num() && y_.row_num() < max_clust)
+//			fork_center(pt_ind);
 
 		//check every center for bifurcation
-		for(ulong i = 0; i < cnt && y_.row_num() < max_clust; ++i) {
-			y <<= y_.GetRows(i);
-			//get p(x) distribution
-			const Matrix& px = (this->*px_fcn_)(i);
-			//calc variance for current center
-			var = calc_var_honest(*this, i, px);
-			//if current T below critical - add new center
-			if(T_ < var) {
-				//generate perturbation
-				generate(perturb.begin(), perturb.end(), prg::rand01);
-				perturb -= 0.5; perturb *= y.norm2() * 0.2;
-
-				//add new center
-				y_ &= y + perturb;
-				p_y[i] *= 0.5;
-				p_y.push_back(p_y[i], false);
-				//assign the same affiliation probability to new cluster as the parent had
-				p_yx &= p_yx.GetRows(i);
-				//p_yx.Resize(y_.row_num());
-
-				//resize affiliations
-				hcd_.aff_.resize(y_.row_num());
-			}
-		}
+		ulong cnt = y_.row_num();
+		for(ulong i = 0; i < cnt && y_.row_num() < max_clust; ++i)
+			if(T_ < var_[i]) fork_center(i);
+		return true;
 	}
 
 	//clusterization using deterministic annealing
@@ -597,18 +645,14 @@ public:
 				if(patience_check(i, hcd_.e_)) break;
 			}
 
+			//update variances
+			update_variances();
+
 			//temperature test
-			if(T_ <= Tmin_) break; //T_ = 0;
-			//else if(T_ == 0) break;
-
-			cout << "cooling step done, T = " << T_ << endl;
-
-			//cooling step
-			T_ *= alfa_;
-			beta_ = 1 / T_;
+			//if(T_ <= Tmin_) break;
 
 			//add new centers if nessessary
-			phase_transition_epoch(clust_num);
+			if(!phase_transition_epoch(clust_num)) break;
 		}	//end of main loop
 	}
 
