@@ -5,13 +5,15 @@
 
 #include <map>
 #include <set>
+#include <list>
 #include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <iterator>
 
-#define EPS 0.0000001
+#define EPS 0.000000001
 #define T_EPS 0.0001
+#define MERGE_EPS 0.0001
 
 using namespace GA;
 using namespace prg;
@@ -138,7 +140,7 @@ public:
 	//probability threshold for making hard clusters - see calc_winners
 	double prob_thresh_;
 	double patience_;
-	double alfa_;
+	double alpha_, alpha_max_;
 	double Tmin_;
 	ulong patience_cycles_;
 
@@ -147,6 +149,9 @@ public:
 	Matrix f_;
 	ulong cycle_;
 
+	//annealing history
+	vector< da_hist > hist_;
+
 	double (*norm_fcn_)(const Matrix&, const Matrix&);
 	double (*norm2_fcn_)(const Matrix&, const Matrix&);
 	Matrix (*deriv_fcn_)(const Matrix&, const Matrix&);
@@ -154,7 +159,7 @@ public:
 	const Matrix& (da_impl::*px_fcn_)(ulong) const;
 
 	da_impl()
-		: prob_thresh_(1.0/3), alfa_(0.97), Tmin_(0.01), patience_(0.05), patience_cycles_(5)
+		: prob_thresh_(1.0/3), alpha_(0.9), alpha_max_(0.99), Tmin_(0.01), patience_(0.00001), patience_cycles_(10)
 	{}
 
 	void calc_winners(const da_data& dad, hard_clusters_data& hcd) const
@@ -452,11 +457,12 @@ public:
 		Matrix covar(x_.col_num(), x_.col_num()), x;
 		double p_xiy;
 		const double mult = 1.0 / p_y[cv_ind];
+		Matrix::cr_iterator pp_x = p_x.begin(), pp_yx = p_yx.begin() + cv_ind * x_.row_num();
 		covar = 0;
-		for(ulong i = 0; i < x_.row_num(); ++i) {
-			p_xiy = p_yx(cv_ind, i) * p_x[i] * mult;
+		for(ulong i = 0; i < x_.row_num(); ++i, ++pp_x, ++pp_yx) {
+			p_xiy = *pp_yx * (*pp_x) * mult;
 			x <<= dad.x_.GetRows(i) - y;
-			covar += (!x) * x * p_xiy;
+			covar += ((!x) * x) * p_xiy;
 		}
 
 		//calculate eigenvalues of covariance matrix
@@ -546,18 +552,25 @@ public:
 		double pt_T;
 		ulong pt_ind = svar.size();
 		for(ulong i = 0; i < svar.size(); ++i)
-			if((pt_T = 2 * svar[i] - T_EPS) < T_) {
+			if((pt_T = 2 * svar[i]) < T_) {
 				pt_ind = i;
 				break;
 			}
 
-		T_ *= alfa_;
-//		if(pt_ind < svar.size() && T_ < pt_T)
-//			T_ = pt_T;
-//		else pt_ind = svar.size();
+		//T_ *= alpha_;
+		if(pt_ind < svar.size())
+			//T_ = min(T_ * alpha_max_, max(T_ * alpha_, pt_T));
+			T_ = max(T_ * alpha_, pt_T);
+		else {
+			T_ *= alpha_;
+			pt_ind = svar.size();
+		}
 
 		beta_ = 1 / T_;
 		cout << "cooling step done, new T = " << T_ << endl;
+
+		//calc dCnum / dT
+
 
 		return pt_ind;
 	}
@@ -597,13 +610,47 @@ public:
 		//check every center for bifurcation
 		ulong cnt = y_.row_num();
 		for(ulong i = 0; i < cnt && y_.row_num() < max_clust; ++i)
-			if(T_ < var_[i]) fork_center(i);
+			if(T_ < 2 * var_[i]) fork_center(i);
 		return true;
+	}
+
+	void merge_step() {
+		//test if any centers are coinsident and merge them
+		//first of all calc centers distance matrix
+		Matrix dist;
+		norm_tools::calc_dist_matrix< norm_tools::l2 >(y_, dist);
+		//find closest pairs
+		Matrix::indMatrix pairs = norm_tools::closest_pairs< norm_tools::l2 >(dist);
+		//cut tails that exeeds distance thresold
+		ulong merge_cnt = (ulong)find_if(dist.begin(), dist.end(), bind2nd(greater< double >(), MERGE_EPS)) - dist.begin();
+		if(merge_cnt == dist.size() + 1)
+			//nothing to merge
+			return;
+		//cut tail of indexes array
+		pairs.DelColumns(merge_cnt, -1);
+		//choose one center from each merging pair
+		Matrix::indMatrix merge_ind;
+		transform(pairs.begin(), pairs.end(), insert_iterator(merge_ind.begin()), bind2nd(divides< ulong >(), y_.row_num()));
+		//remove dups
+		sort(merge_ind.begin(), merge_ind.end(), greater< ulong >());
+		Matrix::indMatrix::r_iterator end = unique(merge_ind.begin(), merge_ind.end());
+		//now we have an descending set of centers indexes to remove
+
+		for(Matrix::indMatrix::cc_iterator i = merge_ind.begin(); i != end; ++i) {
+			//extract centers pair
+			cv1 = pairs[i] / y_.row_num(); cv2 = pairs[i] % y_.row_num();
+			//merge centers
+			if(cv1 > cv2) std::swap(cv1, cv2);
+			merged_pyx <<= p_yx.GetRows(cv1) + p_yx.GetRows(cv2);
+			p_y[cv1] += p_y[cv2];
+			//remove cv2
+			p_y.DelColumns(cv2); p_yx.DelRows(cv2);
+		}
 	}
 
 	//clusterization using deterministic annealing
 	void find_clusters(const Matrix& data, const Matrix& f, ulong clust_num, ulong maxiter) {
-		px_fcn_ = &da_impl::order2px;
+		px_fcn_ = &da_impl::scaling_px;
 		order_fcn_ = &da_impl::selection_based_order;
 		norm_fcn_ = &da_impl::l2_norm;
 		norm2_fcn_ = &da_impl::l2_norm2;
@@ -628,13 +675,17 @@ public:
 		//set position of the first center
 		//get p(x) distribution
 		const Matrix& px = (this->*px_fcn_)(0);
-		for(ulong i = 0; i < x_.row_num(); ++i)
-			y_ += x_.GetRows(i) * px[i];
+//		for(ulong i = 0; i < x_.row_num(); ++i)
+//			y_ += x_.GetRows(i) * px[i];
 
 		//set initial T > 2 * max variation along principal axis of all data
 		T_ = calc_var_honest(*this, 0, px) * 2;
 		T_ *= 1.2;
 		beta_ = 1 / T_;
+
+		//clear history
+		hist_.clear();
+		//hist_.push_back(*this);
 
 		//main cycle starts here
 		for(cycle_ = 0; cycle_ < maxiter; ++cycle_) {
@@ -642,11 +693,23 @@ public:
 				//update probabilities and centers positions
 				update_epoch();
 				//convergence test
-				if(patience_check(i, hcd_.e_)) break;
+				//if(patience_check(i, hcd_.e_)) break;
+				if(hcd_.e_ < EPS) break;
 			}
 
 			//update variances
 			update_variances();
+
+			//save history
+			hist_.push_back(*this);
+			//display dCnum / dT info
+			cout << "dCnum/dT = ";
+			if(hist_.size() > 1) {
+				cout << (hist_[cycle_].y_.row_num() - hist_[cycle_ - 1].y_.row_num()) /
+						(hist_[cycle_].T_ - hist_[cycle_ - 1].T_);
+			}
+			else cout << "0";
+			cout << endl;
 
 			//temperature test
 			//if(T_ <= Tmin_) break;

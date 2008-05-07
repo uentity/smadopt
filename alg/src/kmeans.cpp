@@ -52,20 +52,20 @@ class kmeans::kmeans_impl : public km_data
 
 private:
 	//misc structures
-	struct dist_stat {
-		//minimum point-to-point distance
-		double min_;
-		//mean distance between points
-		double mean_;
-		//mean square error of distances
-		double mse_;
-		//mean distance between nearest neighbours
-		double mean_nn_;
-		//mean square error of distances between nearest neighbours
-		double mse_nn_;
-
-		dist_stat() : min_(0), mean_(0), mse_(0), mean_nn_(0), mse_nn_(0) {}
-	};
+//	struct dist_stat {
+//		//minimum point-to-point distance
+//		double min_;
+//		//mean distance between points
+//		double mean_;
+//		//mean square error of distances
+//		double mse_;
+//		//mean distance between nearest neighbours
+//		double mean_nn_;
+//		//mean square error of distances between nearest neighbours
+//		double mse_nn_;
+//
+//		dist_stat() : min_(0), mean_(0), mse_(0), mean_nn_(0), mse_nn_(0) {}
+//	};
 
 	//---------------------------- pat_sel implementation ----------------------------------------------
 	class pat_sel
@@ -199,14 +199,14 @@ private:
 	double preve_;
 	ulong cycle_, ni_cycles_;
 
-	void (kmeans_impl::*_pNormFcn)(const Matrix&, const Matrix&, Matrix&) const;
-	Matrix (kmeans_impl::*_pDerivFcn)(ulong, const Matrix&) const;
+	Matrix (*_pNormFcn)(const Matrix&, const Matrix&);
+	Matrix (*_pDerivFcn)(const Matrix&, const Matrix&);
 	void (kmeans_impl::*_pBUFcn)();
 	void (kmeans_impl::*_pOrderFcn)(ul_vec&);
 
-	void l2_norm(const Matrix& dv, const Matrix& points, Matrix& norm) const;
-	Matrix l2_deriv(ulong dv_ind, const Matrix& center) const;
-	Matrix l2f_deriv(ulong dv_ind, const Matrix& center) const;
+//	void l2_norm(const Matrix& dv, const Matrix& points, Matrix& norm) const;
+//	Matrix l2_deriv(ulong dv_ind, const Matrix& center) const;
+//	Matrix l2f_deriv(ulong dv_ind, const Matrix& center) const;
 
 	void calc_winners(km_data& kmd) const;
 	void l2_batch_update();
@@ -234,8 +234,8 @@ private:
 	double _dist_ij(const dist_buf& db, ulong i, ulong j);
 	void gen_uniform_cent(const Matrix& bound, const Matrix& dim, Matrix& dv, drops_map& drops, const double quant);
 
-	template< int method >
-	dist_stat calc_dist_matrix(const Matrix& data, Matrix& dist) const;
+//	template< int method >
+//	dist_stat calc_dist_matrix(const Matrix& data, Matrix& dist) const;
 
 public:
 
@@ -264,66 +264,66 @@ public:
 //----------------------------kmeans_impl implementation--------------------------------------------------------------
 double kmeans::kmeans_impl::_drop_params::init_r_ = 0;
 
-void kmeans::kmeans_impl::l2_norm(const Matrix& dv, const Matrix& points, Matrix& norm) const {
-	norm.Resize(1, points.row_num());
-	//Matrix diff;
-	for(ulong i = 0; i < points.row_num(); ++i) {
-		norm[i] = (dv - points.GetRows(i)).norm2();
-	}
-}
+//void kmeans::kmeans_impl::l2_norm(const Matrix& dv, const Matrix& points, Matrix& norm) const {
+//	norm.Resize(1, points.row_num());
+//	//Matrix diff;
+//	for(ulong i = 0; i < points.row_num(); ++i) {
+//		norm[i] = (dv - points.GetRows(i)).norm2();
+//	}
+//}
+//
+//Matrix kmeans::kmeans_impl::l2_deriv(ulong dv_ind, const Matrix& center) const {
+//	return (data_.GetRows(dv_ind) - center);
+//}
 
-Matrix kmeans::kmeans_impl::l2_deriv(ulong dv_ind, const Matrix& center) const {
-	return (data_.GetRows(dv_ind) - center);
-}
-
-Matrix kmeans::kmeans_impl::l2f_deriv(ulong dv_ind, const Matrix& center) const {
-	double mult = 1;
-	//find minimum in current cluster
-	//double fmin = f_[dv_ind];
-	//ulong dv_min = dv_ind;
-	//for(ulong i = 0; i < data_.row_num(); ++i)
-	//	if(w_[i] == w_[dv_ind] && f_[i] < fmin) {
-	//		fmin = f_[i];
-	//		dv_min = i;
-	//	}
-	//do a step also in direction to minimum
-	//return (data_.GetRows(dv_min) - center);
-	//return (data_.GetRows(dv_ind) - center + data_.GetRows(dv_min) - center)/2;
-
-	//mult = 1 + norms_[dv_ind];
-	//if(mult != 0)
-	//mult = f_[dv_ind] / (mult*mult);
-
-	//double sigma = 0;
-	//for(ulong i = 0; i < data_.row_num(); ++i) {
-	//	if(w_[i] == w_[dv_ind]) sigma += norms_[i];
-	//}
-	//sigma /= data_.row_num();
-	//mult = exp(-norms_[dv_ind]/(sigma*sigma)) * f_[dv_ind];
-
-	double min_f = f_[dv_ind], sigma = 0;
-	ulong cnt = 0;
-	for(ulong i = 1; i < data_.row_num(); ++i) {
-		if(w_[i] == w_[dv_ind]) {
-			 if(f_[i] < min_f) min_f = f_[i];
-			sigma += f_[i];
-			++cnt;
-		}
-	}
-	sigma -= cnt*min_f;
-	mult = exp(-(f_[dv_ind] - min_f)/sigma);
-
-	return (data_.GetRows(dv_ind) - center) * mult;
-
-	//approximate gradient
-	//Matrix dv(data_.GetRows(dv_ind)), g(1, data_.col_num(), 0);
-	//for(ulong i = 0; i < data_.row_num(); ++i) {
-	//	if(w_[i] == w_[dv_ind] && norms_[i] > 0)
-	//		g += (data_.GetRows(i) - center) / sqrt(norms_[i]);
-	//}
-	//g /= data_.row_num();
-	//return (dv - center + g)/2;
-}
+//Matrix kmeans::kmeans_impl::l2f_deriv(ulong dv_ind, const Matrix& center) const {
+//	double mult = 1;
+//	//find minimum in current cluster
+//	//double fmin = f_[dv_ind];
+//	//ulong dv_min = dv_ind;
+//	//for(ulong i = 0; i < data_.row_num(); ++i)
+//	//	if(w_[i] == w_[dv_ind] && f_[i] < fmin) {
+//	//		fmin = f_[i];
+//	//		dv_min = i;
+//	//	}
+//	//do a step also in direction to minimum
+//	//return (data_.GetRows(dv_min) - center);
+//	//return (data_.GetRows(dv_ind) - center + data_.GetRows(dv_min) - center)/2;
+//
+//	//mult = 1 + norms_[dv_ind];
+//	//if(mult != 0)
+//	//mult = f_[dv_ind] / (mult*mult);
+//
+//	//double sigma = 0;
+//	//for(ulong i = 0; i < data_.row_num(); ++i) {
+//	//	if(w_[i] == w_[dv_ind]) sigma += norms_[i];
+//	//}
+//	//sigma /= data_.row_num();
+//	//mult = exp(-norms_[dv_ind]/(sigma*sigma)) * f_[dv_ind];
+//
+//	double min_f = f_[dv_ind], sigma = 0;
+//	ulong cnt = 0;
+//	for(ulong i = 1; i < data_.row_num(); ++i) {
+//		if(w_[i] == w_[dv_ind]) {
+//			 if(f_[i] < min_f) min_f = f_[i];
+//			sigma += f_[i];
+//			++cnt;
+//		}
+//	}
+//	sigma -= cnt*min_f;
+//	mult = exp(-(f_[dv_ind] - min_f)/sigma);
+//
+//	return (data_.GetRows(dv_ind) - center) * mult;
+//
+//	//approximate gradient
+//	//Matrix dv(data_.GetRows(dv_ind)), g(1, data_.col_num(), 0);
+//	//for(ulong i = 0; i < data_.row_num(); ++i) {
+//	//	if(w_[i] == w_[dv_ind] && norms_[i] > 0)
+//	//		g += (data_.GetRows(i) - center) / sqrt(norms_[i]);
+//	//}
+//	//g /= data_.row_num();
+//	//return (dv - center + g)/2;
+//}
 
 void kmeans::kmeans_impl::simple_shuffle(ul_vec& porder)
 {
@@ -438,8 +438,8 @@ void kmeans::kmeans_impl::seed(const Matrix& data, ulong clust_num, const Matrix
 	switch(opt_.norm_t) {
 		default:
 		case eucl_l2:
-			_pNormFcn = &kmeans_impl::l2_norm;
-			_pDerivFcn = &kmeans_impl::l2_deriv;
+			_pNormFcn = &norm_tools::vm_norm< norm_tools::l2 >;
+			_pDerivFcn = &norm_tools::deriv< norm_tools::l2 >;
 			_pBUFcn = &kmeans_impl::l2_batch_update;
 			break;
 	}
@@ -469,7 +469,7 @@ void kmeans::kmeans_impl::calc_winners(km_data& kmd) const
 	//calc centers-winners for each data point
 	for(ulong i = 0; i < kmd.data_.row_num(); ++i) {
 		dv <<= kmd.data_.GetRows(i);
-		(this->*_pNormFcn)(dv, kmd.c_, norm);
+		norm <<= (*_pNormFcn)(dv, kmd.c_);
 		//save winner
 		kmd.w_[i] = norm.min_ind();
 		//save affiliation
@@ -504,7 +504,7 @@ void kmeans::kmeans_impl::proc_empty_cent(ulMatrix& empty_idx)
 
 			//update norms
 			for(ulong i = 0; i < data_.row_num(); ++i) {
-				(this->*_pNormFcn)(data_.GetRows(i), c_.GetRows(w_[i]), norm);
+				norm <<= (*_pNormFcn)(data_.GetRows(i), c_.GetRows(w_[i]));
 				norms_[i] = norm[0];
 			}
 
@@ -656,7 +656,7 @@ void kmeans::kmeans_impl::online_phase(ulong maxiter)
 			dv <<= data_.GetRows(*p_order);
 
 			//calc norm to find closest center
-			(this->*_pNormFcn)(dv, c_, norm);
+			norm <<= (*_pNormFcn)(dv, c_);
 			//norms_.SetRows(norm, i);
 			vnorm <<= norm.Mul(v_);
 			//find winner
@@ -679,7 +679,7 @@ void kmeans::kmeans_impl::online_phase(ulong maxiter)
 
 			//update corresponding center
 			w_c <<= c_.GetRows(winner);
-			w_c += (this->*_pDerivFcn)(*p_order, w_c) * opt_.nu;
+			w_c += (*_pDerivFcn)(dv, w_c) * opt_.nu;
 			c_.SetRows(w_c, winner);
 
 			//update distributions v
@@ -718,7 +718,7 @@ void kmeans::kmeans_impl::online_phase_simple(ulong maxiter)
 			dv <<= data_.GetRows(*p_order);
 
 			//calc norm to find closest center
-			(this->*_pNormFcn)(dv, c_, norm);
+			norm <<= (*_pNormFcn)(dv, c_);
 			//find winner
 			winner = norm.min_ind();
 			w_[*p_order] = winner;
@@ -732,7 +732,7 @@ void kmeans::kmeans_impl::online_phase_simple(ulong maxiter)
 			opt_.nu = 1/(double)pc[winner];
 			//update corresponding center
 			w_c <<= c_.GetRows(winner);
-			w_c += (this->*_pDerivFcn)(*p_order, w_c) * opt_.nu;
+			w_c += (*_pDerivFcn)(dv, w_c) * opt_.nu;
 			c_.SetRows(w_c, winner);
 		}
 
@@ -743,115 +743,6 @@ void kmeans::kmeans_impl::online_phase_simple(ulong maxiter)
 	}
 	//ensure correct winners & norms are calculated
 	calc_winners(*this);
-}
-
-template< >
-kmeans::kmeans_impl::dist_stat kmeans::kmeans_impl::calc_dist_matrix< 0 >(const Matrix& data, Matrix& dist) const
-{
-	//some constant values used
-	const ulong points_num = data.row_num();
-	const double mult = 2.0/(points_num * (points_num - 1));
-	const double mult1 = 1.0/data.row_num();
-
-	//resize distance matrix
-	dist(points_num, points_num);
-	//statistics
-	dist_stat stat;
-	//make a copy of input data
-	Matrix data_cpy(data.row_num(), data.col_num(), data.GetBuffer());
-	//locally used matrices
-	Matrix dist_row(1, data.row_num()), dv, norm;
-	//mean distance^2
-	double meand2 = 0, meand2_nn = 0;
-	//current min distance (between nearest neighbours)
-	double cur_mind;
-
-	for(ulong i = 0; i < points_num - 1; ++i) {
-		dv <<= data_cpy.GetRows(0);
-		data_cpy.DelRows(0);
-		(this->*_pNormFcn)(dv, data_cpy, norm);
-		dist_row = 0;
-		dist_row.SetColumns(norm, i + 1, norm.size());
-		dist.SetRows(dist_row, i);
-		//calc mean
-		stat.mean_ += mult * norm.Sum();
-		//calc distance to nearest neighbour
-		cur_mind = norm.Min();
-		if(i == 0 || cur_mind < stat.min_) stat.min_ = cur_mind;
-		//update mean distance to nearest neighbour
-		stat.mean_nn_ += cur_mind * mult1;
-		//norm = norm^2
-		transform(norm, norm, multiplies< double >());
-		//update mean distance^2
-		meand2 += mult * norm.Sum();
-		//update mean nn distance^2
-		meand2_nn += mult1 * cur_mind * cur_mind;
-	}
-	//fill lower triangle of distance matrix
-	dist <<= dist + !dist;
-
-	//calc mse
-	stat.mse_ = sqrt(stat.mean_*(meand2/stat.mean_ - stat.mean_));
-	stat.mse_nn_ = sqrt(stat.mean_nn_*(meand2_nn/stat.mean_nn_ - stat.mean_nn_));
-	return stat;
-}
-
-template< >
-kmeans::kmeans_impl::dist_stat kmeans::kmeans_impl::calc_dist_matrix< 1 >(const Matrix& data, Matrix& dist) const
-{
-	//some constant values used
-	const ulong points_num = data.row_num();
-	const double mult = 2.0/(points_num * (points_num - 1));
-	const double mult1 = 1.0/(points_num - 1);
-
-	//localy used matrices
-	Matrix dv, norm; //, dist_row(1, points_num);
-	//statistics
-	dist_stat stat;
-	//meand distance^2 & meand distance^2 between nearest neighbours
-	double meand2 = 0, meand2_nn = 0;
-	//current distance & minimum distances
-	double cur_dist, cur_mind = 0, cur_mind2 = 0;
-
-	//resize distance matrix
-	dist.Resize(points_num, points_num);
-	//zero distance matrix
-	dist = 0;
-	//start distances calculation
-	for(ulong i = 0; i < points_num - 1; ++i) {
-		dv <<= data.GetRows(i);
-		//calc dist^2 to all other rows
-		for(ulong j = i + 1; j < points_num; ++j) {
-			norm <<= dv - data.GetRows(j);
-			//calc dist^2
-			transform(norm, norm, multiplies<double>());
-			//cur_dist = distance^2
-			cur_dist = norm.Sum();
-			//update mean of distance^2
-			meand2 += mult * cur_dist;
-			//update current min distance^2
-			if(j == i + 1 || cur_dist < cur_mind2) cur_mind2 = cur_dist;
-			//cur_dist = pure l2 distance
-			cur_dist = sqrt(cur_dist);
-			//update current minimum distance (to nearest neighbour)
-			if(j == i + 1 || cur_dist < cur_mind) cur_mind = cur_dist;
-			//save it into matrix elements (i,j) and (j, i)
-			dist(i, j) = cur_dist; dist(j, i) = cur_dist;
-			//update global mean distance
-			stat.mean_ += cur_dist * mult;
-		}
-		//update global min distance
-		if(i == 0 || cur_mind < stat.min_) stat.min_ = cur_mind;
-		//update mean nearest neighbour distance
-		stat.mean_nn_ += cur_mind * mult1;
-		//update mean nearest neighbour distance^2
-		meand2_nn += cur_mind2 * mult1;
-	}
-
-	//calc mse
-	stat.mse_ = sqrt(stat.mean_*(meand2/stat.mean_ - stat.mean_));
-	stat.mse_nn_ = sqrt(stat.mean_nn_*(meand2_nn/stat.mean_nn_ - stat.mean_nn_));
-	return stat;
 }
 
 template< class T >
@@ -877,7 +768,7 @@ double kmeans::kmeans_impl::xie_beni_validity(const km_data& kmd, double sep) co
 	//calc separation if needed
 	if(sep == 0) {
 		Matrix cdist;
-		dist_stat ds = calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(kmd.c_, cdist);
+		norm_tools::dist_stat ds = norm_tools::calc_dist_matrix< norm_tools::l2 >(kmd.c_, cdist);
 		sep = ds.min_;
 	}
 
@@ -886,8 +777,6 @@ double kmeans::kmeans_impl::xie_beni_validity(const km_data& kmd, double sep) co
 
 bool kmeans::kmeans_impl::join_phase(ulong maxiter)
 {
-	//find closest centers
-	Matrix::indMatrix asc_di;
 	//merged centers indexes
 	typedef set< ulong, greater< ulong > > merged_idx;
 	merged_idx mc;
@@ -900,16 +789,9 @@ bool kmeans::kmeans_impl::join_phase(ulong maxiter)
 
 	//calc distances matrix
 	Matrix dist;
-	dist_stat ds = calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(c_, dist);
-
-	//sort distances by ascending
-	asc_di <<= dist.RawSort();
-	//remove indexes of first zero elements
-	asc_di.DelColumns(0, c_.row_num());
-	//remove indexes of every second duplicating element
-	for(ulong i = dist.size() - 1; i < dist.size(); i-=2)
-		asc_di.DelColumns(i);
-	//now we have ordered by ascending distance centers pairs
+	norm_tools::dist_stat ds = norm_tools::calc_dist_matrix< norm_tools::l2 >(c_, dist);
+	//find closest centers
+	Matrix::indMatrix asc_di = norm_tools::closest_pairs< norm_tools::l2 >(dist);
 
 	//discovered centers will be stored here
 	Matrix new_c;
@@ -947,9 +829,9 @@ bool kmeans::kmeans_impl::join_phase(ulong maxiter)
 			sel_ind <<= ps.ga_.SelectionCall(expect, expect.size());
 			//move center
 			for(ulong j = 0; j < sel_ind.size(); ++j)
-				c += (this->*_pDerivFcn)(sel_ind[j], c) * opt_.nu;
+				c += (*_pDerivFcn)(kmd.data_.GetRows(sel_ind[j]), c) * opt_.nu;
 			//calc error
-			(this->*_pNormFcn)(c, p, norm);
+			norm <<= (*_pNormFcn)(c, p);
 			e_ = norm.Sum()/norm.size();
 			if(patience_check()) break;
 		}
@@ -959,11 +841,11 @@ bool kmeans::kmeans_impl::join_phase(ulong maxiter)
 		//test if new merged cluster is better than two previous
 		//find closest points to each of centers c1, c2 and c
 		//and test which one has better function value
-		(this->*_pNormFcn)(c_.GetRows(c1), p, norm);
+		norm <<= (*_pNormFcn)(c_.GetRows(c1), p);
 		ulong cl_c1 = norm.min_ind();
-		(this->*_pNormFcn)(c_.GetRows(c2), p, norm);
+		norm <<= (*_pNormFcn)(c_.GetRows(c2), p);
 		ulong cl_c2 = norm.min_ind();
-		(this->*_pNormFcn)(c, p, norm);
+		norm <<= (*_pNormFcn)(c, p);
 		ulong cl_c = norm.min_ind();
 
 		if(f[cl_c] <= f[cl_c1] && f[cl_c] <= f[cl_c2]) {
@@ -976,7 +858,7 @@ bool kmeans::kmeans_impl::join_phase(ulong maxiter)
 			Matrix min_point = p.GetRows(f_.min_ind());
 			//find distances to minimum point from c1, c2 and c
 			expect <<= c & c_.GetRows(c1) & c_.GetRows(c2);
-			(this->*_pNormFcn)(min_point, expect, norm);
+			norm <<= (*_pNormFcn)(min_point, expect);
 			if(norm.min_ind() == 0)
 				do_merge = true;
 
@@ -1078,15 +960,15 @@ Matrix kmeans::kmeans_impl::drops_homo(const Matrix& data, const Matrix& f, doub
 	switch(opt_.norm_t) {
 		default:
 		case eucl_l2:
-			_pNormFcn = &kmeans_impl::l2_norm;
-			_pDerivFcn = &kmeans_impl::l2_deriv;
+			_pNormFcn = &norm_tools::vm_norm< norm_tools::l2 >;
+			_pDerivFcn = &norm_tools::deriv< norm_tools::l2 >;
 			_pBUFcn = &kmeans_impl::l2_batch_update;
 			break;
 	}
 
 	//calc distance matrix
 	Matrix dist;
-	dist_stat ds = calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(data, dist);
+	norm_tools::dist_stat ds = norm_tools::calc_dist_matrix< norm_tools::l2 >(data, dist);
 	//calc drop radius
 	const double drop_r = (ds.mean_ - ds.mse_)*quant_mult;
 	//const double drop_r = 2*mind;
@@ -1195,8 +1077,8 @@ Matrix kmeans::kmeans_impl::drops_hetero(const Matrix& data, const Matrix& f, do
 	switch(opt_.norm_t) {
 		default:
 		case eucl_l2:
-			_pNormFcn = &kmeans_impl::l2_norm;
-			_pDerivFcn = &kmeans_impl::l2_deriv;
+			_pNormFcn = &norm_tools::vm_norm< norm_tools::l2 >;
+			_pDerivFcn = &norm_tools::deriv< norm_tools::l2 >;
 			_pBUFcn = &kmeans_impl::l2_batch_update;
 			break;
 	}
@@ -1209,7 +1091,7 @@ Matrix kmeans::kmeans_impl::drops_hetero(const Matrix& data, const Matrix& f, do
 
 	//calc distance matrix
 	Matrix dist;
-	dist_stat ds = calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(data, dist);
+	norm_tools::dist_stat ds = norm_tools::calc_dist_matrix< norm_tools::l2 >(data, dist);
 	//calc drop radius
 	const double quant = (ds.mean_ - ds.mse_)*quant_mult;
 	//const double quant = 2*mind;
@@ -1392,8 +1274,8 @@ Matrix kmeans::kmeans_impl::drops_hetero_map(const Matrix& data, const Matrix& f
 	switch(opt_.norm_t) {
 		default:
 		case eucl_l2:
-			_pNormFcn = &kmeans_impl::l2_norm;
-			_pDerivFcn = &kmeans_impl::l2_deriv;
+			_pNormFcn = &norm_tools::vm_norm< norm_tools::l2 >;
+			_pDerivFcn = &norm_tools::deriv< norm_tools::l2 >;
 			_pBUFcn = &kmeans_impl::l2_batch_update;
 			break;
 	}
@@ -1406,7 +1288,7 @@ Matrix kmeans::kmeans_impl::drops_hetero_map(const Matrix& data, const Matrix& f
 
 	//calc distance matrix
 	Matrix dist;
-	dist_stat ds = calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(data, dist);
+	norm_tools::dist_stat ds = norm_tools::calc_dist_matrix< norm_tools::l2 >(data, dist);
 	//calc drop radius
 	const double quant = ds.mean_nn_; //(md - qd)*quant_mult;
 	//const double quant = 2*mind;
@@ -1424,7 +1306,7 @@ Matrix kmeans::kmeans_impl::drops_hetero_map(const Matrix& data, const Matrix& f
 	for(ulong i = 0; i < init_cnt; ++i) {
 		generate(dv.begin(), dv.end(), prg::rand01);
 		dv *= dist_row; dv += _data;
-		(this->*_pNormFcn)(dv, data, norm);
+		norm <<= (*_pNormFcn)(dv, data);
 		ind = norm.min_ind();
 		++drops[ind].qcnt_;
 	}
@@ -1541,7 +1423,7 @@ void kmeans::kmeans_impl::gen_uniform_cent(const Matrix& bound, const Matrix& di
 	dv[dim_ind] = bound[dim_ind] + quant/2;
 	for(ulong i = 0; i < dim[0]; ++i) {
 		if(last_dim) {
-			(this->*_pNormFcn)(dv, data_, norm);
+			norm <<= (*_pNormFcn)(dv, data_);
 			drop_ind = norm.min_ind();
 			++drops[drop_ind].qcnt_;
 		}
@@ -1559,8 +1441,8 @@ Matrix kmeans::kmeans_impl::drops_hetero_simple(const Matrix& data, const Matrix
 	switch(opt_.norm_t) {
 		default:
 		case eucl_l2:
-			_pNormFcn = &kmeans_impl::l2_norm;
-			_pDerivFcn = &kmeans_impl::l2_deriv;
+			_pNormFcn = &norm_tools::vm_norm< norm_tools::l2 >;
+			_pDerivFcn = &norm_tools::deriv< norm_tools::l2 >;
 			_pBUFcn = &kmeans_impl::l2_batch_update;
 			break;
 	}
@@ -1575,7 +1457,7 @@ Matrix kmeans::kmeans_impl::drops_hetero_simple(const Matrix& data, const Matrix
 
 	//calc distance matrix
 	Matrix dist;
-	dist_stat ds = calc_dist_matrix< KM_CALC_DIST_MAT_METHOD >(data, dist);
+	norm_tools::dist_stat ds = norm_tools::calc_dist_matrix< norm_tools::l2 >(data, dist);
 	//calc drop radius
 	const double quant = ds.mean_nn_; //(md - qd)*quant_mult;
 	_drop_params::init_r_ = quant;
@@ -1735,8 +1617,8 @@ kmeans::kmeans() : pimpl_(new kmeans_impl(opt_))
 void kmeans::set_def_opt()
 {
 	opt_.set_def_opt();
-	pimpl_->_pNormFcn = &kmeans::kmeans_impl::l2_norm;
-	pimpl_->_pDerivFcn = &kmeans::kmeans_impl::l2_deriv;
+	pimpl_->_pNormFcn = &norm_tools::vm_norm< norm_tools::l2 >;
+	pimpl_->_pDerivFcn = &norm_tools::deriv< norm_tools::l2 >;
 }
 
 const Matrix& kmeans::get_centers() const {
