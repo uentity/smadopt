@@ -300,13 +300,20 @@ template< typename norm_tools::norm_types nt >
 Matrix::indMatrix norm_tools::closest_pairs(Matrix& dist) {
 	//make copy
 	//Matrix dist_cpy; dist_cpy = dist;
+	//save points number
+	ulong pnum = dist.row_num();
+	//convert distances matrix to vector
+	dist.Resize(1, dist.row_num() * dist.col_num());
 	//sort distances by ascending
 	Matrix::indMatrix asc_di = dist.RawSort();
 	//remove indexes of first zero elements
-	asc_di.DelColumns(0, dist.row_num());
+	asc_di.DelColumns(0, pnum);
+	dist.DelColumns(0, pnum);
 	//remove indexes of every second duplicating element
-	for(ulong i = dist.size() - 1; i < dist.size(); i-=2)
+	for(ulong i = dist.size() - 1; i < dist.size(); i-=2) {
 		asc_di.DelColumns(i);
+		dist.DelColumns(i);
+	}
 	//now we build ordered by ascending distance set of points
 	return asc_di;
 }

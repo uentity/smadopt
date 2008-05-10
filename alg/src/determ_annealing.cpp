@@ -619,33 +619,52 @@ public:
 		//first of all calc centers distance matrix
 		Matrix dist;
 		norm_tools::calc_dist_matrix< norm_tools::l2 >(y_, dist);
+		//DEBUG
+		dist.Resize(1, dist.row_num() * dist.col_num());
 		//find closest pairs
-		Matrix::indMatrix pairs = norm_tools::closest_pairs< norm_tools::l2 >(dist);
+		Matrix::indMatrix pairs;
+		pairs = norm_tools::closest_pairs< norm_tools::l2 >(dist);
 		//cut tails that exeeds distance thresold
-		ulong merge_cnt = (ulong)find_if(dist.begin(), dist.end(), bind2nd(greater< double >(), MERGE_EPS)) - dist.begin();
-		if(merge_cnt == dist.size() + 1)
+		ulong merge_cnt = (ulong)(find_if(dist.begin(), dist.end(), bind2nd(greater< double >(), MERGE_EPS))
+									- dist.begin());
+		if(merge_cnt == dist.size())
 			//nothing to merge
 			return;
-		//cut tail of indexes array
-		pairs.DelColumns(merge_cnt, -1);
-		//choose one center from each merging pair
-		Matrix::indMatrix merge_ind;
-		transform(pairs.begin(), pairs.end(), insert_iterator(merge_ind.begin()), bind2nd(divides< ulong >(), y_.row_num()));
-		//remove dups
-		sort(merge_ind.begin(), merge_ind.end(), greater< ulong >());
-		Matrix::indMatrix::r_iterator end = unique(merge_ind.begin(), merge_ind.end());
-		//now we have an descending set of centers indexes to remove
 
-		for(Matrix::indMatrix::cc_iterator i = merge_ind.begin(); i != end; ++i) {
+		//merged centers indexes
+		typedef set< ulong, greater< ulong > > merged_idx;
+		merged_idx mc;
+
+		//codebook with merged cenrters
+		da_data new_cb;
+		ulong cv1, cv2;
+		//first pass - compute merged centers
+		for(Matrix::indMatrix::cr_iterator i = pairs.begin(), end = pairs.end(); i != end; ++i) {
 			//extract centers pair
-			cv1 = pairs[i] / y_.row_num(); cv2 = pairs[i] % y_.row_num();
-			//merge centers
-			if(cv1 > cv2) std::swap(cv1, cv2);
-			merged_pyx <<= p_yx.GetRows(cv1) + p_yx.GetRows(cv2);
-			p_y[cv1] += p_y[cv2];
-			//remove cv2
-			p_y.DelColumns(cv2); p_yx.DelRows(cv2);
+			cv1 = (*i) / y_.row_num(); cv2 = (*i) % y_.row_num();
+			//check if any of these codevectors already marked to merge
+			if(mc.find(cv1) != mc.end() || mc.find(cv2) != mc.end())
+				continue;
+			//mark centers as merged
+			mc.insert(cv1); mc.insert(cv2);
+			//compute new merged center
+			new_cb.y_ &= y_.GetRows(cv1);
+			new_cb.p_y.push_back(p_y[cv1] + p_y[cv2], false);
+			new_cb.p_yx &= p_yx.GetRows(cv1) + p_yx.GetRows(cv2);
 		}
+
+		//second pass - clear existing codebook
+		for(merged_idx::const_iterator mi = mc.begin(), end = mc.end(); mi != end; ++mi) {
+			y_.DelRows(*mi);
+			p_yx.DelRows(*mi);
+			p_y.DelColumns(*mi);
+		}
+		//append merged codebook
+		y_ &= new_cb.y_;
+		p_yx &= new_cb.p_yx;
+		p_y |= new_cb.p_y;
+		//resize affiliations
+		hcd_.aff_.resize(y_.row_num());
 	}
 
 	//clusterization using deterministic annealing
@@ -696,6 +715,8 @@ public:
 				//if(patience_check(i, hcd_.e_)) break;
 				if(hcd_.e_ < EPS) break;
 			}
+			//perform merge step
+			merge_step();
 
 			//update variances
 			update_variances();
