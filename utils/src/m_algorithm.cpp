@@ -240,7 +240,7 @@ norm_tools::dist_stat calc_dist_matrix_impl(const Matrix& data, Matrix& dist, no
 	return stat;
 }
 
-template< >
+template< > _CLASS_DECLSPEC
 Matrix norm_tools::vm_norm2< norm_tools::l2 >(const Matrix& v_from, const Matrix& m_to) {
 	Matrix norm(1, m_to.row_num());
 	Matrix diff;
@@ -250,10 +250,8 @@ Matrix norm_tools::vm_norm2< norm_tools::l2 >(const Matrix& v_from, const Matrix
 	}
 	return norm;
 }
-//instantiate
-template Matrix norm_tools::vm_norm2< norm_tools::l2 >(const Matrix&, const Matrix&);
 
-template< >
+template< > _CLASS_DECLSPEC
 Matrix norm_tools::vm_norm< norm_tools::l2 >(const Matrix& v_from, const Matrix& m_to) {
 	Matrix norm(1, m_to.row_num());
 	for(ulong i = 0; i < norm.size(); ++i)
@@ -264,37 +262,31 @@ Matrix norm_tools::vm_norm< norm_tools::l2 >(const Matrix& v_from, const Matrix&
 //		transform(res, ptr_fun< double, double >(std::sqrt));
 //		return res;
 }
-//instantiate
-template Matrix norm_tools::vm_norm< norm_tools::l2 >(const Matrix&, const Matrix&);
 
-template< >
+template< > _CLASS_DECLSPEC
 double norm_tools::vv_norm2< norm_tools::l2 >(const Matrix& v_from, const Matrix& v_to) {
 	Matrix diff = v_from - v_to;
 	return diff.Mul(diff).Sum();
 }
-//instantiate
-template double norm_tools::vv_norm2< norm_tools::l2 >(const Matrix&, const Matrix&);
 
 template< typename norm_tools::norm_types nt >
 double norm_tools::vv_norm(const Matrix& v_from, const Matrix& v_to) {
 	return sqrt(vv_norm2< nt >(v_from, v_to));
 }
-//instantiate
-template double norm_tools::vv_norm< norm_tools::l2 >(const Matrix&, const Matrix&);
+//instantiate for l2
+template _CLASS_DECLSPEC double norm_tools::vv_norm< norm_tools::l2 >(const Matrix&, const Matrix&);
 
-template< >
+template< > _CLASS_DECLSPEC
 Matrix norm_tools::deriv< norm_tools::l2 >(const Matrix& v1, const Matrix& v2) {
 	return v1 - v2;
 }
-//instantiate
-template Matrix norm_tools::deriv< norm_tools::l2 >(const Matrix&, const Matrix&);
 
 template< typename norm_tools::norm_types nt >
 norm_tools::dist_stat norm_tools::calc_dist_matrix(const Matrix& data, Matrix& dist) {
 	return calc_dist_matrix_impl(data, dist, &norm_tools::vv_norm2< nt >);
 }
-//instantiate
-template norm_tools::dist_stat norm_tools::calc_dist_matrix< norm_tools::l2 >(const Matrix&, Matrix&);
+//instantiate for l2
+template _CLASS_DECLSPEC norm_tools::dist_stat norm_tools::calc_dist_matrix< norm_tools::l2 >(const Matrix&, Matrix&);
 
 template< typename norm_tools::norm_types nt >
 Matrix::indMatrix norm_tools::closest_pairs(Matrix& dist) {
@@ -303,7 +295,7 @@ Matrix::indMatrix norm_tools::closest_pairs(Matrix& dist) {
 	//save points number
 	ulong pnum = dist.row_num();
 	//convert distances matrix to vector
-	dist.Resize(1, dist.row_num() * dist.col_num());
+	dist.raw_resize(1, dist.row_num() * dist.col_num());
 	//sort distances by ascending
 	Matrix::indMatrix asc_di = dist.RawSort();
 	//remove indexes of first zero elements
@@ -317,5 +309,13 @@ Matrix::indMatrix norm_tools::closest_pairs(Matrix& dist) {
 	//now we build ordered by ascending distance set of points
 	return asc_di;
 }
-//instantiate
-template Matrix::indMatrix norm_tools::closest_pairs< norm_tools::l2 >(Matrix&);
+//instantiate for l2
+template _CLASS_DECLSPEC Matrix::indMatrix norm_tools::closest_pairs< norm_tools::l2 >(Matrix&);
+
+//instantiations for gcc
+#if defined(UNIX) && defined(__GNUC__)
+template Matrix norm_tools::vm_norm2< norm_tools::l2 >(const Matrix&, const Matrix&);
+template Matrix norm_tools::vm_norm< norm_tools::l2 >(const Matrix&, const Matrix&);
+template double norm_tools::vv_norm2< norm_tools::l2 >(const Matrix&, const Matrix&);
+template Matrix norm_tools::deriv< norm_tools::l2 >(const Matrix&, const Matrix&);
+#endif

@@ -783,9 +783,10 @@ bool kmeans::kmeans_impl::join_phase(ulong maxiter)
 
 	km_data kmd;
 	ulong c1, c2, f_ind;
-	Matrix f, p, c, norm, expect;
+	Matrix f, c, norm, expect;
 	Matrix::indMatrix sel_ind;
 	pat_sel& ps = get_ps();
+	Matrix& p = kmd.data_;
 
 	//calc distances matrix
 	Matrix dist;
@@ -803,7 +804,7 @@ bool kmeans::kmeans_impl::join_phase(ulong maxiter)
 		//main cycle starts here
 
 		//c1 & c2 are centers to be merged
-		c1 = asc_di[d] / dist.row_num(), c2 = asc_di[d] % dist.row_num();
+		c1 = asc_di[d] / c_.row_num(), c2 = asc_di[d] % c_.row_num();
 		//check if any of those centers are already marked to merge
 		if(mc.find(c1) != mc.end() || mc.find(c2) != mc.end())
 			continue;
@@ -825,8 +826,7 @@ bool kmeans::kmeans_impl::join_phase(ulong maxiter)
 		c = c_.GetRows(c1);
 		for(cycle_ = 0; cycle_ < maxiter; ++cycle_) {
 			//select points
-			expect <<= ps.ga_.ScalingCall(f);
-			sel_ind <<= ps.ga_.SelectionCall(expect, expect.size());
+			sel_ind <<= ps.selection(f);
 			//move center
 			for(ulong j = 0; j < sel_ind.size(); ++j)
 				c += (*_pDerivFcn)(kmd.data_.GetRows(sel_ind[j]), c) * opt_.nu;
@@ -851,18 +851,17 @@ bool kmeans::kmeans_impl::join_phase(ulong maxiter)
 		if(f[cl_c] <= f[cl_c1] && f[cl_c] <= f[cl_c2]) {
 			do_merge = true;
 		}
-		else {
-			//second test
-			//if found center closer to optimum point than c1 and c2 then merge
-			//find minimum point
-			Matrix min_point = p.GetRows(f_.min_ind());
-			//find distances to minimum point from c1, c2 and c
-			expect <<= c & c_.GetRows(c1) & c_.GetRows(c2);
-			norm <<= (*_pNormFcn)(min_point, expect);
-			if(norm.min_ind() == 0)
-				do_merge = true;
-
-		}
+//		else {
+//			//second test
+//			//if found center closer to optimum point than c1 and c2 then merge
+//			//find minimum point
+//			Matrix min_point = p.GetRows(f_.min_ind());
+//			//find distances to minimum point from c1, c2 and c
+//			expect <<= c & c_.GetRows(c1) & c_.GetRows(c2);
+//			norm <<= (*_pNormFcn)(min_point, expect);
+//			if(norm.min_ind() == 0)
+//				do_merge = true;
+//		}
 
 		if(do_merge) {
 			//mark pair as merged
@@ -940,10 +939,13 @@ void kmeans::kmeans_impl::find_clusters_f(const Matrix& data, const Matrix& f, u
 	do {
 		cout << "find_clusters_f: iteration " << i << " started" << endl;
 		batch_phase(maxiter);
+		cout << "find_clusters_f: iteration " << i << " finished" << endl;
+		cout << "centers dump (" << c_.row_num() << "):" << endl;
+		c_.Print(cout);
 		++i;
 	} while(join_phase(maxiter));
 	//ensure correct center locations after last merging
-	calc_winners(*this);
+	//calc_winners(*this);
 	//(this->*_pBUFcn)();
 	//batch_phase(maxiter);
 }

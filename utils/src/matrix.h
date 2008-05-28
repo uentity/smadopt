@@ -1100,6 +1100,19 @@ public:
 		return *this;
 	}
 
+	this_t& raw_resize(size_type newRows = 0, size_type newCols = 0, buf_value_type fill_val = 0) {
+		size_ = newRows * newCols;
+		_pData->resize(size_, fill_val);
+		if(size_) {
+			rows_ = newRows; cols_ = newCols;
+		}
+		else {
+			//matrix cleared
+			rows_ = cols_ = 0;
+		}
+		return *this;
+	}
+
 	template< class _predicate_t >
 	retMatrix Sort(_predicate_t pr, bool ByRows = false) const
 	{
@@ -1132,34 +1145,71 @@ public:
 		return Sort(std::less< value_type >(), ByRows);
 	}
 
+	template< typename iter, class _predicate_t >
+	static void quicksort_track_ind(iter first, iter last,
+		typename indMatrix::r_iterator first_ind,
+		_predicate_t pr
+		)
+	{
+		typedef typename indMatrix::r_iterator ind_iter;
+
+		if (last - first <= 1)
+		   return;
+		iter p = first, q = last;
+		ind_iter pi = first_ind, qi = first_ind + (last - first);
+		--q;
+		--qi;
+
+		iter pivot = p + (q - p) / 2;
+		ind_iter pivoti = pi + (qi - pi) / 2;
+		swap(*pivot, *q);
+		swap(*pivoti, *qi);
+
+		iter mid = p;
+		ind_iter midi = pi;
+		for (; p != q; ++p, ++pi) {
+			if (!pr(*p, *q)) continue;
+			swap(*p, *mid);
+			swap(*pi, *midi);
+			++mid; ++midi;
+		}
+		swap(*q, *mid);
+		swap(*qi, *midi);
+		quicksort_track_ind(first, mid, first_ind, pr);
+		quicksort_track_ind(mid + 1, last, midi + 1, pr);
+	}
+
 	template< class _predicate_t >
 	indMatrix RawSort(_predicate_t pr)
 	{
 		if(size_ == 0) return indMatrix();
 		indMatrix mInd(1, size_);
-		value_type val_swap;
-		size_type ind_swap;
 		//new version
 		for(size_type i=0; i< size_; ++i)
 			mInd[i] = i;
 
-		r_iterator pos1(begin()), pos2;
-		for(size_type i = 0; i < size_ - 1; ++i) {
-			pos2 = pos1 + 1;
-			for(size_type j=i+1; j<size_; ++j) {
-				if(pr(*pos2, *pos1)) {
-					val_swap = *pos1;
-					*pos1 = *pos2;
-					*pos2 = val_swap;
+		//use quicksort algotirhm with O(n*log(n)) complexity
+		quicksort_track_ind(begin(), end(), mInd.begin(), pr);
 
-					ind_swap = mInd[i];
-					mInd[i] = mInd[j];
-					mInd[j] = ind_swap;
-				}
-				++pos2;
-			}
-			++pos1;
-		}
+//		value_type val_swap;
+//		size_type ind_swap;
+//		r_iterator pos1(begin()), pos2;
+//		for(size_type i = 0; i < size_ - 1; ++i) {
+//			pos2 = pos1 + 1;
+//			for(size_type j=i+1; j<size_; ++j) {
+//				if(pr(*pos2, *pos1)) {
+//					val_swap = *pos1;
+//					*pos1 = *pos2;
+//					*pos2 = val_swap;
+//
+//					ind_swap = mInd[i];
+//					mInd[i] = mInd[j];
+//					mInd[j] = ind_swap;
+//				}
+//				++pos2;
+//			}
+//			++pos1;
+//		}
 
 		return mInd;
 	}

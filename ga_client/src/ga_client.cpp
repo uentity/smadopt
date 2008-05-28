@@ -554,21 +554,24 @@ void vsp_test_mig_rates(double start = 0.01, double incr = 0.2, double end = 1.)
 
 void TestKmeans(int c_num)
 {
-	kmeans km;
 	ifstream f1("t.txt");
 	Matrix t = Matrix::Read(f1);
 	f1.close(); f1.clear();
 	f1.open("f.txt");
 	Matrix f = Matrix::Read(f1);
+	Matrix c;
+	Matrix::indMatrix ind;
+
+	kmeans km;
 	km.opt_.ReadOptions();
 	km.opt_.seed_t = KM::sample;
 	//km.find_clusters(t, 10, 200);
 
-	//km.find_clusters_f(t, f, f.size()*0.5, 200);
+	km.find_clusters_f(t, f, f.size()*0.5, 200);
 	//km.drops_hetero_simple(t, f, 0.7, 200);
-	determ_annealing da;
-	da.find_clusters(t, f, c_num, 200);
-	const Matrix c = da.get_centers();
+
+	c <<= km.get_centers();
+	ind <<= km.get_ind();
 
 	//Matrix c;
 	//double quant_mult;
@@ -590,23 +593,48 @@ void TestKmeans(int c_num)
 	//}
 
 	ofstream f2("centers.txt", ios::out | ios::trunc);
-	//km.get_centers().Print(f2);
 	c.Print(f2);
 	f2.close(); f2.clear();
 	f2.open("ind.txt", ios::out | ios::trunc);
-	da.get_ind().Print(f2);
+	ind.Print(f2);
 	//km.get_ind().Print(f2);
+}
+
+void TestDA(int c_num) {
+	ifstream f1("t.txt");
+	Matrix t = Matrix::Read(f1);
+	f1.close(); f1.clear();
+	f1.open("f.txt");
+	Matrix f = Matrix::Read(f1);
+	Matrix c;
+	Matrix::indMatrix ind;
+
+	determ_annealing da;
+	da.find_clusters(t, f, c_num, 200);
+	c <<= da.get_centers();
+	ind <<= da.get_ind();
+
+	ofstream f2("centers.txt", ios::out | ios::trunc);
+	c.Print(f2);
+	f2.close(); f2.clear();
+	f2.open("ind.txt", ios::out | ios::trunc);
+	ind.Print(f2);
 }
 
 int main(int argc, char* argv[])
 {
-	if(argc > 1 && strcmp(argv[1], "1") == 0) {
+	if(argc > 1) {
 		int c_num = 7;
 		if(argc > 2) c_num = atoi(argv[2]);
-		TestKmeans(c_num);
+
+		if(strcmp(argv[1], "1") == 0)
+			TestKmeans(c_num);
+		else if(strcmp(argv[1], "2") == 0)
+			TestDA(c_num);
 	}
 	else
 		TestFcnOpt(2, rastrigins);
+
 	//Kar2Words();
 	//vsp_test_mig_rates();
 

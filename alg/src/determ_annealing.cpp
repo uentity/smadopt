@@ -11,9 +11,9 @@
 #include <fstream>
 #include <iterator>
 
-#define EPS 0.000000001
+#define EPS 0.000001
 #define T_EPS 0.0001
-#define MERGE_EPS 0.0001
+#define MERGE_EPS 0.001
 
 using namespace GA;
 using namespace prg;
@@ -47,8 +47,62 @@ struct da_hist {
 	Matrix y_;
 	Matrix p_y;
 	double T_;
+	double beta_;
 
-	da_hist(const da_data& dad) : y_(dad.y_), p_y(dad.p_y), T_(dad.T_) {}
+	da_hist(const da_data& dad) : y_(dad.y_), p_y(dad.p_y), T_(dad.T_) {
+		if(T_ > 0) beta_ = 1. / T_;
+		else beta_ = 0;
+	}
+};
+
+template < class charT, class traits >
+inline
+std::basic_ostream< charT, traits >&
+operator <<(std::basic_ostream< charT, traits >& strm, const da_hist& h)
+{
+	strm << h.y_.row_num() << "	" << h.T_ << "	" << h.beta_;
+	return strm;
+}
+
+struct da_log {
+	typedef vector< da_hist > hist_v;
+	hist_v hist_;
+	Matrix dt_;
+
+	hist_v::const_reference head(ulong steps_back = 0) const {
+		return hist_[hist_.size() - 1 - steps_back];
+	}
+
+	double head_dT(ulong steps_back = 0) const {
+		return dt_[dt_.size() - 1 - steps_back];
+	}
+
+	void push_back(const da_hist& hist) {
+		hist_.push_back(hist);
+		if(hist_.size() > 1)
+			dt_.push_back( (head().y_.row_num() - head(1).y_.row_num()) / (head().beta_ - head(1).beta_) );
+		else dt_.push_back(0);
+	}
+
+	void clear() {
+		hist_.clear();
+		dt_.clear();
+	}
+
+	Matrix get_vT() const {
+		Matrix vt(hist_.size(), 1);
+		Matrix::r_iterator p_vt = vt.begin();
+		for(hist_v::const_iterator h = hist_.begin(), end = hist_.end(); h != end; ++h, ++p_vt)
+			*p_vt = h->T_;
+		return vt;
+	}
+
+	void dump() const {
+		ofstream f("da_log.txt", ios::out | ios::trunc);
+		for(ulong i = 0; i < hist_.size(); ++i)
+			f << hist_[i] << "	" << dt_[i] << endl;
+		//DumpMatrix(get_vT() | dt_, "da_log.txt");
+	}
 };
 
 struct hard_clusters_data {
@@ -150,7 +204,8 @@ public:
 	ulong cycle_;
 
 	//annealing history
-	vector< da_hist > hist_;
+	//vector< da_hist > hist_;
+	da_log log_;
 
 	double (*norm_fcn_)(const Matrix&, const Matrix&);
 	double (*norm2_fcn_)(const Matrix&, const Matrix&);
@@ -159,7 +214,7 @@ public:
 	const Matrix& (da_impl::*px_fcn_)(ulong) const;
 
 	da_impl()
-		: prob_thresh_(1.0/3), alpha_(0.9), alpha_max_(0.99), Tmin_(0.01), patience_(0.00001), patience_cycles_(10)
+		: prob_thresh_(1.0/3), alpha_(0.9), alpha_max_(0.99), Tmin_(0.01), patience_(0.001), patience_cycles_(10)
 	{}
 
 	void calc_winners(const da_data& dad, hard_clusters_data& hcd) const
@@ -542,7 +597,7 @@ public:
 		hcd_.e_ /= y_.row_num();
 	}
 
-	ulong cooling_step() {
+	ulong cooling_step(ulong maxclust) {
 		//sort variances in descending order
 		Matrix svar;
 		svar = var_;
@@ -551,26 +606,35 @@ public:
 		//compute next bifurcation prediction
 		double pt_T;
 		ulong pt_ind = svar.size();
-		for(ulong i = 0; i < svar.size(); ++i)
-			if((pt_T = 2 * svar[i]) < T_) {
-				pt_ind = i;
-				break;
-			}
+		if(y_.row_num() < maxclust) {
+			for(ulong i = 0; i < svar.size(); ++i)
+				if((pt_T = 2 * svar[i]) < T_) {
+					pt_ind = i;
+					break;
+				}
 
-		//T_ *= alpha_;
-		if(pt_ind < svar.size())
-			//T_ = min(T_ * alpha_max_, max(T_ * alpha_, pt_T));
-			T_ = max(T_ * alpha_, pt_T);
+			//T_ *= alpha_;
+			if(pt_ind < svar.size() && pt_T > T_ * alpha_) {
+				cout << "bifurcation point, ";
+				T_ = min(pt_T, T_ * alpha_max_);
+
+				//T_ = min(T_ * alpha_max_, max(T_ * alpha_, pt_T));
+				//T_ = max(T_ * alpha_, pt_T);
+			}
+			else {
+				T_ *= alpha_;
+				pt_ind = svar.size();
+			}
+		}
 		else {
-			T_ *= alpha_;
-			pt_ind = svar.size();
+			cout << "freeze, ";
+			T_ *= alpha_ * alpha_;
 		}
 
 		beta_ = 1 / T_;
-		cout << "cooling step done, new T = " << T_ << endl;
+		cout << "cooling step done, T = " << T_ << endl;
 
 		//calc dCnum / dT
-
 
 		return pt_ind;
 	}
@@ -600,7 +664,7 @@ public:
 		//main cycle starts here - check all available centers
 
 		//do cooling step
-		ulong pt_ind = cooling_step();
+		ulong pt_ind = cooling_step(max_clust);
 		//check low-temp condition
 		if(T_ < Tmin_) return false;
 		//fork centers if any
@@ -614,13 +678,13 @@ public:
 		return true;
 	}
 
-	void merge_step() {
+	bool merge_step() {
 		//test if any centers are coinsident and merge them
 		//first of all calc centers distance matrix
 		Matrix dist;
 		norm_tools::calc_dist_matrix< norm_tools::l2 >(y_, dist);
 		//DEBUG
-		dist.Resize(1, dist.row_num() * dist.col_num());
+		//dist.Resize(1, dist.row_num() * dist.col_num());
 		//find closest pairs
 		Matrix::indMatrix pairs;
 		pairs = norm_tools::closest_pairs< norm_tools::l2 >(dist);
@@ -629,7 +693,7 @@ public:
 									- dist.begin());
 		if(merge_cnt == dist.size())
 			//nothing to merge
-			return;
+			return false;
 
 		//merged centers indexes
 		typedef set< ulong, greater< ulong > > merged_idx;
@@ -639,9 +703,9 @@ public:
 		da_data new_cb;
 		ulong cv1, cv2;
 		//first pass - compute merged centers
-		for(Matrix::indMatrix::cr_iterator i = pairs.begin(), end = pairs.end(); i != end; ++i) {
+		for(ulong i = 0; i < merge_cnt; ++i) {
 			//extract centers pair
-			cv1 = (*i) / y_.row_num(); cv2 = (*i) % y_.row_num();
+			cv1 = pairs[i] / y_.row_num(); cv2 = pairs[i] % y_.row_num();
 			//check if any of these codevectors already marked to merge
 			if(mc.find(cv1) != mc.end() || mc.find(cv2) != mc.end())
 				continue;
@@ -665,6 +729,16 @@ public:
 		p_y |= new_cb.p_y;
 		//resize affiliations
 		hcd_.aff_.resize(y_.row_num());
+
+		return mc.size() > 0;
+	}
+
+	void log_step(ulong cycle) {
+		//save history
+		log_.push_back(*this);
+
+		//display dCnum / dT info
+		cout << "dCnum/dT = " << log_.head_dT() << endl;
 	}
 
 	//clusterization using deterministic annealing
@@ -703,7 +777,7 @@ public:
 		beta_ = 1 / T_;
 
 		//clear history
-		hist_.clear();
+		log_.clear();
 		//hist_.push_back(*this);
 
 		//main cycle starts here
@@ -711,33 +785,28 @@ public:
 			for(ulong i = 0; i < maxiter; ++i) {
 				//update probabilities and centers positions
 				update_epoch();
+
+				//merge ceters
+				while(merge_step()) {};
+
 				//convergence test
-				//if(patience_check(i, hcd_.e_)) break;
+				if(patience_check(i, hcd_.e_)) break;
 				if(hcd_.e_ < EPS) break;
 			}
 			//perform merge step
-			merge_step();
+			//merge_step();
 
 			//update variances
 			update_variances();
 
-			//save history
-			hist_.push_back(*this);
-			//display dCnum / dT info
-			cout << "dCnum/dT = ";
-			if(hist_.size() > 1) {
-				cout << (hist_[cycle_].y_.row_num() - hist_[cycle_ - 1].y_.row_num()) /
-						(hist_[cycle_].T_ - hist_[cycle_ - 1].T_);
-			}
-			else cout << "0";
-			cout << endl;
-
-			//temperature test
-			//if(T_ <= Tmin_) break;
+			log_step(cycle_);
 
 			//add new centers if nessessary
 			if(!phase_transition_epoch(clust_num)) break;
 		}	//end of main loop
+
+		//VERBOSE - save log of dT / dCnum
+		log_.dump();
 	}
 
 	bool patience_check(ulong cycle, double e)
