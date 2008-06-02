@@ -8,12 +8,11 @@
 		<Build>
 			<Target title="debug_lin">
 				<Option output="../exe/debug/ga_client" prefix_auto="1" extension_auto="1" />
-				<Option working_dir="../exe/debug" />
+				<Option working_dir="../exe/debug/" />
 				<Option object_output="build/Debug/" />
 				<Option external_deps="../exe/debug/libha_utils.so;../exe/debug/libha_alg.so;" />
 				<Option type="1" />
 				<Option compiler="gcc" />
-				<Option parameters="1 8" />
 				<Compiler>
 					<Add option="-ggdb" />
 					<Add option="-O0" />
@@ -27,7 +26,7 @@
 			</Target>
 			<Target title="release_lin">
 				<Option output="../exe/release/ga_client" prefix_auto="1" extension_auto="1" />
-				<Option working_dir="../exe/release" />
+				<Option working_dir="../exe/release/" />
 				<Option object_output="build/Release/" />
 				<Option type="1" />
 				<Option compiler="gcc" />

@@ -1,9 +1,11 @@
 #include "objnet.h"
+#include "determ_annealing.h"
 
 using namespace std;
-using namespace NN;
+//using namespace NN;
 using namespace KM;
 
+namespace NN {
 //--------------------------------RBF network implementation---------------------------------------------------
 //--------------------------------RBF layer------------------
 void rb_layer::init_weights(const Matrix& inputs)
@@ -32,25 +34,54 @@ void rb_layer::calc_isotropic_sigma()
 	B_ = sqrt((double)neurons_.size())/sqrt(max_dist);
 }
 
-void rb_layer::calc_varbased_sigma(const KM::kmeans& km)
+template< class clusterizer >
+void rb_layer::calc_varbased_sigma(const clusterizer& cengine)
 {
 	if(gft_ != radbas && gft_ != revradbas) return;
 	//first calc isotropic sigma
 	calc_isotropic_sigma();
 	//assume that neurons with weights from kmeans are placed at the beginning
-	double q;
-	const kmeans::vvul aff = km.get_aff();
-	const Matrix& norms = km.get_norms();
-	for(ulong i = 0; i < aff.size(); ++i) {
+	double meand, meand2, mult, tmp, q;
+	const typename clusterizer::vvul aff = cengine.get_aff();
+	const Matrix& norms = cengine.get_norms();
+	const ulong cnt = min(neurons_.size(), aff.size());
+
+	B_ = 1;
+	for(ulong i = 0; i < cnt; ++i) {
 		//calc variance-based bias
-		if(aff.size() > 0) {
-			q = 0;
-			for(ulong j = 0; j < aff[i].size(); ++j)
-				q += norms[aff[i][j]]*norms[aff[i][j]];
-			q = sqrt((double)aff.size()/q);
+		if(aff[i].size() > 0) {
+			meand = 0; meand2 = 0;
+			mult = 1. / aff[i].size();
+			for(ulong j = 0; j < aff[i].size(); ++j) {
+				tmp = norms[aff[i][j]];
+				meand += tmp * mult;
+				meand2 += tmp * tmp * mult;
+			}
+			//bias  = 1 / (2*q), q = square of dispertion = meand2 - meand^2
+			B_[i] = 1. / (2 * (meand2 - meand*meand));
+			//q = sqrt((double)aff.size()/q);
 		}
-		else q = 1;
-		B_[i] = q;
+	}
+}
+
+template< >
+void rb_layer::calc_varbased_sigma< DA::determ_annealing >(const DA::determ_annealing& cengine) {
+	if(gft_ != radbas && gft_ != revradbas) return;
+	//first calc isotropic sigma
+	calc_isotropic_sigma();
+	//assume that neurons with weights from kmeans are placed at the beginning
+	double meand, meand2, mult, tmp, q;
+	const DA::determ_annealing::vvul aff = cengine.get_aff();
+	const ulong cnt = min< ulong >(neurons_.size(), aff.size());
+	//update variances
+	cengine.calc_variances();
+	const Matrix& var = cengine.get_variances();
+
+	B_ = 1;
+	for(ulong i = 0; i < cnt; ++i) {
+		//calc variance-based bias
+		if(var[i] != 0)
+			B_[i] = 1. / (2 * var[i]);
 	}
 }
 
@@ -194,6 +225,13 @@ void rb_layer::construct_drops(const Matrix& inputs, const Matrix& targets, cons
 	calc_isotropic_sigma();
 }
 
+void rb_layer::construct_da(const DA::determ_annealing& da, const Matrix& inputs, const Matrix& targets,
+	const Matrix& centers)
+{
+	construct_drops(inputs, targets, centers, 1.);
+	calc_varbased_sigma(da);
+}
+
 //--------------------------------RBF network------------------
 rbn::rbn() :
 	objnet(new rbn_opt), opt_((rbn_opt&)*opt_holder_)
@@ -270,8 +308,8 @@ void rbn::set_rb_layer_drops(const Matrix& inputs, const Matrix& targets, const 
 	if(layers_num() > 1)
 		layers_[1].set_links(create_ptr_mat(l.neurons_));
 
-	//opt_.learnType = rbn_kmeans;
-	opt_.learnType = rbn_neuron_adding;
+	opt_.learnType = rbn_kmeans;
+	//opt_.learnType = rbn_neuron_adding;
 }
 
 void rbn::set_output_layer(ulong neurons_count)
@@ -417,3 +455,5 @@ void rbn::is_goal_reached()
 	else
 		objnet::is_goal_reached();
 }
+
+}	//end of namespace NN

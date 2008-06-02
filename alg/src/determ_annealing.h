@@ -25,6 +25,9 @@ public:
 
 	const vvul& get_aff() const;
 
+	void calc_variances() const;
+	const Matrix& get_variances() const;
+
 private:
 	class da_impl;
 	smart_ptr< da_impl > pimpl_;

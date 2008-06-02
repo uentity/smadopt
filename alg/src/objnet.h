@@ -3,6 +3,7 @@
 
 #include "nn_common.h"
 #include "kmeans.h"
+#include "determ_annealing.h"
 
 namespace NN {
 	class _CLASS_DECLSPEC neuron_base
@@ -659,7 +660,9 @@ namespace NN {
 		int gft_;
 
 		void calc_isotropic_sigma();
-		void calc_varbased_sigma(const KM::kmeans& km);
+
+		template< class clusterizer >
+		void calc_varbased_sigma(const clusterizer& cengine);
 
 	public:
 		KM::kmeans km_;
@@ -689,6 +692,10 @@ namespace NN {
 		void construct_kmeans_p(const Matrix& inputs, const Matrix& targets, double rate, const Matrix* pCent = NULL);
 		//construct layer fully based on weights given (drops method)
 		void construct_drops(const Matrix& inputs, const Matrix& targets, const Matrix& centers, double stock_mult);
+
+		void construct_da(const DA::determ_annealing& da, const Matrix& inputs, const Matrix& targets,
+			const Matrix& centers);
+
 
 		void init_weights(const Matrix& inputs);
 	};

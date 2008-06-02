@@ -3,6 +3,7 @@
 #include "m_algorithm.h"
 #include "prg.h"
 
+#include <math.h>
 #include <map>
 #include <set>
 #include <list>
@@ -24,6 +25,7 @@ namespace DA {
 typedef determ_annealing::vvul vvul;
 
 //========================== implementation of deterministic annealing =================================================
+struct da_hist;
 //names of variables follow original notation
 struct da_data {
 	//source points
@@ -40,6 +42,8 @@ struct da_data {
 	double beta_;
 	//variances of each cluster stored here
 	Matrix var_;
+
+	da_data& operator =(const da_hist& hist);
 };
 
 //structure to track annealing process
@@ -54,6 +58,13 @@ struct da_hist {
 		else beta_ = 0;
 	}
 };
+
+da_data& da_data::operator =(const da_hist& hist) {
+	y_ = hist.y_;
+	p_y = hist.p_y;
+	T_ = hist.T_;
+	beta_ = 1. / T_;
+}
 
 template < class charT, class traits >
 inline
@@ -80,7 +91,7 @@ struct da_log {
 	void push_back(const da_hist& hist) {
 		hist_.push_back(hist);
 		if(hist_.size() > 1)
-			dt_.push_back( (head().y_.row_num() - head(1).y_.row_num()) / (head().beta_ - head(1).beta_) );
+			dt_.push_back( (double(head().y_.row_num()) - double(head(1).y_.row_num())) / (head().beta_ - head(1).beta_) );
 		else dt_.push_back(0);
 	}
 
@@ -196,7 +207,9 @@ public:
 	double patience_;
 	double alpha_, alpha_max_;
 	double Tmin_;
-	ulong patience_cycles_;
+	double dither_amount_;
+	ulong patience_cycles_, expl_length_;
+	bool recalc_px_, kill_zero_prob_cent_, kill_zero_var_cent_;
 
 	hard_clusters_data hcd_;
 	//function values
@@ -211,10 +224,14 @@ public:
 	double (*norm2_fcn_)(const Matrix&, const Matrix&);
 	Matrix (*deriv_fcn_)(const Matrix&, const Matrix&);
 	void (da_impl::*order_fcn_)(ulong, ul_vec&) const;
-	const Matrix& (da_impl::*px_fcn_)(ulong) const;
+
+	typedef const Matrix& (da_impl::*px_fcn_t)(ulong) const;
+	px_fcn_t px_fcn_;
 
 	da_impl()
-		: prob_thresh_(1.0/3), alpha_(0.9), alpha_max_(0.99), Tmin_(0.01), patience_(0.001), patience_cycles_(10)
+		: prob_thresh_(1.0/3), patience_(0.001), alpha_(0.9), alpha_max_(0.99), Tmin_(0.01), dither_amount_(0.005),
+		patience_cycles_(10), expl_length_(4), kill_zero_prob_cent_(true), kill_zero_var_cent_(false)
+
 	{}
 
 	void calc_winners(const da_data& dad, hard_clusters_data& hcd) const
@@ -384,23 +401,31 @@ public:
 	const Matrix& unifrom_px(ulong cv_ind) const {
 		struct px {
 			Matrix expect_;
-			px(const Matrix& f) : expect_(1, f.size()) {
+
+			void reset(const Matrix& f) {
+				expect_.Resize(1, f.size());
 				expect_ = 1.0/(double)f.size();
 			}
 		};
-		static px p(f_);
+		static px p;
+
+		if(recalc_px_) p.reset(f_);
 		return p.expect_;
 	}
 
 	//p(x) distribution based on static GA.ScalingCall calculated only when first time called
 	const Matrix& scaling_px(ulong cv_ind) const {
-		static Matrix expect(get_ps().scaling(f_));
+		static Matrix expect;
+		if(recalc_px_)
+			expect <<= get_ps().scaling(f_);
 		return expect;
 	}
 
 	//p(x) distribution based dynamically calculated expectation for given cluster from it's affiliation
 	const Matrix& scaling_px_aff(ulong cv_ind) const {
 		static Matrix expect(1, f_.size());
+		if(expect.size() != f_.size())
+			expect.Resize(1, f_.size());
 
 		//assume that hard affiliation is already calculated
 		if(cv_ind >= hcd_.aff_.size()) return scaling_px(cv_ind);
@@ -424,12 +449,16 @@ public:
 
 	//p(x) distribution based on estimated selection probabilities
 	const Matrix& selection_px(ulong cv_ind) const {
-		static Matrix expect(get_ps().selection_prob(f_, 100, 1000));
+		static Matrix expect;
+		if(recalc_px_)
+			expect <<= get_ps().selection_prob(f_, 100, 1000);
 		return expect;
 	}
 
 	const Matrix& selection_px_aff(ulong cv_ind) const {
-		static Matrix expect(1, f_.size());
+		static Matrix expect;
+		if(expect.size() != f_.size())
+			expect.Resize(1, f_.size());
 
 		//assume that hard affiliation is already calculated
 		if(cv_ind >= hcd_.aff_.size()) return scaling_px(cv_ind);
@@ -453,7 +482,9 @@ public:
 
 	//order of patterns to p(x) distribution converter
 	const Matrix& order2px(ulong cv_ind) const {
-		static Matrix expect(1, f_.size());
+		static Matrix expect;
+		if(expect.size() != f_.size())
+			expect.Resize(1, f_.size());
 
 		//calc affiliation for given center
 		//calc_aff(*this, hcd_, cv_ind);
@@ -470,6 +501,25 @@ public:
 			expect[order[i]] += p_quant;
 		}
 		return expect;
+	}
+
+	template< px_fcn_t px_fcn >
+	const Matrix& dithered_px(ulong cv_ind) const {
+		//get original distribution
+		Matrix& px = const_cast< Matrix& >((this->*px_fcn)(cv_ind));
+		//generate random noise
+		Matrix noise(px.row_num(), px.col_num());
+		generate(noise.begin(), noise.end(), prg::rand01);
+		noise -= 0.5;
+		//calc correction to make sum of noise = 0
+		double n_item = noise.Sum() / noise.size();
+		//make correction
+		if(n_item != 0) transform(noise, bind2nd(minus< double >(), n_item));
+		//scale noise
+		noise *= (px.norm2() * dither_amount_) / noise.norm2();
+		//add noise
+		px += noise;
+		return px;
 	}
 
 	double calc_var(const da_data& dad, ulong cv_ind) const {
@@ -543,14 +593,49 @@ public:
 			var_[i] = calc_var_honest(*this, i, px);
 			cout << " : " << var_[i] << endl;
 		}
-		cout << endl;
+		//cout << endl;
+	}
+
+	void kill_weak_centers() {
+		if(!kill_zero_var_cent_) return;
+		//kill centers with zero variance
+		double mind, curd;
+		ulong cl_ind;
+		Matrix y;
+		for(ulong i = y_.row_num() - 1; i < y_.row_num(); --i) {
+			//break if only one center alive
+			if(y_.row_num() == 1) break;
+
+			if(var_[i] > EPS) continue;
+			//find closest center
+			y <<= y_.GetRows(i);
+			mind = 0;
+			for(ulong j = 0; j < y_.row_num(); ++j) {
+				if(i == j) continue;
+				curd = (y - y_.GetRows(j)).norm2();
+				if(j == 0 || curd < mind) {
+					mind = curd;
+					cl_ind = j;
+				}
+			}
+			//add probability to closest center
+			p_y[cl_ind] += p_y[i];
+			//delete i-th center
+			y_.DelRows(i);
+			p_yx.DelRows(i);
+			p_y.DelColumns(i);
+		}
 	}
 
 	void update_epoch() {
 		ul_vec x_order; //, uniq_xor;
-		Matrix::r_iterator cur_py = p_y.begin(), cur_pyx = p_yx.begin();
+		Matrix::cr_iterator cur_py = p_y.begin();
+		Matrix::r_iterator cur_pyx = p_yx.begin();
 		Matrix x, y, new_y(1, y_.col_num());
-		double new_py;
+		double new_py, pyx_den, pyx_num;
+		//newly calculated centers positions & p_y will be stored here
+		da_data res;
+		res.y_.clear(); res.p_y.clear();
 
 		//make hard clusters
 		calc_winners(*this, hcd_);
@@ -562,6 +647,14 @@ public:
 
 			//get p(x) distribution
 			const Matrix& px = (this->*px_fcn_)(i);
+//			if(find_if(px.begin(), px.end(), bind2nd(less< double >(), 0)) != px.end()) {
+//				cout << "!!! got px below zero !!!" << endl;
+//				cout << "px = ["; DumpMatrix(px); cout << "]" << endl;
+//			}
+//			if(px.size() != x_.row_num()) {
+//				cout << "!!! px.size() = " << px.size() << ", x_.row_num() = " << x_.row_num() << endl;
+//				terminate();
+//			}
 
 			//update probabilities p(y[i] | x) - independent from custom p(x)
 			//update probabilities p(y[i]) & calculate new center position
@@ -569,32 +662,59 @@ public:
 			new_y = 0;
 			for(ulong j = 0; j < x_.row_num(); ++j, ++cur_pyx) {
 				x <<= x_.GetRows(j);
-				//first calc denominator for further calculation of p_yx
-				double pyx_den = 0;
-				for(ulong k = 0; k < y_.row_num(); ++k)
+				//first calc p_yx
+				pyx_num = (*cur_py) * exp(-(*norm2_fcn_)(x, y) * beta_);
+				//next calc denominator for further calculation of p_yx
+				pyx_den = 0;
+				for(ulong k = 0; k < y_.row_num(); ++k) {
+					if(k == i) continue;
 					//pyx_den += p(y[k]) * exp(-||x - y[k]||^2 / T)
 					pyx_den += p_y[k] * exp(-(*norm2_fcn_)(x, y_.GetRows(k)) * beta_);
+				}
+				pyx_den += pyx_num;
 
 				//update p(y[i] | x) = p(y[i]) * exp(-||x - y[i]||^2 / T)
-				*cur_pyx = (*cur_py) * exp(-(*norm2_fcn_)(x, y) * beta_) / pyx_den;
+				if(pyx_den > EPS)
+					*cur_pyx = pyx_num / pyx_den;
+				else
+					*cur_pyx = 0;
 
 				//update p(y[i])
 				new_py += (*cur_pyx) * px[j];
+//				if(new_py != new_py || new_py < 0) {
+//					cout << "!!! new_py = " << new_py << " !!!" << endl;
+//					cout << "cur_pyx = " << *cur_pyx << endl;
+//					cout << "px[j] = " << px[j] << endl;
+//					cout << "j = " << j << endl;
+//					cout << "cur_py = " << *cur_py << endl;
+//					cout << "pyx_den = " << pyx_den << endl;
+//					cout << "exp(-(*norm2_fcn_)(x, y) * beta_) = " << exp(-(*norm2_fcn_)(x, y) * beta_) << endl;
+//					cout << "p_y = ["; DumpMatrix(p_y); cout << "]" << endl;
+//					cout << "px = ["; DumpMatrix(px); cout << "]" << endl;
+//					cout << "beta_ = " << beta_ << endl;
+//					terminate();
+//				}
+
 				//update y position
 				new_y += x * (*cur_pyx) * px[j];
 			}
+
 			//complete y calculations
 			new_y /= new_py;
 			//update error
 			hcd_.e_ += (*norm_fcn_)(y, new_y);
 			//save values
-			*cur_py = new_py;
-			y_.SetRows(new_y, i);
-
+			res.y_ &= new_y;
+			res.p_y.push_back(new_py, false);
+//			*cur_py = new_py;
+//			y_.SetRows(new_y, i);
 		}	//end of centers loop
 
 		//complete mse calculation
 		hcd_.e_ /= y_.row_num();
+		//assign new values
+		y_ = res.y_;
+		p_y = res.p_y;
 	}
 
 	ulong cooling_step(ulong maxclust) {
@@ -679,6 +799,20 @@ public:
 	}
 
 	bool merge_step() {
+		//kill centers with near-zero probability p_y
+		if(kill_zero_prob_cent_) {
+			for(ulong i = y_.row_num() - 1; i < y_.row_num(); --i) {
+				if(y_.row_num() == 1) break;
+				if(p_y[i] <= EPS) {
+					y_.DelRows(i);
+					p_yx.DelRows(i);
+					p_y.DelColumns(i);
+				}
+			}
+		}
+		//resize affiliations
+		hcd_.aff_.resize(y_.row_num());
+
 		//test if any centers are coinsident and merge them
 		//first of all calc centers distance matrix
 		Matrix dist;
@@ -733,17 +867,47 @@ public:
 		return mc.size() > 0;
 	}
 
-	void log_step(ulong cycle) {
+	//! \return - if nonzero then explosion is detected and returned number of cluster should be fixed
+	ulong log_step(ulong cycle) {
+		static ulong expl_steps = 0;
 		//save history
 		log_.push_back(*this);
 
+		//explosion detection
+		//if we had 3 sequental steps of positive dCnum / dbeta
+		//and next step wasn't negative (centers were keeped)
+		//then roll 4 steps back and freeze centers number
+		ulong ret = 0;
+		double dt = log_.head_dT();
+		if(cycle == 0 || dt < -EPS) expl_steps = 0;
+		else if(++expl_steps >= expl_length_) {
+			//explosion detected
+			cout << "Explosion detected! Rolling " << expl_length_ - 1 << " steps back" << endl;
+			(da_data&)(*this) = log_.head(expl_length_ - 1);
+			//update variances
+			update_variances();
+			//save new log entry
+			log_.push_back(*this);
+			//freeze centers number
+			ret = y_.row_num();
+			//zero expl_steps counter
+			expl_steps = 0;
+		}
+
+		if(dt <= EPS)
+			//zero expl_steps counter
+			expl_steps = 0;
+
 		//display dCnum / dT info
 		cout << "dCnum/dT = " << log_.head_dT() << endl;
+		return ret;
 	}
 
 	//clusterization using deterministic annealing
 	void find_clusters(const Matrix& data, const Matrix& f, ulong clust_num, ulong maxiter) {
-		px_fcn_ = &da_impl::scaling_px;
+		px_fcn_ = &da_impl::dithered_px< &da_impl::scaling_px >;
+		//px_fcn_ = &da_impl::scaling_px;
+		//expl_length_ = 3;
 		order_fcn_ = &da_impl::selection_based_order;
 		norm_fcn_ = &da_impl::l2_norm;
 		norm2_fcn_ = &da_impl::l2_norm2;
@@ -766,8 +930,13 @@ public:
 			hcd_.aff_[0].push_back(i);
 
 		//set position of the first center
+		//signal to recalculate static px (if used)
+		recalc_px_ = true;
 		//get p(x) distribution
 		const Matrix& px = (this->*px_fcn_)(0);
+		//drop signal
+		recalc_px_ = false;
+
 //		for(ulong i = 0; i < x_.row_num(); ++i)
 //			y_ += x_.GetRows(i) * px[i];
 
@@ -798,8 +967,9 @@ public:
 
 			//update variances
 			update_variances();
+			kill_weak_centers();
 
-			log_step(cycle_);
+			if(log_step(cycle_)) clust_num = y_.row_num();
 
 			//add new centers if nessessary
 			if(!phase_transition_epoch(clust_num)) break;
@@ -857,6 +1027,14 @@ const Matrix& determ_annealing::get_norms() const {
 
 const vvul& determ_annealing::get_aff() const {
 	return pimpl_->hcd_.aff_;
+}
+
+void determ_annealing::calc_variances() const {
+	pimpl_->update_variances();
+}
+
+const Matrix& determ_annealing::get_variances() const {
+	return pimpl_->var_;
 }
 
 }	//end of namespace DA

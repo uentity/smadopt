@@ -858,14 +858,22 @@ public:
 		if(size_ == 0 || rows_ == 1 || cols_ == 1) {
 			_pData->push_back(val);
 			size_ = _pData->size();
-			if(size_ == 1) {
-				rows_ = cols_ = 1;
+			if(grow_column) {
+				rows_ = size_;
+				cols_ = 1;
 			}
 			else {
-				if(cols_ > rows_) grow_column = false;
-				if(grow_column) ++rows_;
-				else ++cols_;
+				cols_ = size_;
+				rows_ = 1;
 			}
+//			if(size_ == 1) {
+//				rows_ = cols_ = 1;
+//			}
+//			else {
+//				if(cols_ > rows_) grow_column = false;
+//				if(grow_column) ++rows_;
+//				else ++cols_;
+//			}
 		}
 	}
 

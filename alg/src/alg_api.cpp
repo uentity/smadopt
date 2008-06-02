@@ -163,12 +163,12 @@ unsigned long BuildApproximation(ulong inp_num, ulong sampl_num, const double* p
 	g_nna.ReadOptions();
 	g_nna.Init(1, inp_num, Matrix());
 	g_nna.BuildApproximation(!samples, !resp);
-	return g_nna.GetKMCenters().row_num();
+	return g_nna.GetClusterCenters().row_num();
 }
 
-void GetKMCenters(double* res)
+void GetClusterCenters(double* res)
 {
-	memcpy(res, g_nna.GetKMCenters().GetBuffer(), g_nna.GetKMCenters().raw_size());
+	memcpy(res, g_nna.GetClusterCenters().GetBuffer(), g_nna.GetClusterCenters().raw_size());
 }
 
 void Sim(unsigned long inp_num, unsigned long sampl_num, const double* pSamples, double* res)

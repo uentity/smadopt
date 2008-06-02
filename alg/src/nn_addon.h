@@ -5,6 +5,7 @@
 #include "kmeans.h"
 #include "ga.h"
 #include "mnet.h"
+#include "determ_annealing.h"
 
 namespace GA {
 
@@ -33,8 +34,9 @@ namespace GA {
 			ulong ind_best;
 			double tar_mean, tar_std;
 			Matrix learn_cl_cent;
-			
+
 			KM::kmeans km;
+			DA::determ_annealing da;
 		};
 
 		Matrix learn_;
@@ -52,8 +54,11 @@ namespace GA {
 
 		//fill storage with duplicates filter
 		void _fillup_storage(Matrix& p, Matrix& s);
+
 		//filter functions for selecting learning samples
-		Matrix _kmeans_filter(const Matrix& p, const Matrix& f, Matrix& lp, Matrix& lf);
+		template< class clusterizer >
+		Matrix _kmeans_filter(clusterizer& cengine, const Matrix& p, const Matrix& f, Matrix& lp, Matrix& lf);
+
 		Matrix _best_filter(const Matrix& p, const Matrix& f, Matrix& lp, Matrix& lf);
 
 		void _get_learnData(Matrix& p, Matrix& s, Matrix& learn, Matrix& targets);
@@ -118,7 +123,7 @@ namespace GA {
 
 		void BuildApproximation(const Matrix& samples, const Matrix& want_resp);
 		Matrix Sim(const Matrix& samples, ulong net_ind = 0);
-		const Matrix& GetKMCenters() const;
+		const Matrix& GetClusterCenters() const;
 
 		//void NNFitnessFcn(int nVars, int nPopSize, double* pPop, double* pScore);
 		//bool LearnNNInformer(ulong uCycle, double dSSE, void* pNet);

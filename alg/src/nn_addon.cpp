@@ -694,8 +694,8 @@ int nn_addon::_learn_network(const Matrix& input, const Matrix& targets, ulong n
 					pInformer = StandardInformer;
 					break;
 				case ccn_nn:
-					//if(state_.init_nn && opt_.samples_filter != GA::best_filter)
-					//	((ccn*)p_net)->add_rb_layer(inp, tar, state_.learn_cl_cent, opt_.rbn_cmult);
+					if(state_.init_nn && opt_.samples_filter != GA::best_filter)
+						((ccn*)p_net)->add_rb_layer(inp, tar, state_.learn_cl_cent, opt_.rbn_cmult);
 					pInformer = CcnInformer;
 					break;
 			}
@@ -806,12 +806,12 @@ void nn_addon::_get_learnData(Matrix& p, Matrix& s, Matrix& learn, Matrix& targe
 				ga_.opt_.initRange = _best_filter(learn_, tar_, learn, targets);
 				break;
 			case kmeans_filter:
-				ga_.opt_.initRange = _kmeans_filter(learn_, tar_, learn, targets);
+				ga_.opt_.initRange = _kmeans_filter(state_.da, learn_, tar_, learn, targets);
 				break;
 			case best_km_filter:
 				Matrix b_l, b_t;
 				_best_filter(learn_, tar_, b_l, b_t);
-				ga_.opt_.initRange = _kmeans_filter(b_l, b_t, learn, targets);
+				ga_.opt_.initRange = _kmeans_filter(state_.da, b_l, b_t, learn, targets);
 				break;
 		}
 	}
@@ -855,20 +855,20 @@ Matrix nn_addon::_best_filter(const Matrix& p, const Matrix& f, Matrix& lp, Matr
 		return lp.minmax();
 }
 
-Matrix nn_addon::_kmeans_filter(const Matrix& p, const Matrix& f, Matrix& lp, Matrix& lf)
+template< class clusterizer >
+Matrix nn_addon::_kmeans_filter(clusterizer& cengine, const Matrix& p, const Matrix& f, Matrix& lp, Matrix& lf)
 {
-	//Matrix learn; learn = lp;
 	//do a clusterization of learning data
-	//kmeans km;
-	//state_.km.opt_.nu = 0.0001;
-	state_.km.drops_hetero_simple(p, f, opt_.kmf_cmult, 200);
-	//state_.km.find_clusters_f(p, f, max< ulong >(p.row_num() * opt_.kmf_cmult, 1), 200, NULL, false);
+	cengine.find_clusters(p, f, max< ulong >(p.row_num() * opt_.kmf_cmult, 1), 200);
 
-	//state_.km.find_clusters(p, max<ulong>(p.row_num() * opt_.kmf_cmult, 1), 200, false, NULL, true);
-	//state_.km.opt_.use_prev_cent = true;
+	//cengine.drops_hetero_simple(p, f, opt_.kmf_cmult, 200);
+	//cengine.find_clusters_f(p, f, max< ulong >(p.row_num() * opt_.kmf_cmult, 1), 200, NULL, false);
 
-	Matrix c = state_.km.get_centers();
-	ulMatrix ind = state_.km.get_ind();
+	//cengine.find_clusters(p, max<ulong>(p.row_num() * opt_.kmf_cmult, 1), 200, false, NULL, true);
+	//cengine.opt_.use_prev_cent = true;
+
+	Matrix c = cengine.get_centers();
+	ulMatrix ind = cengine.get_ind();
 
 	//find best solution
 	ulong best_ind = f.min_ind();
@@ -886,7 +886,7 @@ Matrix nn_addon::_kmeans_filter(const Matrix& p, const Matrix& f, Matrix& lp, Ma
 	ulMatrix ci = dist.RawSort();
 
 	//get affiliation
-	const KM::kmeans::vvul& aff = state_.km.get_aff();
+	const KM::kmeans::vvul& aff = cengine.get_aff();
 	//collect learning samples, & search for closest centers and more
 	lp.clear();	lf.clear();
 	lp.reserve(opt_.bestCount*p.col_num()); lf.reserve(opt_.bestCount*f.row_num());
@@ -1232,7 +1232,7 @@ Matrix nn_addon::Sim(const Matrix& samples, ulong net_ind)
 		return _onet[net_ind]->sim(samples);
 }
 
-const Matrix& nn_addon::GetKMCenters() const
+const Matrix& nn_addon::GetClusterCenters() const
 {
 	return state_.km.get_centers();
 }
@@ -1374,7 +1374,7 @@ void GA::nn_addon::_build_surf(ulong net_ind, const Matrix& input, const Matrix&
 	Matrix::r_iterator pos = points.begin();
 	Matrix::r_iterator p_a = a.begin();
 	Matrix::r_iterator p_sc = scale.begin();
-	for(ulong i = 0; i < points.row_num(); ++i, ++p_a, ++p_sc) 
+	for(ulong i = 0; i < points.row_num(); ++i, ++p_a, ++p_sc)
 	{
 		//x = x*(b - a)
 		transform(pos, pos + pnum, pos, bind2nd(multiplies<double>(), *p_sc));

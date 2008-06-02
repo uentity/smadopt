@@ -97,7 +97,11 @@ bool randgen::_initialized = false;
 class prg::combinedLCG : public randgen
 {
 private:
+#if defined(_WIN32) && defined(_MSC_VER)
+	__int32 _s1, _s2;
+#else
 	int32_t _s1, _s2;
+#endif
 	bool _initialized;
 public:
 	combinedLCG() : _initialized(false) { _s1 = 1; _s2 = 1; }
@@ -129,7 +133,11 @@ public:
 
 	double rand01()
 	{
+#if defined(_WIN32) && defined(_MSC_VER)
+		__int32 q, z;
+#else
 		int32_t q, z;
+#endif
 		MODMUL(53668, 40014, 12211, 0x7FFFFFABL, _s1)
 		MODMUL(52774, 40692, 3791, 0x7FFFFF07L, _s2)
 		z = _s1 - _s2;

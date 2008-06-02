@@ -633,7 +633,7 @@ int main(int argc, char* argv[])
 			TestDA(c_num);
 	}
 	else
-		TestFcnOpt(2, rastrigins);
+		TestFcnOpt(20, rosenbrocks);
 
 	//Kar2Words();
 	//vsp_test_mig_rates();

@@ -46,9 +46,9 @@ _LIBAPI void SetVSPSizes(ulong nSubpops, ulong* pSizes);
 _LIBAPI void SetVSPFractions(double* pFractions);
 
 //--------------------Approximation only - for Oleg
-_LIBAPI unsigned long BuildApproximation(unsigned long inp_num, unsigned long sampl_num, 
+_LIBAPI unsigned long BuildApproximation(unsigned long inp_num, unsigned long sampl_num,
 								const double* samples, const double* want_resp);
 _LIBAPI void Sim(unsigned long inp_num, unsigned long sampl_num, const double* samples, double* res);
-_LIBAPI void GetKMCenters(double* res);
+_LIBAPI void GetClusterCenters(double* res);
 
 #endif

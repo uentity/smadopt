@@ -7,8 +7,8 @@ using namespace NN;
 void falman_layer::_construct_aft()
 {
 	vector<int> aft;
-	//aft.push_back(logsig);
-	//aft.push_back(tansig);
+	aft.push_back(logsig);
+	aft.push_back(tansig);
 	aft.push_back(radbas);
 	aft.push_back(revradbas);
 	//aft.push_back(multiquad);
@@ -81,7 +81,7 @@ void falman_layer::propagate()
 		//we need a standart propagation first
 		layer::propagate();
 		//remember answer
-		if(cp_.mode == collecting) 
+		if(cp_.mode == collecting)
 			cp_.save_axons();
 			//cp_.val() = axons_[0];
 	}
@@ -208,9 +208,9 @@ void ccn::falman_epoch(const Matrix& inputs, const Matrix& targets)
 
 			//process biases
 			if(opt_.use_biases_) {
-				if(*p_aft == radbas || *p_aft == revradbas) 
+				if(*p_aft == radbas || *p_aft == revradbas)
 					fl.BG_[j] += g * 2 * (*p_b) * (*p_state);
-				else if(*p_aft == multiquad || *p_aft == revmultiquad) 
+				else if(*p_aft == multiquad || *p_aft == revmultiquad)
 					fl.BG_[j] += g * 2 * (*p_b);
 				else fl.BG_[j] += g;
 
@@ -218,9 +218,9 @@ void ccn::falman_epoch(const Matrix& inputs, const Matrix& targets)
 			}
 
 			//process weights
-			if(*p_aft == radbas || *p_aft == revradbas) 
+			if(*p_aft == radbas || *p_aft == revradbas)
 				g *= 2 * (*p_b) * (*p_b);
-			else if(*p_aft == multiquad || *p_aft == revmultiquad) 
+			else if(*p_aft == multiquad || *p_aft == revmultiquad)
 				g *= 2;
 
 			p_in = p_n->inputs_.begin();
@@ -329,7 +329,7 @@ void ccn::is_goal_reached() {
 			//	state_.status = learned;
 			//break;
 		case ccn_maxcor:
-			if(state_.cycle >= opt_.maxFLLcycles_) 
+			if(state_.cycle >= opt_.maxFLLcycles_)
 				state_.status = stop_maxcycle;
 			break;
 	}
@@ -343,7 +343,7 @@ int ccn::check_patience(nnState& state, double patience, ulong patience_cycles, 
 		return objnet::_check_patience< follow_grad >(state, patience, patience_cycles, patience_status);
 }
 
-void ccn::bp_after_grad() 
+void ccn::bp_after_grad()
 {
 	//calculate gradient for falman layers
 	if(mainState_.status == ccn_fully_bp && flayers_num() > 0) {
@@ -359,7 +359,7 @@ void ccn::bp_after_grad()
 	}
 }
 
-void ccn::update_epoch() 
+void ccn::update_epoch()
 {
 	switch(mainState_.status) {
 		case ccn_fully_bp:
@@ -578,7 +578,7 @@ int ccn::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLe
 				for(fl_iterator p_fl = flayers_.begin(); &(*p_fl) != cur_fl_; ++p_fl)
 					p_fl->cache_mode_pause();
 			}
-			
+
 #ifdef _DEBUG
 			Matrix ol, fl, er;
 			ol.reserve(targets.col_num());
@@ -598,7 +598,7 @@ int ccn::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLe
 #endif
 		}
 
-		if(mainState_.status != learned && state_.status != stop_breaked) 
+		if(mainState_.status != learned && state_.status != stop_breaked)
 			mainState_.status = stop_maxcycle;
 		//turn off caching everywhere
 		for(fl_iterator p_fl = flayers_.begin(); p_fl != flayers_.end(); ++p_fl)
