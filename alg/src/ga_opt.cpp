@@ -112,6 +112,7 @@ bool ga_opt::process_option(std::istream& inif, std::string& word)
 	sOpts += " CalcUniqueOnly MinUnique SubPopType HSubPopSizes VSubPopSizes MigrationDirection MigrationInterval MigrationFraction";
 	sOpts += " GlobalSearch VSubPopFractions CrossoverArithmeticRatio CrossoverBLXAlpha MutationSpace MutNonUniformParam";
 	sOpts += " CrossoverSBXParam MigrationPolicy TournamentSize Minimizing ScalingParam SeparateAddonForEachVSP AddonCount";
+	sOpts += " FitnessValueLimit";
 	const string sScaling = " Proportional ProportionalMean ProportionalInv ProportionalTimeScaled ProportionalSigmaScaled Rank RankSqr RankExp";
 	const string sSelection = " StochasticUniform Roulette UniformSelection Tournament Once Sort";
 	const string sXover = " Heuristic OnePoint TwoPoint UniformCrossover Flat Arithmetic BLX SBX";
@@ -275,6 +276,10 @@ bool ga_opt::process_option(std::istream& inif, std::string& word)
 				break;
 			case 42:
 				inif >> addonCount;
+				break;
+			case 43:
+				inif >> fitLimit;
+				useFitLimit = true;
 				break;
 		}	//main options
 	}

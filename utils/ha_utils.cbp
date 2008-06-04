@@ -7,6 +7,7 @@
 		<Option compiler="gcc" />
 		<Build>
 			<Target title="debug_lin">
+				<Option platforms="Unix;" />
 				<Option output="../exe/debug/libha_utils" prefix_auto="1" extension_auto="1" />
 				<Option object_output="build/Debug/" />
 				<Option type="3" />
@@ -20,6 +21,7 @@
 				</Compiler>
 			</Target>
 			<Target title="release_lin">
+				<Option platforms="Unix;" />
 				<Option output="../exe/release/libha_utils" prefix_auto="1" extension_auto="1" />
 				<Option object_output="build/Release/" />
 				<Option type="3" />
@@ -30,11 +32,34 @@
 					<Add option="-O2" />
 				</Compiler>
 			</Target>
+			<Target title="release_lin_s">
+				<Option platforms="Unix;" />
+				<Option output="../exe/release/libha_utils" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="" />
+				<Option object_output="build/Release/" />
+				<Option type="2" />
+				<Option compiler="gcc" />
+				<Option createDefFile="1" />
+				<Option projectLinkerOptionsRelation="1" />
+				<Compiler>
+					<Add option="-O2" />
+				</Compiler>
+				<Linker>
+					<Add option="-static-libgcc" />
+					<Add directory="." />
+				</Linker>
+			</Target>
+			<Environment>
+				<Variable name="static_libgcc" value='&quot;`g++ -print-file-name=libstdc++.a`&quot;' />
+			</Environment>
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />
 			<Add option="-fPIC" />
 		</Compiler>
+		<Linker>
+			<Add option="-static-libgcc" />
+		</Linker>
 		<Unit filename="src/alg_except.cpp" />
 		<Unit filename="src/alg_except.h" />
 		<Unit filename="src/alg_opt.cpp" />

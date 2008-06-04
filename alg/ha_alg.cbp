@@ -40,6 +40,27 @@
 					<Add directory="../exe/release" />
 				</Linker>
 			</Target>
+			<Target title="release_lin_s">
+				<Option output="../exe/release/libha_alg" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="" />
+				<Option object_output="build/Release/" />
+				<Option external_deps="../exe/release/libha_utils.a;" />
+				<Option type="2" />
+				<Option compiler="gcc" />
+				<Option createDefFile="1" />
+				<Compiler>
+					<Add option="-O2" />
+					<Add directory="../utils/src" />
+				</Compiler>
+				<Linker>
+					<Add option="-static-libgcc" />
+					<Add directory="../exe/release" />
+					<Add directory="." />
+				</Linker>
+			</Target>
+			<Environment>
+				<Variable name="static_libgcc" value='&quot;`g++ -print-file-name=libstdc++.a`&quot;' />
+			</Environment>
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />

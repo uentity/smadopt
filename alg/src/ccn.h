@@ -7,9 +7,9 @@ using namespace NN;
 void falman_layer::_construct_aft()
 {
 	vector<int> aft;
-	aft.push_back(logsig);
-	aft.push_back(tansig);
-	aft.push_back(radbas);
+	//aft.push_back(logsig);
+	//aft.push_back(tansig);
+	//aft.push_back(radbas);
 	aft.push_back(revradbas);
 	//aft.push_back(multiquad);
 	//aft.push_back(revmultiquad);
@@ -469,7 +469,8 @@ bool ccn::delete_losers(const Matrix& inputs, const Matrix& targets)
 	if(cur_fl_ == NULL) return false;
 	if(mainState_.status != ccn_maxcor) {
 		//cur_fl_->winner_ind_ = 0;
-		_calc_winner_maxw();
+		//_calc_winner_maxw();
+		_calc_winner_corr(inputs, targets);
 		//return false;
 	}
 	else {

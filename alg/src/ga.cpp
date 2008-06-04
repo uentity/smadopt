@@ -1709,7 +1709,10 @@ Matrix ga::Run(FitnessFcnCallback FitFcn, int genomeLength, bool bReadOptFromIni
 			else if(opt_.timeLimit > 0 && time(NULL) - state_.tStart >= opt_.timeLimit) {
 				state_.nStatus = FinishTimeLim;
 			}
-			else if(opt_.useFitLimit && curMin <= opt_.fitLimit) {
+			else if(opt_.useFitLimit && (
+				(opt_.minimizing && curMin < opt_.fitLimit) ||
+				(!opt_.minimizing && curMin > opt_.fitLimit)
+			)) {
 				state_.nStatus = FinishFitLim;
 			}
 		}
@@ -1833,6 +1836,13 @@ bool ga::NextPop(double* pPrevScore, double* pNextPop, unsigned long* pPopSize)
 				//FinishGA(pNextPop, pPrevScore);
 				//return false;
 			}
+		}
+		if(opt_.useFitLimit && (
+			(opt_.minimizing && curMin < opt_.fitLimit) ||
+			(!opt_.minimizing && curMin > opt_.fitLimit)
+		))
+		{
+			throw (int)FinishFitLim;
 		}
 
 		//save history

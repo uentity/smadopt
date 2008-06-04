@@ -870,6 +870,20 @@ public:
 	//! \return - if nonzero then explosion is detected and returned number of cluster should be fixed
 	ulong log_step(ulong cycle) {
 		static ulong expl_steps = 0;
+
+		struct expl_trigger {
+			static ulong cancel_expl(da_impl& di, ulong rev_steps) {
+				//explosion detected
+				cout << "Explosion detected! Rolling " << rev_steps << " steps back" << endl;
+				(da_data&)(di) = di.log_.head(rev_steps);
+				//update variances
+				di.update_variances();
+				//save new log entry
+				di.log_.push_back(di);
+				return di.y_.row_num();
+			}
+		};
+
 		//save history
 		log_.push_back(*this);
 
@@ -880,16 +894,12 @@ public:
 		ulong ret = 0;
 		double dt = log_.head_dT();
 		if(cycle == 0 || dt < -EPS) expl_steps = 0;
-		else if(++expl_steps >= expl_length_) {
-			//explosion detected
-			cout << "Explosion detected! Rolling " << expl_length_ - 1 << " steps back" << endl;
-			(da_data&)(*this) = log_.head(expl_length_ - 1);
-			//update variances
-			update_variances();
-			//save new log entry
-			log_.push_back(*this);
+		else if(++expl_steps >= expl_length_ 	//too long cluster number increasing
+				//|| y_.row_num() >= log_.head(expl_steps).y_.row_num() * 2		//too fast increasing
+				)
+		{
 			//freeze centers number
-			ret = y_.row_num();
+			ret = expl_trigger::cancel_expl(*this, expl_steps - 1);
 			//zero expl_steps counter
 			expl_steps = 0;
 		}
@@ -907,7 +917,7 @@ public:
 	void find_clusters(const Matrix& data, const Matrix& f, ulong clust_num, ulong maxiter) {
 		px_fcn_ = &da_impl::dithered_px< &da_impl::scaling_px >;
 		//px_fcn_ = &da_impl::scaling_px;
-		//expl_length_ = 3;
+		expl_length_ = 4;
 		order_fcn_ = &da_impl::selection_based_order;
 		norm_fcn_ = &da_impl::l2_norm;
 		norm2_fcn_ = &da_impl::l2_norm2;
