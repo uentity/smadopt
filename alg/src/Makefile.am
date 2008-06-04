@@ -36,6 +36,6 @@ objnet_impl.h			\
 pca.h			\
 rbn.h
 
-libha_alg_la_LIBADD = -L@top_srcdir@/exe/release -lha_utils
+libha_alg_la_LIBADD = -L../../utils/src -lha_utils
 libha_alg_la_CPPFLAGS = -W -Wall -I@top_srcdir@/utils/src
 libha_alg_la_CXXFLAGS = 
