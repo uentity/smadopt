@@ -13,6 +13,7 @@
 #include <iostream>
 
 #define NW 13
+#define VERBOSE
 
 using namespace prg;
 using namespace std;
@@ -1561,6 +1562,7 @@ void ga::prepare2run(int genomeLength, bool bReadOptFromIni)
 	//reserve memory for statistics
 	stat_.clear();
 	stat_.reserve(opt_.generations);
+	stat_.reset_timer();
 
 	//seed random generator
 	prg::init();
@@ -1724,7 +1726,7 @@ Matrix ga::Run(FitnessFcnCallback FitFcn, int genomeLength, bool bReadOptFromIni
 		state_.nStatus = FinishError;
 		//state_.lastError = ex.what();
 		_print_err(ex.what());
-		FinishGA();
+		//FinishGA();
 	}
 	return FinishGA();
 }
@@ -2007,6 +2009,9 @@ std::ostream& ga::OutpIterRes(std::ostream& outs)
 		for(r_iterator pos(state_.addons_ff.begin()); pos != state_.addons_ff.end(); ++pos)
 			outs << ' ' << setw(NW) << *pos;
 	}
+#ifdef VERBOSE
+	outs << ": " << stat_.sec_elapsed() << " sec elapsed";
+#endif
 	outs << endl;
 	return outs;
 }

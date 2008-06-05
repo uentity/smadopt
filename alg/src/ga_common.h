@@ -116,11 +116,11 @@ namespace GA {
 	{
 		//static std::string s_buf;
 	public:
-		ga_except() 
+		ga_except()
 			: alg_except()
 		{
 		}
-		ga_except(const alg_except& ex) 
+		ga_except(const alg_except& ex)
 			: alg_except(ex)
 		{
 		}
@@ -233,6 +233,8 @@ namespace GA {
 		ulMatrix chrom_cnt_;
 		Matrix best_ff_, mean_ff_;
 		ulMatrix stall_cnt_;
+		clock_t startt_, curt_;
+		bool timer_flushed_;
 
 		ga_stat(ulong iterations = 0);
 
@@ -240,6 +242,9 @@ namespace GA {
 		void clear();
 		ulong size() const;
 		void add_record(ulong chrom_cnt, double best_ff, double mean_ff, ulong stall_g);
+
+		void reset_timer();
+		double sec_elapsed() const;
 
 		//standart assignment will work fine
 		//ga_stat& operator =(const ga_stat& s);

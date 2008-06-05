@@ -5,6 +5,7 @@ using namespace GA;
 using namespace std;
 
 ga_stat::ga_stat(ulong iterations)
+	: startt_(NULL), curt_(NULL), timer_flushed_(true)
 {
 	if(iterations) reserve(iterations);
 }
@@ -15,6 +16,12 @@ void ga_stat::add_record(ulong chrom_cnt, double best_ff, double mean_ff, ulong 
 	best_ff_.push_back(best_ff);
 	mean_ff_.push_back(mean_ff);
 	stall_cnt_.push_back(stall_g);
+	//timer operations
+	curt_ = clock();
+	if(timer_flushed_) {
+		startt_ = curt_;
+		timer_flushed_ = false;
+	}
 }
 
 void ga_stat::reserve(ulong iterations)
@@ -31,6 +38,7 @@ void ga_stat::clear()
 	best_ff_.clear();
 	mean_ff_.clear();
 	stall_cnt_.clear();
+	reset_timer();
 }
 
 ulong ga_stat::size() const
@@ -58,7 +66,7 @@ const ga_stat& ga_stat::operator +=(const ga_stat& s)
 	mean_ff_ += s.mean_ff_;
 	stall_cnt_ += s.stall_cnt_;
 	/*
-	transform(chrom_count_.begin(), chrom_count_.end(), s.chrom_count_.begin(), chrom_count_.begin(), 
+	transform(chrom_count_.begin(), chrom_count_.end(), s.chrom_count_.begin(), chrom_count_.begin(),
 		plus< ulong >());
 	transform(best_ff_.begin(), best_ff_.end(), s.best_ff_.begin(), best_ff_.begin(),
 		plus< double >());
@@ -83,4 +91,13 @@ const ga_stat& ga_stat::operator /=(ulong cnt)
 	transform(stall_count_.begin(), stall_count_.end(), stall_count_.begin(), bind2nd(divides< ulong >(), cnt));
 	*/
 	return *this;
+}
+
+void ga_stat::reset_timer() {
+	startt_ = curt_ = clock_t(NULL);
+	timer_flushed_ = true;
+}
+
+double ga_stat::sec_elapsed() const {
+	return (double)(curt_ - startt_)/CLOCKS_PER_SEC;
 }
