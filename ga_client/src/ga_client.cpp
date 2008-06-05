@@ -623,17 +623,32 @@ void TestDA(int c_num) {
 
 int main(int argc, char* argv[])
 {
-	if(argc > 1) {
-		int c_num = 7;
-		if(argc > 2) c_num = atoi(argv[2]);
+	int test_t = 0, c_num = 5;
+	test_fun_t fun = rastrigins;
 
-		if(strcmp(argv[1], "1") == 0)
-			TestKmeans(c_num);
-		else if(strcmp(argv[1], "2") == 0)
-			TestDA(c_num);
+	if(argc > 1) c_num = atoi(argv[1]);
+	if(argc > 2) {
+		test_t = atoi(argv[1]);
+		c_num = atoi(argv[2]);
 	}
-	else
-		TestFcnOpt(100, rastrigins);
+	if(argc > 3) {
+		string s = argv[3];
+		if(s == "rastrigins") fun = rastrigins;
+		else if(s == "rosenbrocks") fun = rosenbrocks;
+		else if(s == "sphere") fun = sphere;
+		else if(s == "sphere_multimod") fun = sphere_multimod;
+		else if(s == "polynom") fun = polynom;
+		else if(s == "VP") fun = VP;
+		else if(s == "schwefel") fun = schwefel;
+		else if(s == "ackley") fun = ackley;
+	}
+
+	switch(test_t) {
+		default:
+		case 0: TestFcnOpt(100, rastrigins); break;
+		case 1: TestKmeans(c_num); break;
+		case 2: TestDA(c_num); break;
+	}
 
 	//Kar2Words();
 	//vsp_test_mig_rates();
