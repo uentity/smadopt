@@ -12,7 +12,6 @@
 #include <limits>
 #include <iostream>
 
-#define NW 13
 #define VERBOSE
 
 using namespace prg;
@@ -1961,6 +1960,7 @@ void ga::InformWorld(void)
 
 std::ostream& ga::OutpIterRes(std::ostream& outs)
 {
+	//print table header
 	if(state_.nGen == 0) {
 		outs << setw(NW) << "Generation" << ' ' << setw(NW) << "f-count" << ' ' << setw(NW) << "best f(x)"
 			<< ' ' << setw(NW) << "Mean" << ' ' << setw(NW) << "StallGen";
@@ -1980,9 +1980,15 @@ std::ostream& ga::OutpIterRes(std::ostream& outs)
 				outs << ' ' << setw(NW) << sfmt.str();
 			}
 		}
+#ifdef VERBOSE
+		outs << ' ' << setw(TIME_NW) << "Time elapsed";
+#endif
 		outs << endl;
 	}
+
+	//print main info
 	outs << setw(NW) << state_.nGen + 1 << ' ' << setw(NW) << state_.nChromCount << ' ' << setw(NW) << state_.last_min;
+
 	//calc score mean
 	double mean_ff = 0;
 	if(opt_.excludeErrors) {
@@ -1995,8 +2001,9 @@ std::ostream& ga::OutpIterRes(std::ostream& outs)
 	}
 	else
 		mean_ff = state_.mainScore.Mean();
-	outs << ' ' << setw(NW) << mean_ff << ' ' << setw(NW) << state_.nStallGen;
 
+	//print basic statistics
+	outs << ' ' << setw(NW) << mean_ff << ' ' << setw(NW) << state_.nStallGen;
 	//push back statistics
 	stat_.add_record(state_.nChromCount, state_.last_min, mean_ff, state_.nStallGen);
 
@@ -2010,7 +2017,8 @@ std::ostream& ga::OutpIterRes(std::ostream& outs)
 			outs << ' ' << setw(NW) << *pos;
 	}
 #ifdef VERBOSE
-	outs << ": " << stat_.sec_elapsed() << " sec elapsed";
+	//output measuread time
+	outs << setw(TIME_NW); stat_.print_elapsed(outs);
 #endif
 	outs << endl;
 	return outs;

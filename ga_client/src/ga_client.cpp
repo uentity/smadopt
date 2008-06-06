@@ -487,10 +487,15 @@ ga_stat TestFcnOpt(int nVars, test_fun_t tf = rastrigins, uint runs_num = 1,
 		stat += cur_stat;
 		if(full_best) *full_best |= cur_stat.best_ff_;
 	}
-	stat /= runs_num;
 
 	clock_t finish = clock();
 	std::cout << "Time elapsed: " << (double)(finish - start)/CLOCKS_PER_SEC << " seconds" << endl;
+
+	stat /= runs_num;
+	//print stat
+	ofstream f("ga_stat.txt", ios::out | ios::trunc);
+	stat.print(f);
+
 	return stat;
 }
 

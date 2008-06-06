@@ -6,6 +6,12 @@
 #include "alg_opt.h"
 #include "matrix.h"
 
+#include <sstream>
+#include <iosfwd>
+
+#define NW 13
+#define TIME_NW 21
+
 //forward declaration
 namespace GA { class ga; }
 
@@ -233,7 +239,8 @@ namespace GA {
 		ulMatrix chrom_cnt_;
 		Matrix best_ff_, mean_ff_;
 		ulMatrix stall_cnt_;
-		clock_t startt_, curt_;
+		Matrix timer_;
+		double startt_;
 		bool timer_flushed_;
 
 		ga_stat(ulong iterations = 0);
@@ -244,7 +251,10 @@ namespace GA {
 		void add_record(ulong chrom_cnt, double best_ff, double mean_ff, ulong stall_g);
 
 		void reset_timer();
-		double sec_elapsed() const;
+		double sec_elapsed(ulong epoch = -1) const;
+
+		std::ostream& print_elapsed(std::ostream& outs, ulong epoch = -1) const;
+		std::ostream& print(std::ostream& outs, bool print_header = false, bool decorate_time = false);
 
 		//standart assignment will work fine
 		//ga_stat& operator =(const ga_stat& s);
