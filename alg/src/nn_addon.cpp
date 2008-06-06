@@ -798,6 +798,16 @@ void nn_addon::_fillup_storage(Matrix& p, Matrix& s)
 
 void nn_addon::_get_learnData(Matrix& p, Matrix& s, Matrix& learn, Matrix& targets)
 {
+	//select clustering engine depending on corresponding option
+	struct call_kmeans_filter {
+		static Matrix go(nn_addon& nna, const Matrix& p, const Matrix& f, Matrix& lp, Matrix& lf) {
+			if(nna.opt_.clustEngine == ce_kmeans)
+				return nna._kmeans_filter(nna.state_.km, p, f, lp, lf);
+			else
+				return nna._kmeans_filter(nna.state_.da, p, f, lp, lf);
+		}
+	};
+
 	//define learning data
 	if(opt_.bestCount > 0) { //&& opt_.bestCount < _tar.size()) {
 		switch(opt_.samples_filter) {
@@ -806,12 +816,12 @@ void nn_addon::_get_learnData(Matrix& p, Matrix& s, Matrix& learn, Matrix& targe
 				ga_.opt_.initRange = _best_filter(learn_, tar_, learn, targets);
 				break;
 			case kmeans_filter:
-				ga_.opt_.initRange = _kmeans_filter(state_.da, learn_, tar_, learn, targets);
+				ga_.opt_.initRange = call_kmeans_filter::go(*this, learn_, tar_, learn, targets);
 				break;
 			case best_km_filter:
 				Matrix b_l, b_t;
 				_best_filter(learn_, tar_, b_l, b_t);
-				ga_.opt_.initRange = _kmeans_filter(state_.da, b_l, b_t, learn, targets);
+				ga_.opt_.initRange = call_kmeans_filter::go(*this, b_l, b_t, learn, targets);
 				break;
 		}
 	}
@@ -858,8 +868,18 @@ Matrix nn_addon::_best_filter(const Matrix& p, const Matrix& f, Matrix& lp, Matr
 template< class clusterizer >
 Matrix nn_addon::_kmeans_filter(clusterizer& cengine, const Matrix& p, const Matrix& f, Matrix& lp, Matrix& lf)
 {
+	//select which function to call depending on clustering engine
+	struct find_clusters {
+		static void go(KM::kmeans& cengine, const Matrix& p, const Matrix& f, double mult, ulong maxiter) {
+			cengine.find_clusters_f(p, f, mult, maxiter, NULL, false);
+		}
+		static void go(DA::determ_annealing& cengine, const Matrix& p, const Matrix& f, double mult, ulong maxiter) {
+			cengine.find_clusters(p, f, mult, maxiter);
+		}
+	};
+
 	//do a clusterization of learning data
-	cengine.find_clusters(p, f, max< ulong >(p.row_num() * opt_.kmf_cmult, 1), 200);
+	find_clusters::go(cengine, p, f, max< ulong >(p.row_num() * opt_.kmf_cmult, 1), 200);
 
 	//cengine.drops_hetero_simple(p, f, opt_.kmf_cmult, 200);
 	//cengine.find_clusters_f(p, f, max< ulong >(p.row_num() * opt_.kmf_cmult, 1), 200, NULL, false);

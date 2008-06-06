@@ -645,7 +645,7 @@ int main(int argc, char* argv[])
 
 	switch(test_t) {
 		default:
-		case 0: TestFcnOpt(100, rastrigins); break;
+		case 0: TestFcnOpt(c_num, rastrigins); break;
 		case 1: TestKmeans(c_num); break;
 		case 2: TestDA(c_num); break;
 	}

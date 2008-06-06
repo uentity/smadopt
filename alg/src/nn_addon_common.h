@@ -63,6 +63,11 @@ namespace GA {
 		rbn_kmeans_bp = 3
 	};
 
+	enum nnaClustEngine {
+		ce_kmeans = 1,
+		ce_DA = 2
+	};
+
 	struct nnAddonOptions {
 		int netType, normType;
 		double maxtar, mintar, pred_ratio;
@@ -83,6 +88,7 @@ namespace GA {
 		double goalQuota, tol, kmf_cmult, rbn_cmult;
 		ulong search_samples_num, search_clust_num, learn_clust_num;
 		KM::kmOptions* pKMopt;
+		int clustEngine;
 	};
 
 	class nna_opt : public alg_options<nnAddonOptions>

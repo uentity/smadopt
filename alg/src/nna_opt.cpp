@@ -53,6 +53,7 @@ void nna_opt::set_def_opt(bool create_defs)
 	kmf_cmult = 0.2;
 	rbn_cmult = 0.1;
 	rbn_learn_type = rbn_kmeans_bp;
+	clustEngine = ce_kmeans;
 
 	//string a_name = GetName();
 
@@ -343,13 +344,14 @@ bool nna_opt::process_option(std::istream& inif, std::string& word)
 	string sOpts = " TarNormType MaxTar MinTar PredictionRatio InfFF SupFF BestCount";
 	sOpts += " UsePCA NormalizeInput InitNetEveryIter InitPCAEveryIter PrinCompNum Layers AddonScheme GoalQuota IsFFRestricted";
 	sOpts += " NetworkType SamplesFilter SearchSamplesNum SearchClusterNum LearnClusterNum KMFECPolicy";
-	sOpts += " KMFCmult RBNCmult RBNLearnType";
+	sOpts += " KMFCmult RBNCmult RBNLearnType ClusteringEngine";
 	string sTarNorm = " UnchangedData LinearNorm LogNorm LogsigNorm";
 	string sAddonScheme = " FitnessFcnAsTargets FitnessFcnAsInputs PCAPredict";
 	string sNetType = " matrix_nn mlp_nn rb_nn ccn_nn";
 	string sSamplesFlt = " BestFilter KmeansFilter BestKmeansFilter";
 	string sKmPol = " DoNothing Drop Singleton";
 	string sRBNLearnT = " Exact FullyBackProp KmeansBackProp";
+	string clust_engine = " kmeans DA";
 
 	string sTmp;
 	Matrix tmp;
@@ -447,6 +449,10 @@ bool nna_opt::process_option(std::istream& inif, std::string& word)
 			case 25:
 				inif >> word;
 				if((nPos = word_pos(sRBNLearnT, word)) > 0) rbn_learn_type = nPos;
+				break;
+			case 26:
+				inif >> word;
+				if((nPos = word_pos(clust_engine, word)) > 0) clustEngine = nPos;
 				break;
 		}	//main options
 	}
