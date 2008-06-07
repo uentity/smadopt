@@ -244,6 +244,7 @@ namespace GA {
 		ulMatrix stall_cnt_;
 		Matrix timer_;
 		vec_mat_t addons_;
+		std::vector< double > ahits_cnt_;
 		double startt_;
 		bool timer_flushed_;
 

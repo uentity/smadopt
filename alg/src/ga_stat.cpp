@@ -26,12 +26,18 @@ void ga_stat::add_record(ulong chrom_cnt, double best_ff, double mean_ff, ulong 
 }
 
 void ga_stat::add_addon_record(const Matrix& addon_ff) {
-	if(addons_.size() == 0)
+	if(addons_.size() == 0) {
 		addons_.resize(addon_ff.size());
+		ahits_cnt_.resize(addon_ff.size());
+		fill(ahits_cnt_.begin(), ahits_cnt_.end(), 0);
+	}
 
 	const ulong n = min< ulong >(addon_ff.size(), addons_.size());
-	for(ulong i = 0; i < n; ++i)
+	for(ulong i = 0; i < n; ++i) {
 		addons_[i].push_back(addon_ff[i]);
+		if(addon_ff[i] == best_ff_[best_ff_.size() - 1])
+			++ahits_cnt_[i];
+	}
 }
 
 void ga_stat::reserve(ulong iterations)
@@ -52,6 +58,7 @@ void ga_stat::clear()
 	timer_.clear();
 	reset_timer();
 	addons_.clear();
+	ahits_cnt_.clear();
 }
 
 ulong ga_stat::size() const
@@ -79,6 +86,10 @@ const ga_stat& ga_stat::operator +=(const ga_stat& s)
 	mean_ff_ += s.mean_ff_;
 	stall_cnt_ += s.stall_cnt_;
 	timer_ += s.timer_;
+	for(ulong i = 0; i < addons_.size(); ++i)
+		addons_[i] += s.addons_[i];
+	transform(ahits_cnt_.begin(), ahits_cnt_.end(), s.ahits_cnt_.begin(), ahits_cnt_.begin(), plus< double >());
+
 	/*
 	transform(chrom_count_.begin(), chrom_count_.end(), s.chrom_count_.begin(), chrom_count_.begin(),
 		plus< ulong >());
@@ -99,6 +110,11 @@ const ga_stat& ga_stat::operator /=(ulong cnt)
 	mean_ff_ /= cnt;
 	stall_cnt_ /= cnt;
 	timer_ /= cnt;
+
+	for(ulong i = 0; i < addons_.size(); ++i)
+		addons_[i] /= cnt;
+	transform(ahits_cnt_.begin(), ahits_cnt_.end(), ahits_cnt_.begin(), bind2nd(divides< double >(), cnt));
+
 	/*
 	transform(chrom_count_.begin(), chrom_count_.end(), chrom_count_.begin(), bind2nd(divides< ulong >(), cnt));
 	transform(best_ff_.begin(), best_ff_.end(), best_ff_.begin(), bind2nd(divides< double >(), cnt));
@@ -161,6 +177,13 @@ std::ostream& ga_stat::print_epoch(std::ostream& outs, ulong epoch, bool decorat
 	//print addons info
 	for(ulong i = 0; i < addons_.size(); ++i) {
 		outs << setw(NW) << addons_[i][epoch] << ' ';
+		//print addons hits counter
+		outs << setw(NW);
+		if(addons_[i][epoch] == best_ff_[epoch])
+			outs << ahits_cnt_[i];
+		else
+			outs << "0";
+		outs << ' ';
 	}
 	//print elapsed time
 	if(decorate_time) {

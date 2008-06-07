@@ -384,7 +384,7 @@ void rbn::_neuron_adding_learn(const Matrix& inputs, const Matrix& targets, pLea
 			er_ind <<= ps_er.RawSort();
 			//add neurons in place of samples with highest errors
 			ulong added_cnt = 0;
-			double q = rbl.B_.Mean();
+			const double q = rbl.B_.Mean();
 			for(ulong i = er_ind.size() - 1; i < er_ind.size(); --i) {
 				neuron& n = rbl.add_neuron(opt_.gft_, input_ptr);
 				n.weights_ = inputs.GetColumns(er_ind[i]);
@@ -392,7 +392,16 @@ void rbn::_neuron_adding_learn(const Matrix& inputs, const Matrix& targets, pLea
 				//generate(n.weights_.begin(), n.weights_.end(), prg::rand01);
 				//n.weights_ -= 0.5; n.weights_ *= opt_.wiRange;
 
-				rbl.B_[rbl.B_.size() - 1] = q;
+				//find distance to closest center
+				double mind, curd;
+				for(ulong j = 0; j < rbl.neurons_.size(); ++j) {
+					if(&rbl.neurons_[j] == &n) continue;
+					curd = (n.weights_ - rbl.neurons_[j].weights_).norm2();
+					if(j == 0 || curd < mind)
+						mind = curd;
+				}
+				//set spread to half of distance to closest center
+				rbl.B_[rbl.B_.size() - 1] = mind / (2 * 0.8326);
 				if(++added_cnt >= opt_.neur_incr_step_) break;
 			}
 			neurons_added += added_cnt;
