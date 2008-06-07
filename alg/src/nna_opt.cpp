@@ -153,6 +153,7 @@ void nna_opt::set_embopt_def(iopt_ref emb_opt)
 		pGAo->logFname = name + "_ga_nn_log.txt";
 		pGAo->histFname = name + "_ga_nn_hist.txt";
 		pGAo->errFname = name + "_ga_nn_err.txt";
+		pGAo->statFname = name + "_ga_nn_stat.txt";
 		pGAo->iniFname_ = "nn_addon_ga.ini";
 		emb_opt.update_embopt_defs();
 	}

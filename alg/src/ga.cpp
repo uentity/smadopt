@@ -1943,6 +1943,16 @@ void ga::InformWorld(void)
 	logFile_.flush();
 	//OutpIterRes(_logFile);
 
+#ifdef VERBOSE
+	//write current statistics
+	if(!statFile_.is_open())
+		statFile_.open(opt_.statFname.c_str(), ios::out | opt_.openMode);
+	osinfo.str("");
+	stat_.print_epoch(osinfo);
+	statFile_ << osinfo.str();
+	statFile_.flush();
+#endif
+
 	if(opt_.logEveryPop) {
 		if(!histFile_.is_open()) histFile_.open(opt_.histFname.c_str(), ios::out | opt_.openMode);
 		Matrix real_pop;
@@ -2015,6 +2025,7 @@ std::ostream& ga::OutpIterRes(std::ostream& outs)
 	if(opt_.h_scheme != ClearGA) {
 		for(r_iterator pos(state_.addons_ff.begin()); pos != state_.addons_ff.end(); ++pos)
 			outs << ' ' << setw(NW) << *pos;
+		stat_.add_addon_record(state_.addons_ff);
 	}
 #ifdef VERBOSE
 	//output measuread time
@@ -2084,6 +2095,7 @@ Matrix ga::FinishGA(double* pBestPop, double* pBestScore)
 		histFile_.close();
 	}
 	if(errFile_.is_open()) errFile_.close();
+	if(statFile_.is_open()) statFile_.close();
 
 	//delete all addons
 	apAddon_.clear();

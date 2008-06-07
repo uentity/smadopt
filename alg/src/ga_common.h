@@ -219,6 +219,7 @@ namespace GA {
 		std::string logFname;
 		std::string errFname;
 		std::string histFname;
+		std::string statFname;
 		std::ios::openmode openMode;
 
 		ga_opt(ga* self = NULL);
@@ -236,10 +237,13 @@ namespace GA {
 	//GA statistics
 	class _CLASS_DECLSPEC ga_stat {
 	public:
+		typedef std::vector< Matrix > vec_mat_t;
+
 		ulMatrix chrom_cnt_;
 		Matrix best_ff_, mean_ff_;
 		ulMatrix stall_cnt_;
 		Matrix timer_;
+		vec_mat_t addons_;
 		double startt_;
 		bool timer_flushed_;
 
@@ -249,12 +253,14 @@ namespace GA {
 		void clear();
 		ulong size() const;
 		void add_record(ulong chrom_cnt, double best_ff, double mean_ff, ulong stall_g);
+		void add_addon_record(const Matrix& addon_ff);
 
 		void reset_timer();
 		double sec_elapsed(ulong epoch = -1) const;
 
 		std::ostream& print_elapsed(std::ostream& outs, ulong epoch = -1) const;
 		std::ostream& print(std::ostream& outs, bool print_header = false, bool decorate_time = false);
+		std::ostream& print_epoch(std::ostream& outs, ulong epoch = -1, bool decorate_time = false);
 
 		//standart assignment will work fine
 		//ga_stat& operator =(const ga_stat& s);

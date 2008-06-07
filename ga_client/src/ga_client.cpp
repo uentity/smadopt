@@ -493,8 +493,8 @@ ga_stat TestFcnOpt(int nVars, test_fun_t tf = rastrigins, uint runs_num = 1,
 
 	stat /= runs_num;
 	//print stat
-	ofstream f("ga_stat.txt", ios::out | ios::trunc);
-	stat.print(f);
+//	ofstream f("ga_stat.txt", ios::out | ios::trunc);
+//	stat.print(f);
 
 	return stat;
 }

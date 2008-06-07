@@ -88,6 +88,7 @@ void ga_opt::set_def_opt(bool create_defs)
 	logFname = "ga_log.txt";
 	errFname = "ga_err.txt";
 	histFname = "ga_hist.txt";
+	statFname = "ga_stat.txt";
 	openMode = ios::trunc;
 }
 

@@ -25,6 +25,15 @@ void ga_stat::add_record(ulong chrom_cnt, double best_ff, double mean_ff, ulong 
 	}
 }
 
+void ga_stat::add_addon_record(const Matrix& addon_ff) {
+	if(addons_.size() == 0)
+		addons_.resize(addon_ff.size());
+
+	const ulong n = min< ulong >(addon_ff.size(), addons_.size());
+	for(ulong i = 0; i < n; ++i)
+		addons_[i].push_back(addon_ff[i]);
+}
+
 void ga_stat::reserve(ulong iterations)
 {
 	chrom_cnt_.reserve(iterations);
@@ -42,6 +51,7 @@ void ga_stat::clear()
 	stall_cnt_.clear();
 	timer_.clear();
 	reset_timer();
+	addons_.clear();
 }
 
 ulong ga_stat::size() const
@@ -132,19 +142,33 @@ ostream& ga_stat::print_elapsed(ostream& outs, ulong epoch) const {
 ostream& ga_stat::print(ostream& outs, bool print_header, bool decorate_time) {
 	if(print_header) {
 		outs << setw(NW) << "Generation" << ' ' << setw(NW) << "f-count" << ' ' << setw(NW) << "Best f(x)" << ' ';
-		outs << setw(NW) << "Mean" << ' ' << setw(NW) << "StallGen" << ' ' << setw(TIME_NW) << "Time elapsed" << endl;
+		outs << setw(NW) << "Mean" << ' ' << setw(NW) << "StallGen" << ' ';
+		for(ulong i = 0; i < addons_.size(); ++i)
+			outs << setw(NW) << "NN" << i << ' ';
+		outs << setw(TIME_NW) << "Time elapsed" << endl;
 	}
 	//print data
-	for(ulong i = 0; i < chrom_cnt_.size(); ++i) {
-		outs << setw(NW) << i << ' ' << setw(NW) << chrom_cnt_[i] << ' ' << setw(NW) << best_ff_[i] << ' ';
-		outs << setw(NW) << mean_ff_[i] << ' ' << setw(NW) << stall_cnt_[i] << ' ';
-		if(decorate_time) {
-			outs << setw(TIME_NW);
-			print_elapsed(outs, i);
-		}
-		else
-			outs << setw(NW) << timer_[i];
-		outs << endl;
+	for(ulong i = 0; i < chrom_cnt_.size(); ++i)
+		print_epoch(outs, i, decorate_time);
+	return outs;
+}
+
+std::ostream& ga_stat::print_epoch(std::ostream& outs, ulong epoch, bool decorate_time) {
+	epoch = min(epoch, chrom_cnt_.size() - 1);
+	//print main info
+	outs << setw(NW) << epoch + 1 << ' ' << setw(NW) << chrom_cnt_[epoch] << ' ' << setw(NW) << best_ff_[epoch] << ' ';
+	outs << setw(NW) << mean_ff_[epoch] << ' ' << setw(NW) << stall_cnt_[epoch] << ' ';
+	//print addons info
+	for(ulong i = 0; i < addons_.size(); ++i) {
+		outs << setw(NW) << addons_[i][epoch] << ' ';
 	}
+	//print elapsed time
+	if(decorate_time) {
+		outs << setw(TIME_NW);
+		print_elapsed(outs, epoch);
+	}
+	else
+		outs << setw(NW) << timer_[epoch];
+	outs << endl;
 	return outs;
 }

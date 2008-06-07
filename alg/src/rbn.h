@@ -308,8 +308,8 @@ void rbn::set_rb_layer_drops(const Matrix& inputs, const Matrix& targets, const 
 	if(layers_num() > 1)
 		layers_[1].set_links(create_ptr_mat(l.neurons_));
 
-	opt_.learnType = rbn_kmeans;
-	//opt_.learnType = rbn_neuron_adding;
+	//opt_.learnType = rbn_kmeans;
+	opt_.learnType = rbn_neuron_adding;
 }
 
 void rbn::set_output_layer(ulong neurons_count)

@@ -50,6 +50,7 @@ namespace GA {
 		std::ofstream logFile_;
 		std::ofstream errFile_;
 		std::ofstream histFile_;
+		std::ofstream statFile_;
 
 		int GenLen_;
 		ga_state state_;
