@@ -1375,7 +1375,8 @@ Matrix kmeans::kmeans_impl::drops_hetero_map(const Matrix& data, const Matrix& f
 		}
 
 		//verbose print
-		cout << "kmeans.drops_hetero_map iteration " << cycle_ << "; moves_cnt = " << moves_cnt << endl;
+		cout << "kmeans.drops_hetero_map iteration " << cycle_ << ", moves_cnt = " << moves_cnt;
+		cout << ", centers_cnt = " << drops.size() << endl;
 
 		//no moves - exit
 		if(moves_cnt == 0) break;
@@ -1552,7 +1553,8 @@ Matrix kmeans::kmeans_impl::drops_hetero_simple(const Matrix& data, const Matrix
 		}
 
 		//verbose print
-		cout << "kmeans.drops iteration " << cycle_ << "; moves_cnt = " << moves_cnt << endl;
+		cout << "kmeans.drops iteration " << cycle_ << "; moves_cnt = " << moves_cnt;
+		cout << ", drops_cnt = " << drops.size() << endl;
 
 		//no moves - exit
 		if(moves_cnt == 0) break;

@@ -187,7 +187,8 @@ bool process_objnet_opt(opt_type& opt, std::istream& inif, std::string& word)
 				break;
 			case 23:		//goal_checkFun
 				inif >> word;
-				if((nPos = opt.word_pos(sGCFun, word)) > 0) opt.goal_checkFun = nPos;
+				if((nPos = opt.word_pos(sGCFun, word)) > 0)
+					opt.goal_checkFun = (1 << (nPos - 1));
 				break;
 			case 24:
 				inif >> opt.patience;

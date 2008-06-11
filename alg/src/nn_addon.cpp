@@ -45,6 +45,9 @@ void print_nn_state(const nnState& state, const char* preambula = NULL)
 			case stop_patience:
 				cout << "learning stopped - no significant performance improve";
 				break;
+			case stop_test_validation:
+				cout << "learning stopped - error on validation set doesn't improve";
+				break;
 		}
 		cout << endl;
 	}
@@ -871,7 +874,9 @@ Matrix nn_addon::_kmeans_filter(clusterizer& cengine, const Matrix& p, const Mat
 	//select which function to call depending on clustering engine
 	struct find_clusters {
 		static void go(KM::kmeans& cengine, const Matrix& p, const Matrix& f, double mult, ulong maxiter) {
-			cengine.find_clusters_f(p, f, mult, maxiter, NULL, false);
+			//cengine.find_clusters_f(p, f, mult, maxiter, NULL, false);
+			//cengine.drops_hetero_map(p, f, mult, maxiter);
+			cengine.drops_hetero_simple(p, f, mult, 200);
 		}
 		static void go(DA::determ_annealing& cengine, const Matrix& p, const Matrix& f, double mult, ulong maxiter) {
 			cengine.find_clusters(p, f, mult, maxiter);

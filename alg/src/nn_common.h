@@ -97,7 +97,7 @@ namespace NN {
 	enum GoalCheckFun {
 		no_check = 1,
 		patience = 2,
-		test_validation = 3
+		test_validation = 4
 	};
 
 	enum PerformanceFun {

@@ -425,14 +425,10 @@ int objnet::common_learn(const Matrix& inputs, const Matrix& targets, bool initi
 
 			//make additional checks
 			if(state_.status == learning) {
-				switch(opt_.goal_checkFun) {
-					case patience:
-						check_patience(state_, opt_.patience, opt_.patience_cycles);
-						break;
-					case test_validation:
-						check_early_stop(inputs, targets);
-						break;
-				}
+				if(opt_.goal_checkFun & patience)
+					check_patience(state_, opt_.patience, opt_.patience_cycles);
+				if(opt_.goal_checkFun & test_validation)
+					check_early_stop(inputs, targets);
 			}
 
 			//update weights
@@ -514,6 +510,7 @@ void objnet::check_early_stop(const Matrix& inputs, const Matrix& targets)
 {
 	static Matrix test_set;
 	static Matrix test_tar;
+	static nnState test_state;
 
 	if(state_.cycle == 0) {
 		//initialization phase - extract validation set from learning
@@ -522,17 +519,21 @@ void objnet::check_early_stop(const Matrix& inputs, const Matrix& targets)
 		Matrix& tar_uc = const_cast< Matrix& >(targets);
 		//extract validation set
 		ulong val_size = ha_round(inputs.col_num()*opt_.validation_fract);
-		test_set.Resize(val_size, inputs.row_num());
-		test_tar.Resize(val_size, targets.row_num());
+		test_set.Resize(inputs.row_num(), val_size);
+		test_tar.Resize(targets.row_num(), val_size);
 		ulong val_ind;
 		for(ulong i = 0; i < val_size; ++i) {
-			val_ind = prg::randIntUB(inputs.col_num());
-			test_set.SetColumns(inputs.GetColumns(val_ind), i);
-			test_set.DelColumns(val_ind);
-			test_tar.SetColumns(test_tar.GetColumns(val_ind), i);
-			test_tar.DelColumns(val_ind);
+			val_ind = prg::randIntUB(inp_uc.col_num());
+			test_set.SetColumns(inp_uc.GetColumns(val_ind), i);
+			inp_uc.DelColumns(val_ind);
+			test_tar.SetColumns(tar_uc.GetColumns(val_ind), i);
+			tar_uc.DelColumns(val_ind);
 		}
+
+		test_state.status = learning;
+		return;
 	}
+
 	//calc error on validation set
 	double val_err = 0;
 	layer& outp = layers_[layers_num() - 1];
@@ -543,9 +544,23 @@ void objnet::check_early_stop(const Matrix& inputs, const Matrix& targets)
 		cur_err <<= test_tar.GetColumns(i) - outp.out();
 		val_err += cur_err.norm2();
 	}
+
+	//simple check
+//	if(state_.cycle == 1)
+//		test_state.perfMean = val_err;
+//	else {
+//		double delta;
+//		anti_grad::assign(delta, val_err - test_state.perfMean);
+//		if(delta < 0) state_.status = stop_test_validation;
+//		test_state.perfMean = val_err;
+//	}
+
 	//check stop conditions with patience
-	state_.perf = val_err;
-	check_patience(state_, opt_.patience, opt_.patience_cycles, stop_test_validation);
+	test_state.perf = val_err;
+	test_state.cycle = state_.cycle;
+	check_patience(test_state, 0.001, 10, stop_test_validation);
+	state_.status = test_state.status;
+	//test_state.perfMean = val_err;
 
 	//if(state_.cycle == 1) {
 	//	state_.patience_counter = 0;
