@@ -1,0 +1,19 @@
+#! /bin/sh
+
+home_dir=/gpfs/home/bos/uentity
+
+if [ $# -eq 0 -o $# -lt 3 ]; then echo "Usage collect_mult_res EXP_NUMBER EXP_TEMPLATE RES_TEMPL [SUBEXP_NUMBER] [SUBEXP_TEMPLATE]"; fi
+num=$1
+expd=$2
+resd=$3
+se_num=8
+se_expd=exp
+if [ $# -gt 3 ]; then se_num=$4; fi
+if [ $# -gt 4 ]; then se_expd=$5; fi
+
+for (( i = 1; i <= num; i++ ))
+do
+    ./collect_res $se_num ${expd}$i/$se_expd ${resd}$i
+    ./collect_res $se_num ${expd}$i/$se_expd ${resd}$i ga_log.txt
+    ./collect_res $se_num ${expd}$i/$se_expd ${resd}$i ga_hist.txt "" --z
+done

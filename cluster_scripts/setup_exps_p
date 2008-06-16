@@ -1,0 +1,34 @@
+#! /bin/sh
+
+home_dir=/gpfs/home/bos/uentity
+ha_dir=ha_pack
+
+expd=test
+num=8
+start=1
+ini_dir=
+
+if [ $# -eq 0 -o $# -lt 2 ]; then
+    echo "Usage: setup_exps_p EXP_DIR_TEMPLATE PRESETS_DIR_TEMPL [exp_num] [init_counter]"
+    exit
+fi
+expd=$1
+ini_dir=$2
+if [ $# -ge 3 ]; then num=$3; fi
+if [ $# -ge 4 ]; then start=$4; fi
+
+cd $home_dir
+for (( i = start; i < start + num; i++ ))
+do
+  mkdir -p ${expd}$i
+  cd ${expd}$i
+  rm -f *.so*
+  ln -s ${home_dir}/${ha_dir}/share/hybrid_adapt/*.so* ./
+  rm -f ga_client
+  ln -s ${home_dir}/${ha_dir}/share/hybrid_adapt/ga_client ./
+  rm -f start_ha
+  ln -s ${home_dir}/start_ha ./
+  rm -f *.ini
+  ln -s ${home_dir}/${ini_dir}$i/*.ini ./
+  cd $home_dir
+done

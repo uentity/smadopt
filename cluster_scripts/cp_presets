@@ -1,0 +1,18 @@
+#! /bin/sh
+
+home_dir=/gpfs/home/bos/uentity
+from_exp=exp/rastr_3/rbn_1/exp
+num=8
+if [ $# -eq 0 -o $# -lt 2 ]; then 
+    echo "Usage: cp_presets src_exp_templ dest_preset_templ [exp_number]" 
+    exit
+fi
+if [ $# -ge 3 ]; then num=$3; fi
+src_t=$1
+dst_t=$2
+
+for (( i=1; i <= $num; i++ ))
+do
+    mkdir -p $home_dir/${dst_t}$i
+    cp $home_dir/${src_t}$i/*.ini $home_dir/${dst_t}$i
+done

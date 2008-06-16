@@ -1,0 +1,19 @@
+#! /bin/sh
+
+homed=/gpfs/home/bos/uentity
+num=8
+expd=exp
+
+if [ $# -ge 1 ]; then num=$1; fi
+if [ $# -ge 2 ]; then expd=$2; fi
+
+cd $homed
+for (( i = 1; i <= $num; i++ ))
+do
+    if [ $i -ge 1 ]; then sleep 1; fi
+    cd ${expd}$i
+    ./start_ha
+    echo "${expd}$i started"
+    cd $homed
+done
+exit 0

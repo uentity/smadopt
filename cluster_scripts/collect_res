@@ -1,0 +1,40 @@
+#! /bin/sh
+
+home_dir=/gpfs/home/bos/uentity
+expd=test
+resd=res
+filet=ga_stat.txt
+file_prefix=
+num=8
+
+if [ $# -eq 0 ]; then 
+    echo "Usage: collect_res [exp_num] [exp_dir] [res_dir] [file_template] [file_prefix]"; 
+    exit
+fi
+if [ $# -ge 1 ]; then num=$1; fi
+if [ $# -ge 2 ]; then expd=$2; fi
+if [ $# -ge 3 ]; then resd=$3; fi
+if [ $# -ge 4 ]; then filet=$4; fi
+if [ $# -ge 5 ]; then file_prefix=$5; fi
+# should we zip file
+s=`echo "$@" | grep -- --z`
+zip_outp=`expr length "$s"`
+
+cd $home_dir
+mkdir -p $home_dir/$resd
+for (( i = 1; i <= num; i++ ))
+do
+    srcf=${home_dir}/${expd}$i/$filet
+    dstf=${home_dir}/${resd}/${file_prefix}_${i}_${filet}
+  if [ $zip_outp -gt 0 ]; then
+    ln -s "$srcf" "$dstf"
+    #cp "${home_dir}/${expd}$i/$filet" "${home_dir}/${resd}/${file_prefix}_${i}_${filet}"
+  else
+    cp "$srcf" "$dstf"
+  fi
+done
+if [ $zip_outp -gt 0 ]; then
+    cd $home_dir/$resd
+    zip -m ${filet}.zip *$filet
+    cd $home_dir
+fi

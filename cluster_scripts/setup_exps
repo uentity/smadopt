@@ -1,0 +1,28 @@
+#! /bin/sh
+
+home_dir=/gpfs/home/bos/uentity
+expd=test
+ha_dir=ha_pack
+ini_dir=./
+num=8
+start=1
+
+if [ $# -ge 1 ]; then num=$1; fi
+if [ $# -ge 2 ]; then expd=$2; fi
+if [ $# -ge 3 ]; then start=$3; fi
+
+cd $home_dir
+for (( i = start; i < start + num; i++ ))
+do
+  mkdir ${expd}$i
+  cd ${expd}$i
+  rm -f *.so*
+  ln -s ${home_dir}/${ha_dir}/share/hybrid_adapt/*.so* ./
+  rm -f ga_client
+  ln -s ${home_dir}/${ha_dir}/share/hybrid_adapt/ga_client ./
+  rm -f start_ha
+  ln -s ${home_dir}/${ini_dir}/start_ha ./
+  rm -f *.ini
+  cp ${home_dir}/${ini_dir}/*.ini ./
+  cd $home_dir
+done

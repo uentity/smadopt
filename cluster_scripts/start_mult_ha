@@ -1,0 +1,24 @@
+#! /bin/sh
+
+if [ $# -eq 0 -o $# -lt 3 ]; then
+    echo "Usage: start_mult_exp MACH_NUMBER MACH_START EXP_TEMPLATE [SUBEXP_NUMBER] [SUBEXP_TEMPLATE]"
+    exit
+fi
+home_dir=/gpfs/home/bos/uentity
+mnum=$1
+mstart=$2
+expt=$3
+se_dir=exp
+se_num=8
+if [ $# -ge 4 ]; then se_num=$4; fi
+if [ $# -ge 5 ]; then se_dir=$5; fi
+
+comp_name=
+for (( i = 1; i <= mnum; i++ )) 
+do
+    comp_name="n`expr $mstart + $i - 1`"
+    #echo "$comp_name"
+    cmd="ssh ${comp_name} $home_dir/start_all $se_num ${expt}$i/$se_dir"
+    echo "executing '$cmd'"
+    $cmd
+done
