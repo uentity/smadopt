@@ -40,7 +40,7 @@ namespace GA {
 			int nStatus;
 			ulong nGen;
 			ulong nStallGen;
-			time_t tStart;
+			clock_t tStart;
 			ulong nChromCount, nlsCount;
 			double ffsc_factor;
 			std::string lastError;

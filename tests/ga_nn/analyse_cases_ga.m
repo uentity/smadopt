@@ -19,7 +19,7 @@ for i=1:exp_num
     for j=1:cnum
         fname = strcat(root_dir, '/', sprintf('%s%d', exp_templ, j), '/', sprintf('_%d_ga_stat.txt',  i));
         a{j} = dlmread(fname);
-		size(a{j})
+		%size(a{j})
         rnum = size(a{j});
         % check for octave
         if rnum(2) > 6
@@ -66,7 +66,7 @@ for i=1:exp_num
 
     %save results
     res = [res [mean_best_val m_epoch m_time]'];
-    plot(mean_ff, '--k', 'LineWidth', 2);
+    plot(log10(mean_ff), '--k', 'LineWidth', 2);
 end
 
 % calc scores
@@ -88,7 +88,7 @@ disp(scores);
 
 %display best graph in bold
 %[unused, ind] = sort(scores, 'descend');
-plot(graphs{find(scores == max(scores))}, '-k', 'LineWidth', 2);
+plot(log10(graphs{find(scores == max(scores))}), '-k', 'LineWidth', 2);
 
 grid('on');
 set(gca,'fontsize',12);

@@ -94,7 +94,7 @@ for i=1:exp_num
 	% score = 0.4 * m_phits + 0.2 * mean_improve + 0.1 * mean_dev + 
 	%score = (res(1, i) + res(4, i) + res(5, i)) / (1 + res(2, i) + res(6, i) + res(7, i));
 	%fprintf('Final score: %g\n', score);
-    plot(mean_ff, '--k', 'LineWidth', 1);
+    plot(log10(mean_ff), '--k', 'LineWidth', 1);
 end
 
 % calc scores
@@ -116,7 +116,7 @@ disp(scores);
 
 %display best graph in bold
 [unused, ind] = sort(scores, 'descend');
-plot(graphs{find(scores == max(scores))}, '-k', 'LineWidth', 2);
+plot(log10(graphs{find(scores == max(scores))}), '-k', 'LineWidth', 2);
 
 grid('on');
 set(gca,'fontsize',12);

@@ -1566,7 +1566,7 @@ void ga::prepare2run(int genomeLength, bool bReadOptFromIni)
 	//seed random generator
 	prg::init();
 
-	state_.tStart = time(NULL);
+	state_.tStart = clock();
 	state_.nGen = 0;
 	state_.nStallGen = 0;
 	state_.nChromCount = 0;
@@ -1707,7 +1707,7 @@ Matrix ga::Run(FitnessFcnCallback FitFcn, int genomeLength, bool bReadOptFromIni
 				state_.nStatus = FinishStallGenLim;
 				//break;
 			}
-			else if(opt_.timeLimit > 0 && time(NULL) - state_.tStart >= opt_.timeLimit) {
+			else if(opt_.timeLimit > 0 && double(clock() - state_.tStart) / CLOCKS_PER_SEC >= opt_.timeLimit) {
 				state_.nStatus = FinishTimeLim;
 			}
 			else if(opt_.useFitLimit && (
@@ -1830,14 +1830,16 @@ bool ga::NextPop(double* pPrevScore, double* pNextPop, unsigned long* pPopSize)
 			//FinishGA(pNextPop, pPrevScore);
 			//return false;
 		}
-		if(opt_.timeLimit > 0) {
-			if(time(NULL) - state_.tStart >= opt_.timeLimit) {
-				throw (int)FinishTimeLim;
-				//state_.nStatus = FinishTimeLim;
-				//FinishGA(pNextPop, pPrevScore);
-				//return false;
-			}
+		if(opt_.timeLimit > 0 && double(clock() - state_.tStart) / CLOCKS_PER_SEC >= opt_.timeLimit) {
+			throw (int)FinishTimeLim;
 		}
+//			if(time(NULL) - state_.tStart >= opt_.timeLimit) {
+//				throw (int)FinishTimeLim;
+//				//state_.nStatus = FinishTimeLim;
+//				//FinishGA(pNextPop, pPrevScore);
+//				//return false;
+//			}
+//		}
 		if(opt_.useFitLimit && (
 			(opt_.minimizing && curMin < opt_.fitLimit) ||
 			(!opt_.minimizing && curMin > opt_.fitLimit)
@@ -2059,7 +2061,7 @@ std::ostream& ga::OutpFinishInfo(std::ostream& outs, const Matrix& bestChrom, do
 			break;
 	}
 	if(state_.nStatus != FinishError) {
-		outs << endl << "Best population found: " << endl;
+		outs << endl << "Best individual found: " << endl;
 		//state_.bestGens.GetRows(0).Print(outs);
 		bestChrom.Print(outs);
 		outs << "It's fitness value: " << bestScore << endl;
