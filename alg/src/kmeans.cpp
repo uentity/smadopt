@@ -937,11 +937,18 @@ void kmeans::kmeans_impl::find_clusters_f(const Matrix& data, const Matrix& f, u
 
 	ulong i = 0;
 	do {
-		cout << "find_clusters_f: iteration " << i << " started" << endl;
+		//cout << "find_clusters_f: iteration " << i << " started" << endl;
 		batch_phase(maxiter);
 		cout << "find_clusters_f: iteration " << i << " finished" << endl;
 		cout << "centers dump (" << c_.row_num() << "):" << endl;
 		c_.Print(cout);
+		//do join phase
+		if(join_phase(maxiter)) {
+			//spin until there are no merges left
+			while(join_phase(maxiter)) {};
+		}
+		else	//no merges - exit
+			break;
 		++i;
 	} while(join_phase(maxiter));
 	//ensure correct center locations after last merging

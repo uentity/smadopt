@@ -57,9 +57,6 @@
 			<Add option="-Wall" />
 			<Add option="-fPIC" />
 		</Compiler>
-		<Linker>
-			<Add option="-static-libgcc" />
-		</Linker>
 		<Unit filename="src/alg_except.cpp" />
 		<Unit filename="src/alg_except.h" />
 		<Unit filename="src/alg_opt.cpp" />
