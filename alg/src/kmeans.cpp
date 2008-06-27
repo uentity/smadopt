@@ -788,6 +788,9 @@ bool kmeans::kmeans_impl::join_phase(ulong maxiter)
 	pat_sel& ps = get_ps();
 	Matrix& p = kmd.data_;
 
+	vector< ulong > merges_cnt(3);
+	fill(merges_cnt.begin(), merges_cnt.end(), 0);
+
 	//calc distances matrix
 	Matrix dist;
 	norm_tools::dist_stat ds = norm_tools::calc_dist_matrix< norm_tools::l2 >(c_, dist);
@@ -848,19 +851,26 @@ bool kmeans::kmeans_impl::join_phase(ulong maxiter)
 		norm <<= (*_pNormFcn)(c, p);
 		ulong cl_c = norm.min_ind();
 
+//		if(cl_c == cl_c1 && cl_c == cl_c2) {
+//			do_merge = true;
+//			++merges_cnt[0];
+//		}
 		if(f[cl_c] <= f[cl_c1] && f[cl_c] <= f[cl_c2]) {
 			do_merge = true;
+			++merges_cnt[1];
 		}
 //		else {
 //			//second test
 //			//if found center closer to optimum point than c1 and c2 then merge
 //			//find minimum point
-//			Matrix min_point = p.GetRows(f_.min_ind());
+//			Matrix min_point = p.GetRows(f.min_ind());
 //			//find distances to minimum point from c1, c2 and c
 //			expect <<= c & c_.GetRows(c1) & c_.GetRows(c2);
 //			norm <<= (*_pNormFcn)(min_point, expect);
-//			if(norm.min_ind() == 0)
+//			if(norm.min_ind() == 0) {
 //				do_merge = true;
+//				++merges_cnt[2];
+//			}
 //		}
 
 		if(do_merge) {
@@ -883,6 +893,11 @@ bool kmeans::kmeans_impl::join_phase(ulong maxiter)
 	}
 	//add discovered centers
 	c_ &= new_c;
+
+	//print statistics
+	cout << "Merges count: " << (merges_cnt[0] + merges_cnt[1] + merges_cnt[2]) << endl;
+	for(ulong i = 0; i < merges_cnt.size(); ++i)
+		cout << "Merge criteria " << i << " fires: " << merges_cnt[i] << endl;
 
 	//merge centers
 	//if(c1 < c2) {
@@ -943,16 +958,9 @@ void kmeans::kmeans_impl::find_clusters_f(const Matrix& data, const Matrix& f, u
 		cout << "centers dump (" << c_.row_num() << "):" << endl;
 		c_.Print(cout);
 		//do join phase
-		if(join_phase(maxiter)) {
-			//spin until there are no merges left
-			while(join_phase(maxiter)) {};
-		}
-		else	//no merges - exit
-			break;
-		++i;
 	} while(join_phase(maxiter));
 	//ensure correct center locations after last merging
-	//calc_winners(*this);
+	calc_winners(*this);
 	//(this->*_pBUFcn)();
 	//batch_phase(maxiter);
 }

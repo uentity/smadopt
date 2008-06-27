@@ -14,7 +14,7 @@
 
 #define EPS 0.000001
 #define T_EPS 0.0001
-#define MERGE_EPS 0.001
+#define MERGE_EPS 0.05
 
 using namespace GA;
 using namespace prg;
@@ -519,6 +519,17 @@ public:
 		noise *= (px.norm2() * dither_amount_) / noise.norm2();
 		//add noise
 		px += noise;
+
+		//correct px to ensure that there are no subzero elements
+		for(Matrix::r_iterator pos = px.begin(), end = px.end(); pos != end; ++pos) {
+			if(*pos >= 0) continue;
+			//randomly find i, such that px[i] > abs(*pos)
+			ulong i = prg::randIntUB(px.size());
+			while(px[i] <= abs(*pos)) i = prg::randIntUB(px.size());
+			//correct *pos and px[i]
+			px[i] += *pos;
+			*pos = 0;
+		}
 		return px;
 	}
 
@@ -816,13 +827,17 @@ public:
 		//test if any centers are coinsident and merge them
 		//first of all calc centers distance matrix
 		Matrix dist;
+		//compute distance between p_xy
+		//norm_tools::calc_dist_matrix< norm_tools::l2 >(p_yx, dist);
 		norm_tools::calc_dist_matrix< norm_tools::l2 >(y_, dist);
+
 		//DEBUG
 		//dist.Resize(1, dist.row_num() * dist.col_num());
 		//find closest pairs
 		Matrix::indMatrix pairs;
 		pairs = norm_tools::closest_pairs< norm_tools::l2 >(dist);
-		//cut tails that exeeds distance thresold
+
+		//find thresold
 		ulong merge_cnt = (ulong)(find_if(dist.begin(), dist.end(), bind2nd(greater< double >(), MERGE_EPS))
 									- dist.begin());
 		if(merge_cnt == dist.size())
@@ -907,16 +922,18 @@ public:
 		if(dt <= EPS)
 			//zero expl_steps counter
 			expl_steps = 0;
+		cout << "expl_steps = " << expl_steps << endl;
 
 		//display dCnum / dT info
-		cout << "dCnum/dT = " << log_.head_dT() << endl;
+		cout << "dCnum/dT = " << log_.head_dT() << endl << endl;
 		return ret;
 	}
 
 	//clusterization using deterministic annealing
 	void find_clusters(const Matrix& data, const Matrix& f, ulong clust_num, ulong maxiter) {
-		px_fcn_ = &da_impl::dithered_px< &da_impl::scaling_px >;
-		//px_fcn_ = &da_impl::scaling_px;
+		//px_fcn_ = &da_impl::dithered_px< &da_impl::scaling_px >;
+		px_fcn_ = &da_impl::scaling_px;
+		//px_fcn_ = &da_impl::order2px;
 		expl_length_ = 4;
 		order_fcn_ = &da_impl::selection_based_order;
 		norm_fcn_ = &da_impl::l2_norm;
@@ -965,15 +982,15 @@ public:
 				//update probabilities and centers positions
 				update_epoch();
 
-				//merge ceters
-				while(merge_step()) {};
+				//merge centers
+				//while(merge_step()) {};
 
 				//convergence test
 				if(patience_check(i, hcd_.e_)) break;
 				if(hcd_.e_ < EPS) break;
 			}
 			//perform merge step
-			//merge_step();
+			while(merge_step()) {};
 
 			//update variances
 			update_variances();

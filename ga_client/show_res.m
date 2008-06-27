@@ -6,6 +6,26 @@ ind = load('ind.txt');
 real_c = load('real_c.txt');
 ind = ind + 1;
 
+%plot 2d
+figure(1);
+clf;
+%sequental colored cluster plot
+cm = colormap('lines');
+%cm = gmap40(size(centers, 1));
+hold on
+for i=1:size(centers, 1)
+    ind_c = find(ind == i);
+    plot(p(ind_c, 1), p(ind_c, 2), '.', 'MarkerSize', 14, 'MarkerEdgeColor', cm(i, :));
+    plot(centers(i, 1), centers(i, 2), 'vk', 'LineWidth', 2, 'MarkerSize', 11, 'MarkerFaceColor', 'r');
+end
+plot(real_c(:, 1), real_c(:, 2), 'ok', 'LineWidth', 2, 'MarkerSize', 12);
+hold off
+grid on
+set(gca,'fontsize',14);
+set(gca,'fontname','arial');
+
+figure(2)
+clf;
 %sequental colored cluster plot
 cm = colormap('lines');
 %cm = gmap40(size(centers, 1));
@@ -15,9 +35,12 @@ for i=1:size(centers, 1)
     plot3(p(ind_c, 1), p(ind_c, 2), f(ind_c), '.', 'MarkerSize', 14, 'MarkerEdgeColor', cm(i, :));
     plot3(centers(i, 1), centers(i, 2), zeros(1, 1), 'vk', 'LineWidth', 2, 'MarkerSize', 11, 'MarkerFaceColor', 'r');
 end
-plot3(real_c(:, 1), real_c(:, 2), zeros(size(real_c, 1), 1), 'ok', 'LineWidth', 3, 'MarkerSize', 12);
+plot3(real_c(:, 1), real_c(:, 2), zeros(size(real_c, 1), 1), 'ok', 'LineWidth', 2, 'MarkerSize', 12);
 hold off
 grid on
+set(gca,'fontsize',14);
+set(gca,'fontname','arial');
+
 
 disp('Real centers:'); disp(real_c);
 disp('Found centers:'); disp(centers);
