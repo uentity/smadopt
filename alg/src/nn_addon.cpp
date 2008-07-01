@@ -660,14 +660,14 @@ int nn_addon::_learn_network(const Matrix& input, const Matrix& targets, ulong n
 		if(opt_.netType == matrix_nn) {
 			net_._inp_range <<= inp.minmax(true);
 			if(opt_.goalQuota > 0)
-				net_.opt_.goal = _calc_goalQuota(tar);
+				net_.opt_.goal = max(_calc_goalQuota(tar), net_.opt_.goal);
 			ret_state = net_.BPLearn(inp, tar, state_.init_nn, MNetInformer);
 		}
 		else {
 			objnet* p_net = _onet[net_ind].get();
 			p_net->opt_.inp_range_ <<= inp.minmax(true);
 			if(opt_.goalQuota > 0)
-				p_net->opt_.goal = _calc_goalQuota(tar);
+				p_net->opt_.goal = max(_calc_goalQuota(tar), p_net->opt_.goal);
 
 			if(opt_.netType == rb_nn) {
 				switch(opt_.rbn_learn_type) {

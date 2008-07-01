@@ -14,7 +14,7 @@
 
 #define EPS 0.000001
 #define T_EPS 0.0001
-#define MERGE_EPS 0.05
+#define MERGE_EPS 0.001
 
 using namespace GA;
 using namespace prg;
@@ -26,6 +26,12 @@ typedef determ_annealing::vvul vvul;
 
 //========================== implementation of deterministic annealing =================================================
 struct da_hist;
+
+//phase transition info
+//struct pt_info {
+//	pair< ulong, ulong >
+//};
+
 //names of variables follow original notation
 struct da_data {
 	//source points
@@ -521,15 +527,16 @@ public:
 		px += noise;
 
 		//correct px to ensure that there are no subzero elements
-		for(Matrix::r_iterator pos = px.begin(), end = px.end(); pos != end; ++pos) {
-			if(*pos >= 0) continue;
-			//randomly find i, such that px[i] > abs(*pos)
-			ulong i = prg::randIntUB(px.size());
-			while(px[i] <= abs(*pos)) i = prg::randIntUB(px.size());
-			//correct *pos and px[i]
-			px[i] += *pos;
-			*pos = 0;
-		}
+		//disabled - no positive effect, only slowdown
+//		for(Matrix::r_iterator pos = px.begin(), end = px.end(); pos != end; ++pos) {
+//			if(*pos >= 0) continue;
+//			//randomly find i, such that px[i] > abs(*pos)
+//			ulong i = prg::randIntUB(px.size());
+//			while(px[i] <= abs(*pos)) i = prg::randIntUB(px.size());
+//			//correct *pos and px[i]
+//			px[i] += *pos;
+//			*pos = 0;
+//		}
 		return px;
 	}
 
@@ -863,7 +870,10 @@ public:
 			//compute new merged center
 			new_cb.y_ &= y_.GetRows(cv1);
 			new_cb.p_y.push_back(p_y[cv1] + p_y[cv2], false);
-			new_cb.p_yx &= p_yx.GetRows(cv1) + p_yx.GetRows(cv2);
+			//save probabilities of cv1
+			//actually we need to spin update_epoch after centers are merged
+			//to ensure correct probabilities and positions are calculated
+			new_cb.p_yx = p_yx.GetRows(cv1);
 		}
 
 		//second pass - clear existing codebook
@@ -882,7 +892,7 @@ public:
 		return mc.size() > 0;
 	}
 
-	//! \return - if nonzero then explosion is detected and returned number of cluster should be fixed
+	//! \return - if nonzero then explosion is detected and returned number of clusters should be fixed
 	ulong log_step(ulong cycle) {
 		static ulong expl_steps = 0;
 
@@ -983,14 +993,14 @@ public:
 				update_epoch();
 
 				//merge centers
-				//while(merge_step()) {};
+				while(merge_step()) {};
 
 				//convergence test
 				if(patience_check(i, hcd_.e_)) break;
 				if(hcd_.e_ < EPS) break;
 			}
 			//perform merge step
-			while(merge_step()) {};
+			//while(merge_step()) {};
 
 			//update variances
 			update_variances();
