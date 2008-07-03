@@ -10,8 +10,8 @@ ind = ind + 1;
 figure(1);
 clf;
 %sequental colored cluster plot
-cm = colormap('lines');
-%cm = gmap40(size(centers, 1));
+%cm = colormap('lines');
+cm = gmap40(size(centers, 1));
 hold on
 for i=1:size(centers, 1)
     ind_c = find(ind == i);
@@ -27,8 +27,8 @@ set(gca,'fontname','arial');
 figure(2)
 clf;
 %sequental colored cluster plot
-cm = colormap('lines');
-%cm = gmap40(size(centers, 1));
+%cm = colormap('lines');
+cm = gmap40(size(centers, 1));
 hold on
 for i=1:size(centers, 1)
     ind_c = find(ind == i);

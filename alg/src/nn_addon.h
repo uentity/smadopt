@@ -34,6 +34,7 @@ namespace GA {
 			ulong ind_best;
 			double tar_mean, tar_std;
 			Matrix learn_cl_cent;
+			double min_goal;
 
 			KM::kmeans km;
 			DA::determ_annealing da;

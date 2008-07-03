@@ -1,13 +1,15 @@
-function [res, graphs, scores] = analyse_cases(root_dir, exp_templ, exp_num)
+function [res, graphs, scores] = analyse_cases(root_dir, exp_templ, exp_num, cnum)
+if nargin < 4
+    exps = dir(strcat(root_dir, '/', exp_templ, '*'));
+    cnum = length(exps);
+end
 % cd(root_dir);
 
 disp('==================================================================================================');
-exps = dir(strcat(root_dir, '/', exp_templ, '*'));
-cnum = length(exps);
 res = [];
 graphs = cell(1, exp_num);
 figure;
-hold on
+%hold on
 for i=1:exp_num
     a = cell(1, cnum);
     %read data
@@ -52,7 +54,9 @@ for i=1:exp_num
     %calc mean graph of best fitness
     mean_ff = zeros(min_rnum, 1);
     for j = 1:cnum
-        mean_ff = mean_ff + interp1((1:length(a{j}(1:end, 3)))', a{j}(1:end, 3), (1:min_rnum)');
+        gl = length(a{j}(1:end, 3));
+        delta = (gl - 1) / (min_rnum - 1);
+        mean_ff = mean_ff + interp1(a{j}(1:end, 3), (1:delta:gl)');
     end
     mean_ff = mean_ff ./ cnum;
     graphs{i} = mean_ff;
@@ -94,7 +98,8 @@ for i=1:exp_num
 	% score = 0.4 * m_phits + 0.2 * mean_improve + 0.1 * mean_dev + 
 	%score = (res(1, i) + res(4, i) + res(5, i)) / (1 + res(2, i) + res(6, i) + res(7, i));
 	%fprintf('Final score: %g\n', score);
-    plot(log10(mean_ff), '--k', 'LineWidth', 1);
+    semilogy(mean_ff, '--k', 'LineWidth', 1);
+    hold on
 end
 
 % calc scores
@@ -115,14 +120,14 @@ disp('Final scores:');
 disp(scores);
 
 %display best graph in bold
-[unused, ind] = sort(scores, 'descend');
-plot(log10(graphs{find(scores == max(scores))}), '-k', 'LineWidth', 2);
+%[unused, ind] = sort(scores, 'descend');
+semilogy(graphs{find(scores == max(scores))}, '-k', 'LineWidth', 2);
 
-grid('on');
 set(gca,'fontsize',12);
 xlabel('Итерации', 'fontsize', 12);
 ylabel('Значение целевой функции', 'fontsize', 12);
 hold off
+grid('on');
 
 disp('==================================================================================================');
 

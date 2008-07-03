@@ -14,7 +14,7 @@
 
 #define EPS 0.000001
 #define T_EPS 0.0001
-#define MERGE_EPS 0.001
+#define MERGE_EPS 0.005
 
 using namespace GA;
 using namespace prg;
@@ -941,8 +941,8 @@ public:
 
 	//clusterization using deterministic annealing
 	void find_clusters(const Matrix& data, const Matrix& f, ulong clust_num, ulong maxiter) {
-		//px_fcn_ = &da_impl::dithered_px< &da_impl::scaling_px >;
-		px_fcn_ = &da_impl::scaling_px;
+		px_fcn_ = &da_impl::dithered_px< &da_impl::scaling_px >;
+		//px_fcn_ = &da_impl::scaling_px;
 		//px_fcn_ = &da_impl::order2px;
 		expl_length_ = 4;
 		order_fcn_ = &da_impl::selection_based_order;
@@ -987,13 +987,16 @@ public:
 		//hist_.push_back(*this);
 
 		//main cycle starts here
+		bool spin_update;
 		for(cycle_ = 0; cycle_ < maxiter; ++cycle_) {
 			for(ulong i = 0; i < maxiter; ++i) {
 				//update probabilities and centers positions
-				update_epoch();
-
+				do {
+					update_epoch();
+					spin_update = merge_step();
+					while(merge_step()) {};
 				//merge centers
-				while(merge_step()) {};
+				} while(spin_update);
 
 				//convergence test
 				if(patience_check(i, hcd_.e_)) break;

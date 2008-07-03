@@ -508,6 +508,9 @@ bool nn_addon::InitStd(ulong addon_count, ulong chromLength, const Matrix& searc
 
 	state_.km.opt_.emptyc_pol = opt_.kmfec_policy;
 
+	//save minimum NN learning goal from nn_opt
+	state_.min_goal = _onet[0].get()->opt_.goal;
+
 	return true;
 }
 
@@ -582,6 +585,9 @@ bool nn_addon::InitAlt(ulong addon_count, ulong chromLength, const Matrix& searc
 
 	//set init range
 	ga_.opt_.initRange = searchRange;
+
+	//save minimum NN learning goal from nn_opt
+	state_.min_goal = _onet[0].get()->opt_.goal;
 
 	return true;
 }
@@ -660,14 +666,14 @@ int nn_addon::_learn_network(const Matrix& input, const Matrix& targets, ulong n
 		if(opt_.netType == matrix_nn) {
 			net_._inp_range <<= inp.minmax(true);
 			if(opt_.goalQuota > 0)
-				net_.opt_.goal = max(_calc_goalQuota(tar), net_.opt_.goal);
+				net_.opt_.goal = max(_calc_goalQuota(tar), state_.min_goal);
 			ret_state = net_.BPLearn(inp, tar, state_.init_nn, MNetInformer);
 		}
 		else {
 			objnet* p_net = _onet[net_ind].get();
 			p_net->opt_.inp_range_ <<= inp.minmax(true);
 			if(opt_.goalQuota > 0)
-				p_net->opt_.goal = max(_calc_goalQuota(tar), p_net->opt_.goal);
+				p_net->opt_.goal = max(_calc_goalQuota(tar), state_.min_goal);
 
 			if(opt_.netType == rb_nn) {
 				switch(opt_.rbn_learn_type) {
@@ -874,9 +880,9 @@ Matrix nn_addon::_kmeans_filter(clusterizer& cengine, const Matrix& p, const Mat
 	//select which function to call depending on clustering engine
 	struct find_clusters {
 		static void go(KM::kmeans& cengine, const Matrix& p, const Matrix& f, double mult, ulong maxiter) {
-			//cengine.find_clusters_f(p, f, mult, maxiter, NULL, false);
+			cengine.find_clusters_f(p, f, mult, maxiter, NULL, false);
 			//cengine.drops_hetero_map(p, f, mult, maxiter);
-			cengine.drops_hetero_simple(p, f, mult, 200);
+			//cengine.drops_hetero_simple(p, f, mult, 200);
 		}
 		static void go(DA::determ_annealing& cengine, const Matrix& p, const Matrix& f, double mult, ulong maxiter) {
 			cengine.find_clusters(p, f, mult, maxiter);
@@ -923,7 +929,7 @@ Matrix nn_addon::_kmeans_filter(clusterizer& cengine, const Matrix& p, const Mat
 		if(opt_.learn_clust_num > 0 && c_ind >= opt_.learn_clust_num) break;
 		if(opt_.search_clust_num > 0 && c_ind >= opt_.search_clust_num) search_built = true;
 		close_cl &= c.GetRows(ci[c_ind]);
-		ulong* cur_aff = (ulong*)&aff[ci[c_ind]][0];
+		const ulong* cur_aff = (ulong*)&aff[ci[c_ind]][0];
 		for(ulong j = 0; j < aff[ci[c_ind]].size(); ++j) {
 			lp &= p.GetRows(cur_aff[j]); lf &= f.GetRows(cur_aff[j]);
 			if(lp.row_num() >= (ulong)opt_.bestCount) learn_built = true;

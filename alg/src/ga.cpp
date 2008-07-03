@@ -1703,18 +1703,19 @@ Matrix ga::Run(FitnessFcnCallback FitFcn, int genomeLength, bool bReadOptFromIni
 
 			InformWorld();
 
-			if(state_.nStallGen == (ulong)opt_.stallGenLimit) {
+			if(opt_.useFitLimit && (
+				(opt_.minimizing && curMin < opt_.fitLimit) ||
+				(!opt_.minimizing && curMin > opt_.fitLimit)
+			))
+			{
+				state_.nStatus = FinishFitLim;
+			}
+			else if(state_.nStallGen == (ulong)opt_.stallGenLimit) {
 				state_.nStatus = FinishStallGenLim;
 				//break;
 			}
 			else if(opt_.timeLimit > 0 && double(clock() - state_.tStart) / CLOCKS_PER_SEC >= opt_.timeLimit) {
 				state_.nStatus = FinishTimeLim;
-			}
-			else if(opt_.useFitLimit && (
-				(opt_.minimizing && curMin < opt_.fitLimit) ||
-				(!opt_.minimizing && curMin > opt_.fitLimit)
-			)) {
-				state_.nStatus = FinishFitLim;
 			}
 		}
 
@@ -1817,12 +1818,21 @@ bool ga::NextPop(double* pPrevScore, double* pNextPop, unsigned long* pPopSize)
 
 		InformWorld();
 
+		if(opt_.useFitLimit && (
+			(opt_.minimizing && curMin < opt_.fitLimit) ||
+			(!opt_.minimizing && curMin > opt_.fitLimit)
+		))
+		{
+			throw (int)FinishFitLim;
+		}
+
 		if(state_.nStallGen == (ulong)opt_.stallGenLimit) {
 			throw (int)FinishStallGenLim;
 			//state_.nStatus = FinishStallGenLim;
 			//FinishGA(pNextPop, pPrevScore);
 			//return false;
 		}
+
 		++state_.nGen;
 		if(state_.nGen == opt_.generations) {
 			throw (int)FinishGenLim;
@@ -1830,6 +1840,7 @@ bool ga::NextPop(double* pPrevScore, double* pNextPop, unsigned long* pPopSize)
 			//FinishGA(pNextPop, pPrevScore);
 			//return false;
 		}
+
 		if(opt_.timeLimit > 0 && double(clock() - state_.tStart) / CLOCKS_PER_SEC >= opt_.timeLimit) {
 			throw (int)FinishTimeLim;
 		}
@@ -1840,13 +1851,6 @@ bool ga::NextPop(double* pPrevScore, double* pNextPop, unsigned long* pPopSize)
 //				//return false;
 //			}
 //		}
-		if(opt_.useFitLimit && (
-			(opt_.minimizing && curMin < opt_.fitLimit) ||
-			(!opt_.minimizing && curMin > opt_.fitLimit)
-		))
-		{
-			throw (int)FinishFitLim;
-		}
 
 		//save history
 		PushGeneration(state_.lastPop, state_.lastScore, state_.rep_ind);
