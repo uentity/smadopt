@@ -784,7 +784,7 @@ public:
 		//generate perturbation
 		Matrix perturb(1, y_.col_num());
 		generate(perturb.begin(), perturb.end(), prg::rand01);
-		perturb -= 0.5; perturb *= y.norm2() * 0.2;
+		perturb -= 0.5; perturb *= y.norm2() * 0.05;
 
 		//add new center
 		y_ &= y + perturb;
@@ -873,7 +873,7 @@ public:
 			//save probabilities of cv1
 			//actually we need to spin update_epoch after centers are merged
 			//to ensure correct probabilities and positions are calculated
-			new_cb.p_yx = p_yx.GetRows(cv1);
+			new_cb.p_yx &= p_yx.GetRows(cv1);
 		}
 
 		//second pass - clear existing codebook

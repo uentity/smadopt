@@ -2,10 +2,10 @@
 <CodeBlocks_workspace_file>
 	<Workspace title="Workspace">
 		<Project filename="../../../../mnt/D/MyProjects/hybrid_adapt.git/utils/ha_utils.cbp" />
-		<Project filename="../../../../mnt/D/MyProjects/hybrid_adapt.git/alg/ha_alg.cbp">
+		<Project filename="../../../../mnt/D/MyProjects/hybrid_adapt.git/alg/ha_alg.cbp" active="1">
 			<Depends filename="../../../../mnt/D/MyProjects/hybrid_adapt.git/utils/ha_utils.cbp" />
 		</Project>
-		<Project filename="../../../../mnt/D/MyProjects/hybrid_adapt.git/ga_client/ga_client.cbp" active="1">
+		<Project filename="../../../../mnt/D/MyProjects/hybrid_adapt.git/ga_client/ga_client.cbp">
 			<Depends filename="../../../../mnt/D/MyProjects/hybrid_adapt.git/utils/ha_utils.cbp" />
 			<Depends filename="../../../../mnt/D/MyProjects/hybrid_adapt.git/alg/ha_alg.cbp" />
 		</Project>
