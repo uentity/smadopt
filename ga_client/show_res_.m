@@ -1,4 +1,4 @@
-function stat = show_res()
+function stat = show_res_()
 global centers ind;
 
 average = true;
@@ -22,18 +22,18 @@ if average
     all_res = [];
     for i = 1:asteps
         %run clustering
-        !ga_client.exe 1 20
+        !ga_client_win.exe 2 20
         %process experiment results
-        [pres, err] = process_data(p, f, real_c)
+        [pres, err] = process_data(p, f, real_c);
         %save results
         all_err = [all_err; err];
         all_res = [all_res pres];
     end
     disp('%============================================================================%');
     %calc stat
-    stat = [[mean(all_res(1, :)); mean(all_res(2, :)); mean(all_err)]
-        [std(all_res(1, :)); std(all_res(2, :)); std(all_err)]];
-    disp('Overall statistics:\n');
+    stat = [mean(all_res(1, :)); mean(all_res(2, :)); mean(all_res(3, :)); mean(all_err)];
+    stat = [stat [std(all_res(1, :)); std(all_res(2, :)); std(all_res(3, :)); std(all_err)]];
+    disp('Overall statistics:');
     disp(stat);
 else
     process_data(p, f, real_c);
@@ -54,6 +54,7 @@ ind = ind + 1;
 
 disp('Real centers:'); disp(real_c);
 disp('Found centers:'); disp(centers);
+pres = [size(centers, 1)];
 rm = size(real_c, 1);
 err = [];
 for i=1:rm
@@ -71,7 +72,7 @@ for i=1:rm
     end;
 end;
 %save results
-pres = [size(centers, 1); rm - i; mean(err); std(err)]
+pres = [pres; rm - i; size(centers, 1); mean(err); std(err)];
 disp('Not found centers:'); disp(pres(2));
 disp('Redudant centers:'); disp(centers);
 disp('Errors in distances:'); disp(err);

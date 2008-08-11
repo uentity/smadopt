@@ -40,6 +40,7 @@
 #include <vector>
 #include <string>
 #include <iosfwd>
+#include <time.h>
 
 //this manipulator skips line
 template <class charT, class traits>

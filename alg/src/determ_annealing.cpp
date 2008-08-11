@@ -70,6 +70,7 @@ da_data& da_data::operator =(const da_hist& hist) {
 	p_y = hist.p_y;
 	T_ = hist.T_;
 	beta_ = 1. / T_;
+	return *this;
 }
 
 template < class charT, class traits >
@@ -735,6 +736,35 @@ public:
 		p_y = res.p_y;
 	}
 
+	void null_step() {
+		//this step is equal to offline kmeans iteration with explicit p(x) distribution
+
+		//first of all calc winners
+		calc_winners_kmeans(*this, hcd_);
+
+		//now calc centers positions depending on prob. distribution
+		double norm_mult;
+		Matrix new_y(1, y_.col_num());
+		for(ulong i = 0; i < y_.row_num(); ++i) {
+			//get p(x) distribution
+			const Matrix& px = (this->*px_fcn_)(i);
+
+			norm_mult = 0;
+			new_y = 0;
+			const ul_vec& aff_i = hcd_.aff_[i];
+			for(ulong j = 0; j < aff_i.size(); ++j) {
+				//calc center position
+				new_y += x_.GetRows(aff_i[j]) * px[aff_i[j]];
+				//calc prob normalization multiplyer
+				norm_mult += px[aff_i[j]];
+			}
+			//finish center position calculation
+			new_y /= norm_mult;
+			//save calculated center
+			y_.SetRows(new_y, i);
+		}
+	}
+
 	ulong cooling_step(ulong maxclust) {
 		//sort variances in descending order
 		Matrix svar;
@@ -1014,6 +1044,8 @@ public:
 			//add new centers if nessessary
 			if(!phase_transition_epoch(clust_num)) break;
 		}	//end of main loop
+		//perform last step
+		null_step();
 
 		//VERBOSE - save log of dT / dCnum
 		log_.dump();

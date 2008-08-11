@@ -658,8 +658,8 @@ int main(int argc, char* argv[])
 	//Kar2Words();
 	//vsp_test_mig_rates();
 
-	std::cout << "Press Enter to exit" << std::endl;
-	std::cin.peek();
+	//std::cout << "Press Enter to exit" << std::endl;
+	//std::cin.peek();
 	return 0;
 }
 

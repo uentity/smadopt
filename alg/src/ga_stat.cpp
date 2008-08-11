@@ -153,6 +153,7 @@ ostream& ga_stat::print_elapsed(ostream& outs, ulong epoch) const {
 	buf << sec << " s";
 	//std::string s = buf.str();
 	outs << std::right << buf.str();
+	return outs;
 }
 
 ostream& ga_stat::print(ostream& outs, bool print_header, bool decorate_time) {
