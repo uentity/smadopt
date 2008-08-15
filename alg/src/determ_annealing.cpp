@@ -12,9 +12,11 @@
 #include <fstream>
 #include <iterator>
 
-#define EPS 0.000001
+#define EPS 0.0000001
 #define T_EPS 0.0001
 #define MERGE_EPS 0.005
+#define MERGE_PATIENCE 3
+#define PERTURB_MULT 0.05
 
 using namespace GA;
 using namespace prg;
@@ -25,41 +27,185 @@ namespace DA {
 typedef determ_annealing::vvul vvul;
 
 //========================== implementation of deterministic annealing =================================================
+//norms used - currently only l2
+double l2_norm(const Matrix& x1, const Matrix& x2) {
+	return (x1 - x2).norm2();
+}
+
+double l2_norm2(const Matrix& x1, const Matrix& x2) {
+	Matrix diff = x1 - x2;
+	return diff.Mul(diff).Sum();
+}
+
+//norm function derivatives
+Matrix l2_deriv(const Matrix& dv, const Matrix& center) {
+	return (dv - center);
+}
+
+//forward declaration
 struct da_hist;
 
-//phase transition info
-//struct pt_info {
-//	pair< ulong, ulong >
-//};
+//codevector info
+struct cv_info {
+	//location of codevector
+	Matrix loc_;
+	//parent identifier
+	ulong parent_;
+	//previous distance to parent
+	double pdist_;
+	//patience steps counts consequent steps of rapproachement with parent
+	ulong pat_steps_;
+	//probability p(y)
+	double p_;
+	//parobabilities p(y|x)
+	Matrix px_;
+	//variance of cluster
+	double var_;
 
-//names of variables follow original notation
+	//ctor
+	cv_info() : parent_(0), pdist_(0), pat_steps_(0) {};
+	cv_info(ulong parent, double pdist) : parent_(parent), pdist_(pdist), pat_steps_(0) {};
+	cv_info(const Matrix& loc, ulong parent, double pdist)
+		: loc_(loc), parent_(parent), pdist_(pdist), pat_steps_(0)
+	{}
+};
+
+typedef map< ulong, cv_info > cv_map;
+typedef pair< cv_map::iterator, bool > cv_map_insres;
+
+//distance calculation between 2 codevectors
+double cv_dist(const cv_map::const_iterator& cv1, const cv_map::const_iterator& cv2) {
+	return l2_norm2(cv1->second.loc_, cv2->second.loc_);
+}
+
+//descending sorting criteria for cv_info
+struct cvip_sort_desc {
+	bool operator()(cv_map::value_type* const& lhs, cv_map::value_type* const& rhs) const {
+		return (lhs->second.var_ > rhs->second.var_);
+	}
+};
+
+typedef set< cv_map::value_type*, cvip_sort_desc > cvp_set_desc;
+
+//names of variables follow original notation by K. Rose
 struct da_data {
+
 	//source points
 	Matrix x_;
-	//codevectors
-	Matrix y_;
-	//probabilities p(y)
-	Matrix p_y;
-	//probabilities p(y|x)
-	Matrix p_yx;
+	//codevectors with unique identifier
+	cv_map y_;
 	//temperature
 	double T_;
 	//beta = 1/T
 	double beta_;
-	//variances of each cluster stored here
-	Matrix var_;
 
 	da_data& operator =(const da_hist& hist);
+
+	//generate new unique identifier for cv_map
+	ulong cv_id() const {
+		if(y_.size() == 0) return 0;
+		return (--(y_.end()))->first + 1;
+	}
+
+	ulong push_cv(const Matrix& new_cv, ulong parent) {
+		//calc distance to parent
+		ulong new_id = cv_id();
+		double pdist = 0;
+		cv_map::const_iterator par = y_.find(parent);
+		if(par != y_.end())
+			pdist = l2_norm2(new_cv, par->second.loc_);
+		else
+			parent = new_id;
+
+		//add new codevector
+		cv_map_insres p_ny = y_.insert(cv_map::value_type(new_id, cv_info(new_cv, parent, pdist)));
+
+		//assign the same affiliation probability to new cluster as the parent had
+		if(parent != new_id)
+			p_ny.first->second.px_ = par->second.px_;
+
+		return new_id;
+	}
+
+	void update_pdist() {
+		double dist;
+		cv_map::const_iterator par;
+		for(cv_map::iterator p_cv = y_.begin(), end = y_.end(); p_cv != end; ++p_cv) {
+			if(p_cv->first == p_cv->second.parent_) continue;
+			//check if parent index is valid
+			if((par = y_.find(p_cv->second.parent_)) == y_.end()) {
+				//invalid parent index
+				p_cv->second.parent_ = p_cv->first;
+				continue;
+			}
+			//calc distance to parent
+			dist = cv_dist(p_cv, par);
+			//check if cv is moving to parent
+			if(dist < p_cv->second.pdist_)
+				++p_cv->second.pat_steps_;
+			else if(dist > p_cv->second.pdist_)
+				p_cv->second.pat_steps_ = 0;
+			//update distance
+			p_cv->second.pdist_ = dist;
+		}
+	}
+
+	//dynamically change parent to the closest center
+	void update_pdist_cl() {
+		if(y_.size() <= 1) return;
+
+		//distance matrix
+		Matrix dist;
+		//build id -> ind relation
+		map< ulong, ulong > id2ind;
+		map< ulong, ulong > ind2id;
+		ulong i = 0;
+		for(cv_map::iterator p_cv = y_.begin(), end = y_.end(); p_cv != end; ++p_cv, ++i) {
+			id2ind[p_cv->first] = i;
+			ind2id[i] = p_cv->first;
+		}
+
+		//compute distances between cv
+		norm_tools::calc_dist_matrix< norm_tools::l2 >(get_y(), dist);
+
+		//update parent to be the closest cv
+		Matrix drow;
+		ulMatrix ind;
+		double mdist;
+		for(cv_map::iterator p_cv = y_.begin(), end = y_.end(); p_cv != end; ++p_cv) {
+			//find closest cv
+			drow <<= dist.GetRows(id2ind[p_cv->first]);
+			ind <<= drow.RawSort();
+			p_cv->second.parent_ = ind2id[ind[1]];
+			mdist = drow[ind[1]];
+
+			//check if cv is moving to parent
+			if(mdist < p_cv->second.pdist_)
+				++p_cv->second.pat_steps_;
+			else if(mdist > p_cv->second.pdist_)
+				p_cv->second.pat_steps_ = 0;
+
+			p_cv->second.pdist_ = mdist;
+		}
+	}
+
+	Matrix get_y() const {
+		Matrix y;
+		for(cv_map::const_iterator p_cv = y_.begin(), end = y_.end(); p_cv != end; ++p_cv)
+			y &= p_cv->second.loc_;
+
+		return y;
+	}
 };
 
 //structure to track annealing process
 struct da_hist {
-	Matrix y_;
+	cv_map y_;
 	Matrix p_y;
 	double T_;
 	double beta_;
 
-	da_hist(const da_data& dad) : y_(dad.y_), p_y(dad.p_y), T_(dad.T_) {
+	da_hist(const da_data& dad) : y_(dad.y_), T_(dad.T_) {
 		if(T_ > 0) beta_ = 1. / T_;
 		else beta_ = 0;
 	}
@@ -67,7 +213,6 @@ struct da_hist {
 
 da_data& da_data::operator =(const da_hist& hist) {
 	y_ = hist.y_;
-	p_y = hist.p_y;
 	T_ = hist.T_;
 	beta_ = 1. / T_;
 	return *this;
@@ -78,7 +223,7 @@ inline
 std::basic_ostream< charT, traits >&
 operator <<(std::basic_ostream< charT, traits >& strm, const da_hist& h)
 {
-	strm << h.y_.row_num() << "	" << h.T_ << "	" << h.beta_;
+	strm << h.y_.size() << "	" << h.T_ << "	" << h.beta_;
 	return strm;
 }
 
@@ -98,7 +243,7 @@ struct da_log {
 	void push_back(const da_hist& hist) {
 		hist_.push_back(hist);
 		if(hist_.size() > 1)
-			dt_.push_back( (double(head().y_.row_num()) - double(head(1).y_.row_num())) / (head().beta_ - head(1).beta_) );
+			dt_.push_back( (double(head().y_.size()) - double(head(1).y_.size())) / (head().beta_ - head(1).beta_) );
 		else dt_.push_back(0);
 	}
 
@@ -123,16 +268,24 @@ struct da_log {
 	}
 };
 
+typedef map< ulong, ul_vec > aff_map;
+
 struct hard_clusters_data {
 	//winners matrix - point->center relation
 	ulMatrix w_;
 	Matrix norms_;
 	//points affiliation - center->points collection
-	vvul aff_;
+	aff_map aff_;
 	//sum of distances from points to corresponding cluster centers
 	double e_;
 
 	hard_clusters_data() : e_(0) {}
+
+	vvul get_aff() const {
+		vvul aff;
+		for(aff_map::const_iterator p_cv = aff_.begin(), end = aff_.end(); p_cv != end; ++p_cv)
+			aff.push_back(p_cv->second);
+	}
 };
 
 struct cov_data {
@@ -207,6 +360,28 @@ class determ_annealing::da_impl : public da_data {
 		return ps;
 	};
 
+	//near-zero variance condition checker
+	struct nz_var {
+		nz_var(bool enabled) : enabled_(enabled) {}
+
+		bool operator()(const cv_map::const_iterator& p_cv) const {
+			return (enabled_ && p_cv->second.var_ < EPS);
+		}
+
+		bool enabled_;
+	};
+
+	//near-zero probability condition checker
+	struct nz_prob {
+		nz_prob(bool enabled) : enabled_(enabled) {}
+
+		bool operator()(const cv_map::const_iterator& p_cv) const {
+			return (enabled_ && p_cv->second.p_ < EPS);
+		}
+
+		bool enabled_;
+	};
+
 public:
 
 	//probability threshold for making hard clusters - see calc_winners
@@ -237,68 +412,53 @@ public:
 
 	da_impl()
 		: prob_thresh_(1.0/3), patience_(0.001), alpha_(0.9), alpha_max_(0.99), Tmin_(0.01), dither_amount_(0.005),
-		patience_cycles_(10), expl_length_(4), kill_zero_prob_cent_(true), kill_zero_var_cent_(false)
+		patience_cycles_(10), expl_length_(3), kill_zero_prob_cent_(true), kill_zero_var_cent_(true)
 
 	{}
 
 	void calc_winners(const da_data& dad, hard_clusters_data& hcd) const
 	{
 		hcd.aff_.clear();
-		hcd.aff_.resize(dad.y_.row_num());
 
 		//normalize threshold
-		double cur_pt = prob_thresh_ / dad.y_.row_num();
+		double cur_pt = prob_thresh_ / dad.y_.size();
 
 		//move through all data points
 		double cur_p, max_p;
 		ulong winner;
 		for(ulong i = 0; i < dad.x_.row_num(); ++i) {
 			//iterate through centers
-			for(ulong j = 0; j < dad.y_.row_num(); ++j) {
-				cur_p = dad.p_yx(j, i);
+			for(cv_map::const_iterator p_cv = dad.y_.begin(), end = dad.y_.end(); p_cv != end; ++p_cv) {
+				cur_p = p_cv->second.px_[i];
+				ul_vec& cur_aff = hcd.aff_[p_cv->first];
 				if(cur_p > cur_pt)
-					hcd.aff_[j].push_back(i);
-				if(j == 0 || cur_p > max_p) {
+					cur_aff.push_back(i);
+				if(p_cv == dad.y_.begin() || cur_p > max_p) {
 					max_p = cur_p;
-					winner = j;
+					winner <<= p_cv->first;
 				}
 			}
 
 			//save winner
 			hcd.w_[i] = winner;
-			hcd.norms_[i] = (*norm_fcn_)(dad.x_.GetRows(i), dad.y_.GetRows(winner));
+			hcd.norms_[i] = (*norm_fcn_)(dad.x_.GetRows(i), dad.y_.find(winner)->second.loc_);
 		}
-
-//		hcd.e_ = 0;
-//		ulong cnt = 0;
-//		//calc affiliation for each center
-//		for(ulong i = 0; i < dad.y_.row_num(); ++i) {
-//			dv <<= dad.p_yx.GetRows(i);
-//			ul_vec& cur_aff = hcd.aff_[i];
-//			for(ulong j = 0; j < dv.size(); ++j) {
-//				if(dv[j] > prob_thresh_) {
-//					cur_aff.push_back(j);
-//					hcd.e_ += (*norm_fcn_)(dad.x_.GetRows(j), dad.y_.GetRows(i));
-//					++cnt;
-//				}
-//			}
-//		}
-//		hcd.e_ /= cnt;
 	}
 
 	//calc affiliation for particular cluster only
-	void calc_aff(const da_data& dad, hard_clusters_data& hcd, ulong cv_ind) const
+	void calc_aff(const da_data& dad, hard_clusters_data& hcd, ulong cv_id) const
 	{
-		if(cv_ind >= hcd.aff_.size()) return;
+		aff_map::iterator res = hcd.aff_.find(cv_id);
+		if(res == hcd.aff_.end()) return;
 		//clear affiliation list
-		ul_vec& cur_aff = hcd.aff_[cv_ind];
+		ul_vec& cur_aff = res->second;
 		cur_aff.clear();
 
 		//normalize threshold
-		double cur_pt = prob_thresh_ / dad.y_.row_num();
+		double cur_pt = prob_thresh_ / dad.y_.size();
 
 		//move through all data points
-		Matrix::cr_iterator cur_pyx = dad.p_yx.begin() + cv_ind * dad.x_.row_num();
+		Matrix::cr_iterator cur_pyx = dad.y_.find(cv_id)->second.px_.begin();
 		for(ulong i = 0; i < dad.x_.row_num(); ++i, ++cur_pyx) {
 			//iterate through centers
 			if(*cur_pyx > cur_pt)
@@ -310,7 +470,6 @@ public:
 	void calc_winners_kmeans(const da_data& dad, hard_clusters_data& hcd) const {
 		//clear affiliation list
 		hcd.aff_.clear();
-		hcd.aff_.resize(dad.y_.row_num());
 
 		Matrix dv;
 		hcd.e_ = 0;
@@ -319,11 +478,11 @@ public:
 		//calc centers-winners for each data point
 		for(ulong i = 0; i < dad.x_.row_num(); ++i) {
 			dv <<= dad.x_.GetRows(i);
-			for(ulong j = 0; j < dad.y_.row_num(); ++j) {
-				tmp = (*norm2_fcn_)(dv, dad.y_.GetRows(j));
-				if(j == 0 || tmp < min_dist) {
+			for(cv_map::const_iterator p_cv = dad.y_.begin(), end = dad.y_.end(); p_cv != end; ++p_cv) {
+				tmp = (*norm2_fcn_)(dv, p_cv->second.loc_);
+				if(p_cv == dad.y_.begin() || tmp < min_dist) {
 					min_dist = tmp;
-					winner = j;
+					winner = p_cv->first;
 				}
 			}
 			//save winner
@@ -337,39 +496,15 @@ public:
 		hcd.e_ /= dad.x_.row_num();
 	}
 
-	//norms used - currently only l2
-	static double l2_norm(const Matrix& x1, const Matrix& x2) {
-		return (x1 - x2).norm2();
-
-//		norm.Resize(1, points.row_num());
-//		//Matrix diff;
-//		for(ulong i = 0; i < points.row_num(); ++i) {
-//			norm[i] = (dv - points.GetRows(i)).norm2();
-//		}
-	}
-
-	static double l2_norm2(const Matrix& x1, const Matrix& x2) {
-		Matrix diff = x1 - x2;
-		return diff.Mul(diff).Sum();
-
-//		norm.Resize(1, points.row_num());
-//		//Matrix diff;
-//		for(ulong i = 0; i < points.row_num(); ++i) {
-//			norm[i] = (dv - points.GetRows(i)).norm2();
-//		}
-	}
-
-	//norm function derivatives
-	static Matrix l2_deriv(const Matrix& dv, const Matrix& center) {
-		return (dv - center);
-	}
-
-
 	//patterns order processing
-	void conseq_order(ulong cv_ind, ul_vec& porder) const
-	{
+	void conseq_order(ulong cv_id, ul_vec& porder) const {
+		//assume that hard affiliation is already calculated
+		//check that requested cv exists
+		aff_map::const_iterator res = hcd_.aff_.find(cv_id);
+		if(res == hcd_.aff_.end()) return;
+
 		porder.clear();
-		const ul_vec& aff_cv = hcd_.aff_[cv_ind];
+		const ul_vec& aff_cv = res->second;
 		for(ul_vec::const_iterator pos = aff_cv.begin(); pos != aff_cv.end(); ++pos)
 			porder.push_back(*pos);
 
@@ -377,16 +512,15 @@ public:
 	}
 
 	//resulting porder will contain ABSOLUTE indexes applicable directly to da_data::x_
-	void selection_based_order(ulong cv_ind, ul_vec& porder) const
-	{
-		//first of all determine hard clusters
-		//calc_winners(*this, hcd_);
+	void selection_based_order(ulong cv_id, ul_vec& porder) const {
 		//assume that hard affiliation is already calculated
-		if(cv_ind >= hcd_.aff_.size()) return;
+		//check that requested cv exists
+		aff_map::const_iterator res = hcd_.aff_.find(cv_id);
+		if(res == hcd_.aff_.end()) return;
 
 		//select f values belonging to given cluster
 		Matrix f_cv;
-		const ul_vec& aff_cv = hcd_.aff_[cv_ind];
+		const ul_vec& aff_cv = res->second;
 		for(ul_vec::const_iterator pos = aff_cv.begin(); pos != aff_cv.end(); ++pos)
 			f_cv.push_back(f_[*pos], false);
 
@@ -405,7 +539,7 @@ public:
 
 	//p(x) generators
 	//standard prob distribution where each p(x) = 1/N
-	const Matrix& unifrom_px(ulong cv_ind) const {
+	const Matrix& unifrom_px(ulong cv_id) const {
 		struct px {
 			Matrix expect_;
 
@@ -421,7 +555,7 @@ public:
 	}
 
 	//p(x) distribution based on static GA.ScalingCall calculated only when first time called
-	const Matrix& scaling_px(ulong cv_ind) const {
+	const Matrix& scaling_px(ulong cv_id) const {
 		static Matrix expect;
 		if(recalc_px_)
 			expect <<= get_ps().scaling(f_);
@@ -429,17 +563,19 @@ public:
 	}
 
 	//p(x) distribution based dynamically calculated expectation for given cluster from it's affiliation
-	const Matrix& scaling_px_aff(ulong cv_ind) const {
+	const Matrix& scaling_px_aff(ulong cv_id) const {
 		static Matrix expect(1, f_.size());
 		if(expect.size() != f_.size())
 			expect.Resize(1, f_.size());
 
 		//assume that hard affiliation is already calculated
-		if(cv_ind >= hcd_.aff_.size()) return scaling_px(cv_ind);
+		//check that requested cv exists
+		aff_map::const_iterator res = hcd_.aff_.find(cv_id);
+		if(res == hcd_.aff_.end()) throw ga_except("scaling_px_aff: invalid codevector id passed");
+		const ul_vec& aff_cv = res->second;
 
 		//select f values belonging to given cluster
 		Matrix f_cv;
-		const ul_vec& aff_cv = hcd_.aff_[cv_ind];
 		for(ul_vec::const_iterator pos = aff_cv.begin(); pos != aff_cv.end(); ++pos)
 			f_cv.push_back(f_[*pos], false);
 
@@ -455,24 +591,26 @@ public:
 	}
 
 	//p(x) distribution based on estimated selection probabilities
-	const Matrix& selection_px(ulong cv_ind) const {
+	const Matrix& selection_px(ulong cv_id) const {
 		static Matrix expect;
 		if(recalc_px_)
 			expect <<= get_ps().selection_prob(f_, 100, 1000);
 		return expect;
 	}
 
-	const Matrix& selection_px_aff(ulong cv_ind) const {
+	const Matrix& selection_px_aff(ulong cv_id) const {
 		static Matrix expect;
 		if(expect.size() != f_.size())
 			expect.Resize(1, f_.size());
 
 		//assume that hard affiliation is already calculated
-		if(cv_ind >= hcd_.aff_.size()) return scaling_px(cv_ind);
+		//check that requested cv exists
+		aff_map::const_iterator res = hcd_.aff_.find(cv_id);
+		if(res == hcd_.aff_.end()) throw ga_except("selection_px_aff: invalid codevector id passed");
 
 		//select f values belonging to given cluster
 		Matrix f_cv;
-		const ul_vec& aff_cv = hcd_.aff_[cv_ind];
+		const ul_vec& aff_cv = res->second;
 		for(ul_vec::const_iterator pos = aff_cv.begin(); pos != aff_cv.end(); ++pos)
 			f_cv.push_back(f_[*pos], false);
 
@@ -488,7 +626,7 @@ public:
 	}
 
 	//order of patterns to p(x) distribution converter
-	const Matrix& order2px(ulong cv_ind) const {
+	const Matrix& order2px(ulong cv_id) const {
 		static Matrix expect;
 		if(expect.size() != f_.size())
 			expect.Resize(1, f_.size());
@@ -499,11 +637,11 @@ public:
 		//assume that hard affiliation is already calculated
 		//build patterns order
 		ul_vec order;
-		(this->*order_fcn_)(cv_ind, order);
+		(this->*order_fcn_)(cv_id, order);
 
 		//convert order to expectation
 		expect = 0;
-		const double p_quant = 1.0/order.size();
+		const double p_quant = 1.0 / order.size();
 		for(ulong i = 0; i < order.size(); ++i) {
 			expect[order[i]] += p_quant;
 		}
@@ -511,9 +649,9 @@ public:
 	}
 
 	template< px_fcn_t px_fcn >
-	const Matrix& dithered_px(ulong cv_ind) const {
+	const Matrix& dithered_px(ulong cv_id) const {
 		//get original distribution
-		Matrix& px = const_cast< Matrix& >((this->*px_fcn)(cv_ind));
+		Matrix& px = const_cast< Matrix& >((this->*px_fcn)(cv_id));
 		//generate random noise
 		Matrix noise(px.row_num(), px.col_num());
 		generate(noise.begin(), noise.end(), prg::rand01);
@@ -541,14 +679,15 @@ public:
 		return px;
 	}
 
-	double calc_var(const da_data& dad, ulong cv_ind) const {
+	double calc_var(const da_data& dad, ulong cv_id) const {
 		//assume that hard affiliation is already calculated
-		if(cv_ind >= hcd_.aff_.size()) return 0;
-		const ul_vec& aff_cv = hcd_.aff_[cv_ind];
-		if(aff_cv.size() == 0) return 0;
+		//check that requested cv exists
+		aff_map::const_iterator res = hcd_.aff_.find(cv_id);
+		if(res == hcd_.aff_.end()) throw ga_except("calc_var: invalid codevector id passed");
+		const ul_vec& aff_cv = res->second;
 
 		//collect data vectors belonging to given cluster
-		const Matrix y = dad.y_.GetRows(cv_ind);
+		const Matrix y = dad.y_.find(cv_id)->second.loc_;
 
 		Matrix t;
 		for(ulong i = 0; i < aff_cv.size(); ++i)
@@ -569,19 +708,21 @@ public:
 		return var * var / aff_cv.size();
 	}
 
-	double calc_var_honest(const da_data& dad, ulong cv_ind, const Matrix& p_x) const {
+	double calc_var_honest(const da_data& dad, ulong cv_id, const Matrix& p_x) const {
 		//assume that hard affiliation is already calculated
-		//if(cv_ind >= hcd_.aff_.size()) return 0;
-		//const ul_vec& aff_cv = hcd_.aff_[cv_ind];
-		//if(aff_cv.size() == 0) return 0;
+		//check that requested cv exists
+		cv_map::const_iterator res = dad.y_.find(cv_id);
+		if(res == dad.y_.end()) throw ga_except("calc_var_honest: invalid codevector id passed");
+		//const ul_vec& aff_cv = res->second;
 
 		//collect data vectors belonging to given cluster
-		const Matrix y = dad.y_.GetRows(cv_ind);
+		const cv_info& cvi = res->second;
+		const Matrix y = cvi.loc_;
 
 		Matrix covar(x_.col_num(), x_.col_num()), x;
 		double p_xiy;
-		const double mult = 1.0 / p_y[cv_ind];
-		Matrix::cr_iterator pp_x = p_x.begin(), pp_yx = p_yx.begin() + cv_ind * x_.row_num();
+		const double mult = 1.0 / cvi.p_;
+		Matrix::cr_iterator pp_x = p_x.begin(), pp_yx = cvi.px_.begin();
 		covar = 0;
 		for(ulong i = 0; i < x_.row_num(); ++i, ++pp_x, ++pp_yx) {
 			p_xiy = *pp_yx * (*pp_x) * mult;
@@ -590,7 +731,6 @@ public:
 		}
 
 		//calculate eigenvalues of covariance matrix
-		//first calc SVD
 		Matrix E;
 		eig(covar, E);
 		//we need only maximum singular value
@@ -602,78 +742,99 @@ public:
 		//force winners calculation
 		calc_winners_kmeans(*this, hcd_);
 
-		var_.Resize(y_.row_num());
 		//DEBUG
-		cout << y_.row_num() << " centers & their variances:" << endl;
-		for(ulong i = 0; i < y_.row_num(); ++i) {
-			y_.GetRows(i).Print(cout, false);
+		cout << y_.size() << " centers & their variances:" << endl;
+		for(cv_map::iterator p_cv = y_.begin(), end = y_.end(); p_cv != end; ++p_cv) {
+			p_cv->second.loc_.Print(cout, false);
 			//get p(x) distribution
-			const Matrix& px = (this->*px_fcn_)(i);
-			var_[i] = calc_var_honest(*this, i, px);
-			cout << " : " << var_[i] << endl;
+			const Matrix& px = (this->*px_fcn_)(p_cv->first);
+			p_cv->second.var_ = calc_var_honest(*this, p_cv->first, px);
+			cout << " : " << p_cv->second.var_ << endl;
 		}
 		//cout << endl;
 	}
 
-	void kill_weak_centers() {
-		if(!kill_zero_var_cent_) return;
-		//kill centers with zero variance
-		double mind, curd;
-		ulong cl_ind;
-		Matrix y;
-		for(ulong i = y_.row_num() - 1; i < y_.row_num(); --i) {
-			//break if only one center alive
-			if(y_.row_num() == 1) break;
+	template< class cond_checker >
+	void kill_weak_centers(const cond_checker& ck) {
+//		if(!kill_zero_var_cent_) return;
+//
+//		//kill centers with near-zero probability p_y
+//		if(kill_zero_prob_cent_) {
+//			cv_map::iterator p_cv = y_.begin();
+//			while(p_cv != y_.end()) {
+//				if(y_.size() == 1) break;
+//				if(p_cv->second.p_ < EPS)
+//					y_.erase(p_cv++);
+//				else ++p_cv;
+//			}
+//		}
 
-			if(var_[i] > EPS) continue;
+		//kill centers with near zero variance or near zero probability
+		double mind, curd;
+		ulong cl_cv;
+
+		typedef set< ulong > kill_set;
+		kill_set to_kill;
+		//to_kill.reserve(y_.size());
+
+		//make first pass - find centers to kill
+		for(cv_map::const_iterator p_cv = y_.begin(), end = y_.end(); p_cv != end; ++p_cv) {
+			//check kill conditions
+//			if( (kill_zero_prob_cent_ && p_cv->second.p_ < EPS) ||
+//				(var_known && kill_zero_var_cent_ && p_cv->second.var_ < EPS) )
+			if(ck(p_cv))
+				to_kill.insert(p_cv->first);
+		}
+
+		//check that at least one center will be alive
+		if(to_kill.size() == y_.size())
+			to_kill.erase(to_kill.begin());
+
+		//second pass - kill cv
+		for(kill_set::const_iterator pk = to_kill.begin(), end = to_kill.end(); pk != end; ++pk) {
 			//find closest center
-			y <<= y_.GetRows(i);
 			mind = 0;
-			for(ulong j = 0; j < y_.row_num(); ++j) {
-				if(i == j) continue;
-				curd = (y - y_.GetRows(j)).norm2();
-				if(j == 0 || curd < mind) {
+			for(cv_map::const_iterator p_cv = y_.begin(), end1 = y_.end(); p_cv != end1; ++p_cv) {
+				if(p_cv->first == *pk || to_kill.find(p_cv->first) != to_kill.end()) continue;
+				curd = cv_dist(y_.find(*pk), p_cv);
+				if(mind == 0 || curd < mind) {
 					mind = curd;
-					cl_ind = j;
+					cl_cv = p_cv->first;
 				}
 			}
+
 			//add probability to closest center
-			p_y[cl_ind] += p_y[i];
-			//delete i-th center
-			y_.DelRows(i);
-			p_yx.DelRows(i);
-			p_y.DelColumns(i);
+			y_[cl_cv].p_ += y_[*pk].p_;
+
+			//erase cv
+			y_.erase(*pk);
 		}
 	}
 
 	void update_epoch() {
 		ul_vec x_order; //, uniq_xor;
-		Matrix::cr_iterator cur_py = p_y.begin();
-		Matrix::r_iterator cur_pyx = p_yx.begin();
-		Matrix x, y, new_y(1, y_.col_num());
+		Matrix x, y, new_y(1, x_.col_num());
 		double new_py, pyx_den, pyx_num;
+
 		//newly calculated centers positions & p_y will be stored here
-		da_data res;
-		res.y_.clear(); res.p_y.clear();
+		cv_map res(y_);
 
 		//make hard clusters
 		calc_winners(*this, hcd_);
-
 		hcd_.e_ = 0;
+
 		//main cycle starts here - update all available centers
-		for(ulong i = 0; i < y_.row_num(); ++i, ++cur_py) {
-			y <<= y_.GetRows(i);
+		double cur_py;
+		Matrix::r_iterator cur_pyx;
+		for(cv_map::iterator p_cv = y_.begin(), end = y_.end(); p_cv != end; ++p_cv) {
+			//setup
+			cv_info& cvi = p_cv->second;
+			y <<= cvi.loc_;
+			cur_py = cvi.p_;
+			cur_pyx = cvi.px_.begin();
 
 			//get p(x) distribution
-			const Matrix& px = (this->*px_fcn_)(i);
-//			if(find_if(px.begin(), px.end(), bind2nd(less< double >(), 0)) != px.end()) {
-//				cout << "!!! got px below zero !!!" << endl;
-//				cout << "px = ["; DumpMatrix(px); cout << "]" << endl;
-//			}
-//			if(px.size() != x_.row_num()) {
-//				cout << "!!! px.size() = " << px.size() << ", x_.row_num() = " << x_.row_num() << endl;
-//				terminate();
-//			}
+			const Matrix& px = (this->*px_fcn_)(p_cv->first);
 
 			//update probabilities p(y[i] | x) - independent from custom p(x)
 			//update probabilities p(y[i]) & calculate new center position
@@ -682,13 +843,13 @@ public:
 			for(ulong j = 0; j < x_.row_num(); ++j, ++cur_pyx) {
 				x <<= x_.GetRows(j);
 				//first calc p_yx
-				pyx_num = (*cur_py) * exp(-(*norm2_fcn_)(x, y) * beta_);
+				pyx_num = cur_py * exp(-(*norm2_fcn_)(x, y) * beta_);
 				//next calc denominator for further calculation of p_yx
 				pyx_den = 0;
-				for(ulong k = 0; k < y_.row_num(); ++k) {
-					if(k == i) continue;
+				for(cv_map::iterator p_cv1 = y_.begin(), end1 = y_.end(); p_cv1 != end1; ++p_cv1) {
+					if(p_cv->first == p_cv1->first) continue;
 					//pyx_den += p(y[k]) * exp(-||x - y[k]||^2 / T)
-					pyx_den += p_y[k] * exp(-(*norm2_fcn_)(x, y_.GetRows(k)) * beta_);
+					pyx_den += p_cv1->second.p_ * exp(-(*norm2_fcn_)(x, p_cv1->second.loc_) * beta_);
 				}
 				pyx_den += pyx_num;
 
@@ -700,19 +861,6 @@ public:
 
 				//update p(y[i])
 				new_py += (*cur_pyx) * px[j];
-//				if(new_py != new_py || new_py < 0) {
-//					cout << "!!! new_py = " << new_py << " !!!" << endl;
-//					cout << "cur_pyx = " << *cur_pyx << endl;
-//					cout << "px[j] = " << px[j] << endl;
-//					cout << "j = " << j << endl;
-//					cout << "cur_py = " << *cur_py << endl;
-//					cout << "pyx_den = " << pyx_den << endl;
-//					cout << "exp(-(*norm2_fcn_)(x, y) * beta_) = " << exp(-(*norm2_fcn_)(x, y) * beta_) << endl;
-//					cout << "p_y = ["; DumpMatrix(p_y); cout << "]" << endl;
-//					cout << "px = ["; DumpMatrix(px); cout << "]" << endl;
-//					cout << "beta_ = " << beta_ << endl;
-//					terminate();
-//				}
 
 				//update y position
 				new_y += x * (*cur_pyx) * px[j];
@@ -723,17 +871,14 @@ public:
 			//update error
 			hcd_.e_ += (*norm_fcn_)(y, new_y);
 			//save values
-			res.y_ &= new_y;
-			res.p_y.push_back(new_py, false);
-//			*cur_py = new_py;
-//			y_.SetRows(new_y, i);
+			res[p_cv->first].loc_ = new_y;
+			res[p_cv->first].p_ = new_py;
 		}	//end of centers loop
 
 		//complete mse calculation
-		hcd_.e_ /= y_.row_num();
+		hcd_.e_ /= y_.size();
 		//assign new values
-		y_ = res.y_;
-		p_y = res.p_y;
+		y_ = res;
 	}
 
 	void null_step() {
@@ -744,14 +889,14 @@ public:
 
 		//now calc centers positions depending on prob. distribution
 		double norm_mult;
-		Matrix new_y(1, y_.col_num());
-		for(ulong i = 0; i < y_.row_num(); ++i) {
+		Matrix new_y(1, x_.col_num());
+		for(cv_map::iterator p_cv = y_.begin(), end = y_.end(); p_cv != end; ++p_cv) {
 			//get p(x) distribution
-			const Matrix& px = (this->*px_fcn_)(i);
+			const Matrix& px = (this->*px_fcn_)(p_cv->first);
 
 			norm_mult = 0;
 			new_y = 0;
-			const ul_vec& aff_i = hcd_.aff_[i];
+			const ul_vec& aff_i = hcd_.aff_[p_cv->first];
 			for(ulong j = 0; j < aff_i.size(); ++j) {
 				//calc center position
 				new_y += x_.GetRows(aff_i[j]) * px[aff_i[j]];
@@ -761,28 +906,30 @@ public:
 			//finish center position calculation
 			new_y /= norm_mult;
 			//save calculated center
-			y_.SetRows(new_y, i);
+			p_cv->second.loc_ = new_y;
 		}
 	}
 
 	ulong cooling_step(ulong maxclust) {
+
 		//sort variances in descending order
-		Matrix svar;
-		svar = var_;
-		Matrix::indMatrix ind = svar.RawSort(greater< double >());
+		cvp_set_desc svar;
+		for(cv_map::iterator p_cv = y_.begin(), end = y_.end(); p_cv != end; ++p_cv) {
+			svar.insert(&(*p_cv));
+		}
 
 		//compute next bifurcation prediction
 		double pt_T;
-		ulong pt_ind = svar.size();
-		if(y_.row_num() < maxclust) {
-			for(ulong i = 0; i < svar.size(); ++i)
-				if((pt_T = 2 * svar[i]) < T_) {
-					pt_ind = i;
+		ulong pt_ind = ulong(-1);
+		if(y_.size() < maxclust) {
+			for(cvp_set_desc::iterator p_scv = svar.begin(), end = svar.end(); p_scv != end; ++p_scv)
+				if((pt_T = (*p_scv)->second.var_ * 2  < T_)) {
+					pt_ind = (*p_scv)->first;
 					break;
 				}
 
 			//T_ *= alpha_;
-			if(pt_ind < svar.size() && pt_T > T_ * alpha_) {
+			if(pt_ind != ulong(-1) && pt_T > T_ * alpha_) {
 				cout << "bifurcation point, ";
 				T_ = min(pt_T, T_ * alpha_max_);
 
@@ -791,7 +938,7 @@ public:
 			}
 			else {
 				T_ *= alpha_;
-				pt_ind = svar.size();
+				pt_ind = ulong(-1);
 			}
 		}
 		else {
@@ -807,25 +954,23 @@ public:
 		return pt_ind;
 	}
 
-	void fork_center(ulong cv_ind) {
-		if(cv_ind >= y_.row_num()) return;
+	void fork_center(ulong cv_id) {
+		cv_map::iterator src = y_.find(cv_id);
+		if(src == y_.end()) return;
 
-		Matrix y = y_.GetRows(cv_ind);
+		Matrix y = src->second.loc_;
 		//generate perturbation
-		Matrix perturb(1, y_.col_num());
+		Matrix perturb(1, x_.col_num());
 		generate(perturb.begin(), perturb.end(), prg::rand01);
-		perturb -= 0.5; perturb *= y.norm2() * 0.05;
+		perturb -= 0.5; perturb *= y.norm2() * PERTURB_MULT;
 
 		//add new center
-		y_ &= y + perturb;
-		p_y[cv_ind] *= 0.5;
-		p_y.push_back(p_y[cv_ind], false);
-		//assign the same affiliation probability to new cluster as the parent had
-		p_yx &= p_yx.GetRows(cv_ind);
-		//p_yx.Resize(y_.row_num());
+		src->second.p_ *= 0.5;
+		ulong child_id = push_cv(y + perturb, src->first);
+		y_[child_id].p_ = src->second.p_;
 
-		//resize affiliations
-		hcd_.aff_.resize(y_.row_num());
+		//add affiliation record
+		//hcd_.aff_.resize(y_.row_num());
 	}
 
 	bool phase_transition_epoch(ulong max_clust) {
@@ -840,33 +985,74 @@ public:
 //			fork_center(pt_ind);
 
 		//check every center for bifurcation
-		ulong cnt = y_.row_num();
-		for(ulong i = 0; i < cnt && y_.row_num() < max_clust; ++i)
-			if(T_ < 2 * var_[i]) fork_center(i);
+		ulong cnt = y_.size();
+		for(cv_map::iterator p_cv = y_.begin(), end = y_.end(); p_cv != end && y_.size() < max_clust; ++p_cv)
+			if(T_ < 2 * p_cv->second.var_) fork_center(p_cv->first);
 		return true;
 	}
 
 	bool merge_step() {
-		//kill centers with near-zero probability p_y
-		if(kill_zero_prob_cent_) {
-			for(ulong i = y_.row_num() - 1; i < y_.row_num(); --i) {
-				if(y_.row_num() == 1) break;
-				if(p_y[i] <= EPS) {
-					y_.DelRows(i);
-					p_yx.DelRows(i);
-					p_y.DelColumns(i);
+		//remove nonsignificant centers
+		kill_weak_centers< >(nz_prob(kill_zero_prob_cent_));
+
+		//perform classic merge step first
+		//bool ret = false;
+		bool ret = merge_step_classic();
+		//return ret;
+
+		//update distances to parents
+		update_pdist();
+
+		//merge
+		typedef vector< cv_map::iterator > kill_map;
+		kill_map to_kill;
+		//look for cv to merge
+		//first pass - find centers to merge
+		for(cv_map::iterator p_cv = y_.begin(), end = y_.end(); p_cv != end; ++p_cv) {
+			if(p_cv->second.pat_steps_ > MERGE_PATIENCE)
+				//update p(y) of parent cv
+				to_kill.push_back(p_cv);
+		}
+
+		//second pass - update parent's p(y)
+		bool py_flow;
+		do {
+			py_flow = false;
+			for(kill_map::iterator pk = to_kill.begin(), end = to_kill.end(); pk != end; ++pk) {
+				if((*pk)->second.p_ != 0) {
+					py_flow = true;
+					//pass p(y) to parent
+					y_.find((*pk)->second.parent_)->second.p_ += (*pk)->second.p_;
+					(*pk)->second.p_ = 0;
 				}
 			}
+		} while(py_flow);
+
+		//third pass - erase merged cv
+		for(kill_map::iterator pk = to_kill.begin(), end = to_kill.end(); pk != end; ++pk)
+			y_.erase(*pk);
+
+		//forth pass - classic merge based on distances
+		return ret || (to_kill.size() > 0);
+	}
+
+
+	bool merge_step_classic() {
+		//create y matrix & ind2id map
+		map< ulong, ulong > ind2id;
+		Matrix y;
+		ulong i = 0;
+		for(cv_map::const_iterator p_cv = y_.begin(), end = y_.end(); p_cv != end; ++p_cv, ++i) {
+			y &= p_cv->second.loc_;
+			ind2id[i] = p_cv->first;
 		}
-		//resize affiliations
-		hcd_.aff_.resize(y_.row_num());
 
 		//test if any centers are coinsident and merge them
 		//first of all calc centers distance matrix
 		Matrix dist;
 		//compute distance between p_xy
 		//norm_tools::calc_dist_matrix< norm_tools::l2 >(p_yx, dist);
-		norm_tools::calc_dist_matrix< norm_tools::l2 >(y_, dist);
+		norm_tools::calc_dist_matrix< norm_tools::l2 >(y, dist);
 
 		//DEBUG
 		//dist.Resize(1, dist.row_num() * dist.col_num());
@@ -884,40 +1070,30 @@ public:
 		//merged centers indexes
 		typedef set< ulong, greater< ulong > > merged_idx;
 		merged_idx mc;
+		ul_vec to_kill;
 
-		//codebook with merged cenrters
-		da_data new_cb;
+		//codebook with merged centers
+		//da_data new_cb;
 		ulong cv1, cv2;
 		//first pass - compute merged centers
 		for(ulong i = 0; i < merge_cnt; ++i) {
 			//extract centers pair
-			cv1 = pairs[i] / y_.row_num(); cv2 = pairs[i] % y_.row_num();
+			cv1 = pairs[i] / y_.size(); cv2 = pairs[i] % y_.size();
 			//check if any of these codevectors already marked to merge
 			if(mc.find(cv1) != mc.end() || mc.find(cv2) != mc.end())
 				continue;
 			//mark centers as merged
 			mc.insert(cv1); mc.insert(cv2);
-			//compute new merged center
-			new_cb.y_ &= y_.GetRows(cv1);
-			new_cb.p_y.push_back(p_y[cv1] + p_y[cv2], false);
-			//save probabilities of cv1
-			//actually we need to spin update_epoch after centers are merged
-			//to ensure correct probabilities and positions are calculated
-			new_cb.p_yx &= p_yx.GetRows(cv1);
+			//mark m2 to be erased
+			to_kill.push_back(ind2id[cv2]);
+
+			//update prob of cv1
+			y_[ind2id[cv1]].p_ += y_[ind2id[cv2]].p_;
 		}
 
 		//second pass - clear existing codebook
-		for(merged_idx::const_iterator mi = mc.begin(), end = mc.end(); mi != end; ++mi) {
-			y_.DelRows(*mi);
-			p_yx.DelRows(*mi);
-			p_y.DelColumns(*mi);
-		}
-		//append merged codebook
-		y_ &= new_cb.y_;
-		p_yx &= new_cb.p_yx;
-		p_y |= new_cb.p_y;
-		//resize affiliations
-		hcd_.aff_.resize(y_.row_num());
+		for(ulong i = 0; i < to_kill.size(); ++i)
+			y_.erase(to_kill[i]);
 
 		return mc.size() > 0;
 	}
@@ -935,7 +1111,7 @@ public:
 				di.update_variances();
 				//save new log entry
 				di.log_.push_back(di);
-				return di.y_.row_num();
+				return di.y_.size();
 			}
 		};
 
@@ -974,27 +1150,24 @@ public:
 		px_fcn_ = &da_impl::dithered_px< &da_impl::scaling_px >;
 		//px_fcn_ = &da_impl::scaling_px;
 		//px_fcn_ = &da_impl::order2px;
-		expl_length_ = 4;
+		//expl_length_ = 4;
 		order_fcn_ = &da_impl::selection_based_order;
-		norm_fcn_ = &da_impl::l2_norm;
-		norm2_fcn_ = &da_impl::l2_norm2;
+		norm_fcn_ = &l2_norm;
+		norm2_fcn_ = &l2_norm2;
 
 		//initialization
 		f_ = f;
 		x_ = data;
-		y_.Resize(1, x_.col_num());
-		p_y.Resize(1, 1);
-		p_yx.Resize(1, x_.row_num());
+		cv_info cv1(0, 0);
+		cv1.px_.Resize(1, x_.row_num());
+		cv1.loc_.Resize(1, x_.col_num());
+		//set initial probabilities to 1
+		cv1.p_ = 1; cv1.px_ = 1;
+		//save firsr cv
+		y_[0] = cv1;
 
 		hcd_.w_.Resize(x_.row_num());
 		hcd_.norms_.Resize(x_.row_num());
-
-		//set initial probabilities to 1
-		p_y = 1; p_yx = 1;
-		//all points initially belongs to single center
-		hcd_.aff_.resize(1);
-		for(ulong i = 0; i < x_.row_num(); ++i)
-			hcd_.aff_[0].push_back(i);
 
 		//set position of the first center
 		//signal to recalculate static px (if used)
@@ -1003,9 +1176,8 @@ public:
 		const Matrix& px = (this->*px_fcn_)(0);
 		//drop signal
 		recalc_px_ = false;
-
-//		for(ulong i = 0; i < x_.row_num(); ++i)
-//			y_ += x_.GetRows(i) * px[i];
+		//all points initially belongs to single center that is placed in the M(x)
+		null_step();
 
 		//set initial T > 2 * max variation along principal axis of all data
 		T_ = calc_var_honest(*this, 0, px) * 2;
@@ -1024,7 +1196,7 @@ public:
 				do {
 					update_epoch();
 					spin_update = merge_step();
-					while(merge_step()) {};
+					while(spin_update && merge_step()) {};
 				//merge centers
 				} while(spin_update);
 
@@ -1037,9 +1209,9 @@ public:
 
 			//update variances
 			update_variances();
-			kill_weak_centers();
+			kill_weak_centers(nz_var(kill_zero_var_cent_));
 
-			if(log_step(cycle_)) clust_num = y_.row_num();
+			if(log_step(cycle_)) clust_num = y_.size();
 
 			//add new centers if nessessary
 			if(!phase_transition_epoch(clust_num)) break;
@@ -1049,6 +1221,9 @@ public:
 
 		//VERBOSE - save log of dT / dCnum
 		log_.dump();
+
+		//recode aff & winners
+		id2ind_recode();
 	}
 
 	bool patience_check(ulong cycle, double e)
@@ -1066,6 +1241,26 @@ public:
 		return false;
 	}
 
+	//convert id-based winner and affiliation to index-based
+	void id2ind_recode() {
+		//create id->index map
+		map< ulong, ulong > id2ind;
+		ulong i = 0;
+		for(cv_map::const_iterator p_cv = y_.begin(), end = y_.end(); p_cv != end; ++p_cv, ++i)
+			id2ind[p_cv->first] = i;
+
+		//convert affiliation
+		aff_map ind_aff;
+		i = 0;
+		for(aff_map::iterator p_aff = hcd_.aff_.begin(), end = hcd_.aff_.end(); p_aff != end; ++p_aff, ++i)
+			ind_aff[id2ind[p_aff->first]] = p_aff->second;
+		//replace aff
+		hcd_.aff_ = ind_aff;
+
+		//convert winners
+		for(i = 0; i < hcd_.w_.size(); ++i)
+			hcd_.w_[i] = id2ind[hcd_.w_[i]];
+	}
 };
 
 
@@ -1085,8 +1280,11 @@ void determ_annealing::find_clusters(const Matrix& data, const Matrix& f, ulong 
 	pimpl_->find_clusters(data, f, clust_num, maxiter);
 }
 
-const Matrix& determ_annealing::get_centers() const {
-	return pimpl_->y_;
+Matrix determ_annealing::get_centers() const {
+	Matrix y;
+	for(cv_map::const_iterator p_cv = pimpl_->y_.begin(), end = pimpl_->y_.end(); p_cv != end; ++p_cv)
+		y &= p_cv->second.loc_;
+	return y;
 }
 
 const ulMatrix& determ_annealing::get_ind() const {
@@ -1097,16 +1295,24 @@ const Matrix& determ_annealing::get_norms() const {
 	return pimpl_->hcd_.norms_;
 }
 
-const vvul& determ_annealing::get_aff() const {
-	return pimpl_->hcd_.aff_;
+vvul determ_annealing::get_aff() const {
+	vvul aff;
+	for(aff_map::const_iterator p_cv = pimpl_->hcd_.aff_.begin(), end = pimpl_->hcd_.aff_.end(); p_cv != end; ++p_cv)
+		aff.push_back(p_cv->second);
+
+	return aff;
 }
 
 void determ_annealing::calc_variances() const {
 	pimpl_->update_variances();
 }
 
-const Matrix& determ_annealing::get_variances() const {
-	return pimpl_->var_;
+Matrix determ_annealing::get_variances() const {
+	Matrix var;
+	for(cv_map::const_iterator p_cv = pimpl_->y_.begin(), end = pimpl_->y_.end(); p_cv != end; ++p_cv)
+		var.push_back(p_cv->second.var_, false);
+
+	return var;
 }
 
 }	//end of namespace DA

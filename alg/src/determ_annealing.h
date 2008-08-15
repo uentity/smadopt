@@ -17,16 +17,16 @@ public:
 	//clusterization using deterministic annealing
 	void find_clusters(const Matrix& data, const Matrix& f, ulong clust_num, ulong maxiter);
 
-	const Matrix& get_centers() const;
+	Matrix get_centers() const;
 
 	const ulMatrix& get_ind() const;
 
 	const Matrix& get_norms() const;
 
-	const vvul& get_aff() const;
+	vvul get_aff() const;
 
 	void calc_variances() const;
-	const Matrix& get_variances() const;
+	Matrix get_variances() const;
 
 private:
 	class da_impl;
