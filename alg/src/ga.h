@@ -94,7 +94,8 @@ namespace GA {
 		//Matrix SimpleHSPStepGA(const Matrix& thisPop, const Matrix& thisScore, Matrix& reps);
 		//vertical subpop step GA
 		Matrix VSPStepGA(const Matrix& thisPop, const Matrix& thisScore, ul_vec& elite_ind, ul_vec& addon_ind);
-		Matrix VSPStepGAalt(const Matrix& thisPop, const Matrix& thisScore, ul_vec& elite_ind, ul_vec& addon_ind);
+		Matrix VSPStepGAalt(const Matrix& thisPop, const Matrix& thisScore, ul_vec& elite_ind, ul_vec& addon_ind,
+			ulong nNewKids = 0);
 
 		ulMatrix FindRepeats(const Matrix where, const Matrix& what);
 		ulMatrix EnsureUnique(Matrix& nextPop, const Matrix& thisPop, const Matrix& thisScore, const ul_vec& elite_ind);
@@ -144,7 +145,8 @@ namespace GA {
 		Matrix CreationCall() {
 			return (this->*_pCreationFcn)();
 		}
-		inline Matrix StepGACall(const Matrix& thisPop, const Matrix& thisScore, ul_vec& elite_ind, ul_vec& addon_ind);
+		inline Matrix StepGACall(const Matrix& thisPop, const Matrix& thisScore, ul_vec& elite_ind, ul_vec& addon_ind,
+			ulong nKids = 0);
 
 		Matrix ScalingSimplest(const Matrix& scores);
 		Matrix ScalingPropMean(const Matrix& scores);

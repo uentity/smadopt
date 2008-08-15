@@ -1,7 +1,7 @@
 function stat = show_res_()
-global centers ind;
+%global centers ind;
 
-average = true;
+average = false;
 plot_2d = true;
 plot_3d = true;
 asteps = 10;
@@ -15,6 +15,8 @@ end
 p = load('t.txt');
 f = load('f.txt');
 real_c = load('real_c.txt');
+centers = [];
+ind = [];
 
 %do data processing
 if average
@@ -24,7 +26,7 @@ if average
         %run clustering
         !ga_client_win.exe 2 20
         %process experiment results
-        [pres, err] = process_data(p, f, real_c);
+        [centers, ind, pres, err] = process_data(p, f, real_c);
         %save results
         all_err = [all_err; err];
         all_res = [all_res pres];
@@ -36,7 +38,7 @@ if average
     disp('Overall statistics:');
     disp(stat);
 else
-    process_data(p, f, real_c);
+   [centers, ind] = process_data(p, f, real_c);
 end
 if plot_2d
     do_2d_plot(p, f, real_c, centers, ind);
@@ -46,7 +48,8 @@ if plot_3d
 end
 end
 
-function [pres, err] = process_data(p, f, real_c)
+function [centers, ind, pres, err] = process_data(p, f, real_c)
+%global centers ind;
 %load results
 centers = load('centers.txt');
 ind = load('ind.txt');
@@ -54,27 +57,28 @@ ind = ind + 1;
 
 disp('Real centers:'); disp(real_c);
 disp('Found centers:'); disp(centers);
+fc = centers;
 pres = [size(centers, 1)];
 rm = size(real_c, 1);
 err = [];
 for i=1:rm
     cur_c = real_c(i, :);
-    [cm, unused] = size(centers);
-    dist = repmat(cur_c, cm, 1) - centers;
+    cm = size(fc, 1);
+    dist = repmat(cur_c, cm, 1) - fc;
     dist = sum((dist.*dist)');
     [unused, min_ind] = min(dist);
     err = [err; sqrt(dist(min_ind))];
 %    sum_dist = sum_dist + sqrt(dist(min_ind));
 %    sum_dist2 = sum_dist2 + dist(min_ind);
-    centers(min_ind, :) = [];
-    if(isempty(centers)) 
+    fc(min_ind, :) = [];
+    if(isempty(fc)) 
         break; 
     end;
 end;
 %save results
-pres = [pres; rm - i; size(centers, 1); mean(err); std(err)];
+pres = [pres; rm - i; size(fc, 1); mean(err); std(err)];
 disp('Not found centers:'); disp(pres(2));
-disp('Redudant centers:'); disp(centers);
+disp('Redudant centers:'); disp(fc);
 disp('Errors in distances:'); disp(err);
 disp('Mean error:'); disp(pres(3));
 disp('Std variance of error:'); disp(pres(4));
@@ -86,8 +90,8 @@ function do_2d_plot(p, f, real_c, centers, ind)
 figure(1);
 clf;
 %sequental colored cluster plot
-%cm = colormap('lines');
-cm = gmap40(size(centers, 1));
+cm = colormap('lines');
+%cm = gmap40(size(centers, 1));
 hold on
 for i=1:size(centers, 1)
     ind_c = find(ind == i);
@@ -105,8 +109,8 @@ function do_3d_plot(p, f, real_c, centers, ind)
 figure(2)
 clf;
 %sequental colored cluster plot
-%cm = colormap('lines');
-cm = gmap40(size(centers, 1));
+cm = colormap('lines');
+%cm = gmap40(size(centers, 1));
 hold on
 for i=1:size(centers, 1)
     ind_c = find(ind == i);

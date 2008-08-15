@@ -1182,7 +1182,8 @@ Matrix ga::VSPStepGA(const Matrix& thisPop, const Matrix& thisScore, ul_vec& eli
 	return newPop;
 }
 
-Matrix ga::VSPStepGAalt(const Matrix& thisPop, const Matrix& thisScore, ul_vec& elite_ind, ul_vec& addon_ind)
+Matrix ga::VSPStepGAalt(const Matrix& thisPop, const Matrix& thisScore, ul_vec& elite_ind, ul_vec& addon_ind,
+	ulong nNewKids)
 {
 	Matrix subpop, old_subpop, cur_row, newPop, replacer;
 	ul_vec sp_ei, sp_ai, free_ind_t, free_ind;
@@ -1195,10 +1196,11 @@ Matrix ga::VSPStepGAalt(const Matrix& thisPop, const Matrix& thisScore, ul_vec& 
 	if(opt_.sepAddonForEachVSP)
 		//disable hybrid scheme
 		opt_.h_scheme = ClearGA;
+
 	//big GA
-	newPop <<= StepGA(thisPop, state_.mainScore, opt_.initRange, elite_ind, addon_ind);
+	newPop <<= StepGA(thisPop, state_.mainScore, opt_.initRange, elite_ind, addon_ind, 0, nNewKids);
 	if(opt_.sepAddonForEachVSP)
-		//restore gybrid scheme
+		//restore hybrid scheme
 		opt_.h_scheme = save;
 	else
 		//disable hybrid scheme
@@ -1220,7 +1222,7 @@ Matrix ga::VSPStepGAalt(const Matrix& thisPop, const Matrix& thisScore, ul_vec& 
 	ulong nKids;
 	ulong v_offs = 0, ind, rep_ind, pool_ind;
 	for(ulong i = 0; i < opt_.vspSize.size(); ++i) {
-		nKids = min<ulong>(newPop.row_num()*opt_.vspFract[i], newPop.row_num() - elite_ind.size());
+		nKids = min< ulong >(newPop.row_num() * opt_.vspFract[i], newPop.row_num() - elite_ind.size());
 		if(nKids == 0) {
 			v_offs += opt_.vspSize[i];
 			continue;
@@ -1349,16 +1351,16 @@ ulMatrix ga::EnsureUnique(Matrix& nextPop, const Matrix& thisPop, const Matrix& 
 	return reps;
 }
 
-Matrix ga::StepGACall(const Matrix& thisPop, const Matrix& thisScore, ul_vec& elite_ind, ul_vec& addon_ind)
+Matrix ga::StepGACall(const Matrix& thisPop, const Matrix& thisScore, ul_vec& elite_ind, ul_vec& addon_ind, ulong nKids)
 {
 	switch(opt_.subpopT) {
 		default:
 		case NoSubpops:
-			return StepGA(thisPop, thisScore, opt_.initRange, elite_ind, addon_ind);
+			return StepGA(thisPop, thisScore, opt_.initRange, elite_ind, addon_ind, 0, nKids);
 		case Horizontal:
 			return HSPStepGA(thisPop, thisScore, elite_ind, addon_ind);
 		case Vertical:
-			return VSPStepGAalt(thisPop, thisScore, elite_ind, addon_ind);
+			return VSPStepGAalt(thisPop, thisScore, elite_ind, addon_ind, nKids);
 	}
 }
 
@@ -1525,6 +1527,10 @@ void ga::prepare2run(int genomeLength, bool bReadOptFromIni)
 			break;
 	}
 
+	//current HSP implementation doesn't support MuPlusLambda scheme
+	if(opt_.scheme == MuPlusLambda && opt_.subpopT == Horizontal)
+		opt_.scheme = MuLambda;
+
 	if(opt_.creationT != Manual) _pCreationFcn = &ga::CreationUniform;
 
 	//switch(opt_.subpopT) {
@@ -1608,34 +1614,34 @@ Matrix ga::Run(FitnessFcnCallback FitFcn, int genomeLength, bool bReadOptFromIni
 
 		Matrix nextPop, nextScore;
 		state_.rep_ind.NewMatrix(0, 0);
-		//compute fitness
 		_pFitFunCallback = FitFcn;
-		state_.lastScore <<= FitnessFcnCall(state_.lastPop, state_.rep_ind);
-		state_.mainScore <<= state_.lastScore.GetColumns(state_.lastScore.col_num() - 1);
-		state_.nChromCount = state_.lastPop.row_num();
-		state_.last_min = state_.mainScore.Min();
-		//state_.lastPop = pop;
-		//state_.lastScore = score;
-		InformWorld();
-		++state_.nGen;
-		if(opt_.timeLimit > 0) {
-			if(time(NULL) - state_.tStart >= opt_.timeLimit)
-				state_.nStatus = FinishTimeLim;
-		}
 
+		//main GA cycle
 		for(; state_.nGen < opt_.generations && state_.nStatus == Working; ++state_.nGen)
 		{
-			//dBest = score.Min();
-
-			//save history
-			PushGeneration(state_.lastPop, state_.lastScore, state_.rep_ind);
-			//migration
-			Migrate(state_.lastPop, state_.lastScore, state_.elite_ind);
-			//next step
-			//nextPop = (this->*_pStepGAFcn)(state_.lastPop, state_.lastScore, state_.elite_ind);
-			nextPop <<= StepGACall(state_.lastPop, state_.lastScore, state_.elite_ind, state_.addon_ind);
-			state_.rep_ind <<= EnsureUnique(nextPop, state_.lastPop, state_.lastScore, state_.elite_ind);
+			if(state_.nGen > 0) {
+				//next step
+				nextPop <<= StepGACall(state_.lastPop, state_.lastScore, state_.elite_ind, state_.addon_ind, opt_.popSize);
+				//here we always get nextPop with popSize rows
+				state_.rep_ind <<= EnsureUnique(nextPop, state_.lastPop, state_.lastScore, state_.elite_ind);
+			}
+			else {
+				//first step
+				//fill nextPop manually
+				nextPop = state_.lastPop;
+				state_.lastPop.clear();
+			}
+			//here we always get nextPop with popSize rows
+			//calc FF values
 			nextScore <<= FitnessFcnCall(nextPop, state_.rep_ind);
+			//here we always get nextScore with popSize rows
+
+			//add new generation to history
+			//rep_ind should be valid, so PushGeneration goes _before_ Migrate
+			PushGeneration(nextPop, nextScore, state_.rep_ind);
+			//migration
+			Migrate(nextPop, nextScore, state_.elite_ind);
+			//here rep_ind is invalid, but we don't need it _values_ anymore
 
 			if(opt_.subpopT == Vertical)
 				state_.mainScore <<= nextScore.GetColumns(state_.lastScore.col_num() - 1);
@@ -1648,7 +1654,7 @@ Matrix ga::Run(FitnessFcnCallback FitFcn, int genomeLength, bool bReadOptFromIni
 				state_.nChromCount += nextScore.row_num();
 
 
-			//gybrid scheme - debug version
+			//hybrid scheme - debug version
 			//if(opt_.h_scheme != ClearGA) {
 			//	Matrix g_chrom, g_score;
 			//	vector<ulong> g_rep;
@@ -1671,18 +1677,6 @@ Matrix ga::Run(FitnessFcnCallback FitFcn, int genomeLength, bool bReadOptFromIni
 			//		nextScore[nInd] = g_score[0];
 			//	}
 			//}
-
-			switch(opt_.scheme) {
-				case MuPlusLambda:
-					state_.lastPop <<= nextPop & state_.lastPop;
-					state_.lastScore <<= nextScore & state_.lastScore;
-					_filterParents(state_.lastPop, state_.lastScore, opt_.popSize);
-					break;
-				default:
-					state_.lastPop <<= nextPop;
-					state_.lastScore <<= nextScore;
-					break;
-			}
 
 			double curMin = state_.mainScore.Min();
 			if(curMin == state_.last_min)
@@ -1716,6 +1710,20 @@ Matrix ga::Run(FitnessFcnCallback FitFcn, int genomeLength, bool bReadOptFromIni
 			}
 			else if(opt_.timeLimit > 0 && double(clock() - state_.tStart) / CLOCKS_PER_SEC >= opt_.timeLimit) {
 				state_.nStatus = FinishTimeLim;
+			}
+
+			//fill last generation depenging on scheme used
+			switch(opt_.scheme) {
+				case MuPlusLambda:
+					state_.lastPop &= nextPop;
+					state_.lastScore &= nextScore;
+					//disabled - now done in StepGACall if needed
+					//_filterParents(state_.lastPop, state_.lastScore, opt_.popSize);
+					break;
+				default:
+					state_.lastPop <<= nextPop;
+					state_.lastScore <<= nextScore;
+					break;
 			}
 		}
 
@@ -1766,37 +1774,52 @@ void ga::Start(double* pInitPop, int genomeLength, bool bReadOptFromIni)
 
 bool ga::NextPop(double* pPrevScore, double* pNextPop, unsigned long* pPopSize)
 {
+	//rep_ind should stay valid between calls to NextPop
+
 	bool bRes = false;
 	try {
 		if(state_.nStatus != Working) {
 			if(state_.nStatus != Idle) FinishGA(pNextPop, pPrevScore);
-			throw ga_except("Object isn't in working state! Call Start before NextPop!");
+			throw ga_except("GA isn't in working state! Call Start before NextPop!");
 		}
 
-		Matrix newScore(state_.lastScore.row_num() - state_.rep_ind.row_num(), state_.lastScore.col_num(), pPrevScore);
+		Matrix lastScore(opt_.popSize - state_.rep_ind.row_num(), state_.lastScore.col_num(), pPrevScore);
 		if(opt_.calcUnique && state_.rep_ind.row_num() > 0) {
-			newScore <<= _restoreScore(newScore, state_.rep_ind);
-			//Matrix repScore(state_.rep_ind.size(), 1);
-			//for(ulong i=0; i<state_.rep_ind.size(); ++i)
-			//	repScore[i] = state_.lastScore[state_.rep_ind[i]];
-			//state_.lastScore = repScore & newScore;
+			lastScore <<= _restoreScore(lastScore, state_.rep_ind);
 		}
-		//else state_.lastScore.SetBuffer(pPrevScore);
+		//here we have lastScore of popSize rows
+		//correct lastScore for the case of Mu+lambda
 		if(opt_.scheme == MuPlusLambda && state_.nGen > 0) {
-			state_.lastScore &= newScore;
-			_filterParents(state_.lastPop, state_.lastScore, opt_.popSize);
+			//make full.score table
+			state_.lastScore <<= lastScore & state_.lastScore;
+			//_filterParents(state_.lastPop, state_.lastScore, opt_.popSize);
 		}
-		else state_.lastScore <<= newScore;
+		else state_.lastScore <<= lastScore;
+
+		//do migration
+		Migrate(state_.lastPop, state_.lastScore, state_.elite_ind);
+		//obtain next population
+		Matrix nextPop = StepGACall(state_.lastPop, state_.lastScore, state_.elite_ind, state_.addon_ind, opt_.popSize);
+
+		//cut state_.lastPop & lastScore to point only to exactly one last generation
+		if(opt_.scheme == MuPlusLambda && state_.nGen > 0) {
+			state_.lastPop <<= state_.lastPop.GetRows(0, opt_.popSize);
+			state_.lastScore <<= state_.lastScore.GetRows(0, opt_.popSize);
+		}
+
+		//save history
+		PushGeneration(state_.lastPop, state_.lastScore, state_.rep_ind);
+
+		//count calculated FF values
+		if(opt_.calcUnique)
+			state_.nChromCount += opt_.popSize - state_.rep_ind.row_num();
+		else
+			state_.nChromCount += opt_.popSize;
 
 		if(opt_.subpopT == Vertical)
 			state_.mainScore <<= state_.lastScore.GetColumns(state_.lastScore.col_num() - 1);
 		else
-			state_.mainScore <<= state_.lastScore;
-
-		if(opt_.calcUnique)
-			state_.nChromCount += state_.lastPop.row_num() - state_.rep_ind.row_num();
-		else
-			state_.nChromCount += state_.lastPop.row_num();
+			state_.mainScore = lastScore;
 
 		//find current best
 		double curMin = state_.mainScore.Min();
@@ -1804,17 +1827,6 @@ bool ga::NextPop(double* pPrevScore, double* pNextPop, unsigned long* pPopSize)
 			++state_.nStallGen;
 		else state_.nStallGen = 0;
 		state_.last_min = curMin;
-
-		////find best addon
-		//if(state_.addon_ind.size() > 0) {
-		//	ul_vec::iterator pos(state_.addon_ind.begin());
-		//	state_.best_addon = state_.mainScore[*pos];
-		//	for(++pos; pos != state_.addon_ind.end(); ++pos) {
-		//		if(state_.mainScore[*pos] < state_.best_addon)
-		//			state_.best_addon = state_.mainScore[*pos];
-		//	}
-		//}
-		//else state_.best_addon = 0;
 
 		InformWorld();
 
@@ -1852,18 +1864,8 @@ bool ga::NextPop(double* pPrevScore, double* pNextPop, unsigned long* pPopSize)
 //			}
 //		}
 
-		//save history
-		PushGeneration(state_.lastPop, state_.lastScore, state_.rep_ind);
-		//migration
-		Migrate(state_.lastPop, state_.lastScore, state_.elite_ind);
-		//next step
-		//Matrix nextPop = (this->*_pStepGAFcn)(state_.lastPop, state_.lastScore, state_.elite_ind);
-		Matrix nextPop = StepGACall(state_.lastPop, state_.lastScore, state_.elite_ind, state_.addon_ind);
+		//find repeats - search only _one_ last generation
 		state_.rep_ind <<= EnsureUnique(nextPop, state_.lastPop, state_.lastScore, state_.elite_ind);
-		//for testing
-		//Matrix ri = FindRepeats(state_.lastPop, nextPop);
-		//state_.nlsCount += nextPop.row_num() - ri.row_num();
-		//opt_.globalSearch = save;
 
 		//copy next population
 		Matrix real_pop;
@@ -1879,7 +1881,7 @@ bool ga::NextPop(double* pPrevScore, double* pNextPop, unsigned long* pPopSize)
 		//ga main scheme
 		switch(opt_.scheme) {
 			case MuPlusLambda:
-				state_.lastPop &= nextPop;
+				state_.lastPop <<= nextPop & state_.lastPop;
 				break;
 			default:
 				state_.lastPop <<= nextPop;
@@ -1926,8 +1928,8 @@ void ga::InformWorld(void)
 		if(opt_.sepAddonForEachVSP) {
 			Matrix score = state_.mainScore;
 			for(ulong i = 0; i < state_.addon_ind.size(); ++i) {
-				if(opt_.subpopT == Vertical && i % opt_.addonCount == 0)
-					score <<= state_.lastScore.GetColumns(i/opt_.addonCount);
+				if(opt_.subpopT == Vertical && (i % opt_.addonCount == 0))
+					score <<= state_.lastScore.GetColumns(i / opt_.addonCount);
 				state_.addons_ff[i] = score[state_.addon_ind[i]];
 			}
 		}
