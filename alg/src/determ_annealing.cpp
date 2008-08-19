@@ -16,7 +16,12 @@
 #define T_EPS 0.0001
 #define MERGE_EPS 0.005
 #define MERGE_PATIENCE 3
+#define MERGE_THRESH 0.1
 #define PERTURB_MULT 0.05
+#define EXPL_MAXGROW 1.5
+#define EXPL_LENGTH 3
+#define EXPL1_LENGTH 3
+#define COOL_FACTOR 22.5
 
 using namespace GA;
 using namespace prg;
@@ -412,7 +417,7 @@ public:
 
 	da_impl()
 		: prob_thresh_(1.0/3), patience_(0.001), alpha_(0.9), alpha_max_(0.99), Tmin_(0.01), dither_amount_(0.005),
-		patience_cycles_(10), expl_length_(3), kill_zero_prob_cent_(true), kill_zero_var_cent_(true)
+		patience_cycles_(10), expl_length_(EXPL_LENGTH), kill_zero_prob_cent_(true), kill_zero_var_cent_(true)
 
 	{}
 
@@ -998,7 +1003,7 @@ public:
 		//perform classic merge step first
 		//bool ret = false;
 		bool ret = merge_step_classic();
-		//return ret;
+		return ret;
 
 		//update distances to parents
 		update_pdist();
@@ -1052,7 +1057,12 @@ public:
 		Matrix dist;
 		//compute distance between p_xy
 		//norm_tools::calc_dist_matrix< norm_tools::l2 >(p_yx, dist);
-		norm_tools::calc_dist_matrix< norm_tools::l2 >(y, dist);
+		norm_tools::dist_stat stat = norm_tools::calc_dist_matrix< norm_tools::l2 >(y, dist);
+
+		//dynamically calc min distance between centers
+		double merge_thresh = MERGE_EPS;
+		if(y_.size() > 2)
+			merge_thresh = stat.mean_nn_ * MERGE_THRESH;
 
 		//DEBUG
 		//dist.Resize(1, dist.row_num() * dist.col_num());
@@ -1060,8 +1070,8 @@ public:
 		Matrix::indMatrix pairs;
 		pairs = norm_tools::closest_pairs< norm_tools::l2 >(dist);
 
-		//find thresold
-		ulong merge_cnt = (ulong)(find_if(dist.begin(), dist.end(), bind2nd(greater< double >(), MERGE_EPS))
+		//find merge cutoff
+		ulong merge_cnt = (ulong)(find_if(dist.begin(), dist.end(), bind2nd(greater< double >(), merge_thresh))
 									- dist.begin());
 		if(merge_cnt == dist.size())
 			//nothing to merge
@@ -1104,8 +1114,11 @@ public:
 
 		struct expl_trigger {
 			static ulong cancel_expl(da_impl& di, ulong rev_steps) {
+				//check for "false" explosion that can occur from the beginning
+				if(di.log_.head(rev_steps).y_.size() == 1) return 0;
+
 				//explosion detected
-				cout << "Explosion detected! Rolling " << rev_steps << " steps back" << endl;
+				cout << endl << "EXPLOSION detected! Rolling " << rev_steps << " steps back" << endl << endl;
 				(da_data&)(di) = di.log_.head(rev_steps);
 				//update variances
 				di.update_variances();
@@ -1130,7 +1143,7 @@ public:
 				)
 		{
 			//freeze centers number
-			ret = expl_trigger::cancel_expl(*this, expl_steps - 1);
+			ret = expl_trigger::cancel_expl(*this, expl_steps);
 			//zero expl_steps counter
 			expl_steps = 0;
 		}
@@ -1139,6 +1152,15 @@ public:
 			//zero expl_steps counter
 			expl_steps = 0;
 		cout << "expl_steps = " << expl_steps << endl;
+
+		//another explosion check
+		//if number of centers has grown more than EXPL_MAXGROW times from expl_length_ steps back to current iteration
+		//then explosion is detected and we rewind 1 step back
+		if(cycle > EXPL1_LENGTH) {
+			ulong s = log_.head(EXPL1_LENGTH).y_.size();
+			if(s > 1 && double(y_.size()) > double(s * EXPL_MAXGROW))
+				ret = expl_trigger::cancel_expl(*this, 1);
+		}
 
 		//display dCnum / dT info
 		cout << "dCnum/dT = " << log_.head_dT() << endl << endl;
@@ -1183,6 +1205,9 @@ public:
 		T_ = calc_var_honest(*this, 0, px) * 2;
 		T_ *= 1.2;
 		beta_ = 1 / T_;
+
+		//calc Tmin
+		Tmin_ = T_ / COOL_FACTOR;
 
 		//clear history
 		log_.clear();
