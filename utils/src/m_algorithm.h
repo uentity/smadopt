@@ -71,6 +71,9 @@ struct _CLASS_DECLSPEC norm_tools {
 
 	template< norm_types nt >
 	_CLASS_DECLSPEC static Matrix::indMatrix closest_pairs(Matrix& dist);
+
+	//template< norm_types nt >
+	static Matrix::indMatrix sort_distm2(Matrix& dist);
 };
 
 #endif

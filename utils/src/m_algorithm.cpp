@@ -312,6 +312,24 @@ Matrix::indMatrix norm_tools::closest_pairs(Matrix& dist) {
 //instantiate for l2
 template _CLASS_DECLSPEC Matrix::indMatrix norm_tools::closest_pairs< norm_tools::l2 >(Matrix&);
 
+//template< norm_types nt >
+Matrix::indMatrix norm_tools::sort_distm2(Matrix& dist) {
+	Matrix::indMatrix ind;
+	ind.reserve(dist.row_num() * (dist.row_num() - 1));
+
+	Matrix drow;
+	for(ulong i = 0; i < dist.row_num(); ++i) {
+		drow <<= dist.GetRows(i);
+		ind &= drow.RawSort();
+		dist.SetRows(drow, i);
+	}
+	//remove first zero column
+	dist.DelColumns(0);
+	ind.DelColumns(0);
+	return ind;
+}
+
+
 //instantiations for gcc
 #if defined(UNIX) && defined(__GNUC__)
 template Matrix norm_tools::vm_norm2< norm_tools::l2 >(const Matrix&, const Matrix&);

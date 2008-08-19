@@ -1,4 +1,4 @@
-function stat = show_res_()
+function [all_res stat] = show_res_()
 %global centers ind;
 
 average = false;
