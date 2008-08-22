@@ -21,6 +21,7 @@
 #define EXPL_MAXGROW 1.5
 #define EXPL_LENGTH 3
 #define EXPL1_LENGTH 3
+#define EXPL_THRESH_FACTOR 11.25
 #define COOL_FACTOR 22.5
 
 using namespace GA;
@@ -393,9 +394,11 @@ public:
 	double prob_thresh_;
 	double patience_;
 	double alpha_, alpha_max_;
-	double Tmin_;
+	double Tmin_, Texpl_;
 	double dither_amount_;
-	ulong patience_cycles_, expl_length_;
+	double merge_thresh_;
+	ulong patience_cycles_, expl_length_, expl_steps_;
+	ulong expl_det_start_;
 	bool recalc_px_, kill_zero_prob_cent_, kill_zero_var_cent_;
 
 	hard_clusters_data hcd_;
@@ -440,7 +443,7 @@ public:
 					cur_aff.push_back(i);
 				if(p_cv == dad.y_.begin() || cur_p > max_p) {
 					max_p = cur_p;
-					winner <<= p_cv->first;
+					winner = p_cv->first;
 				}
 			}
 
@@ -968,6 +971,10 @@ public:
 		Matrix perturb(1, x_.col_num());
 		generate(perturb.begin(), perturb.end(), prg::rand01);
 		perturb -= 0.5; perturb *= y.norm2() * PERTURB_MULT;
+		//calc length multiplier, so that
+		//distance between perturbed & original cv's will be slightly less than merge_thresh_
+		//double mult = merge_thresh_ * 0.98 / perturb.norm2();
+		//perturb *= mult;
 
 		//add new center
 		src->second.p_ *= 0.5;
@@ -1060,9 +1067,9 @@ public:
 		norm_tools::dist_stat stat = norm_tools::calc_dist_matrix< norm_tools::l2 >(y, dist);
 
 		//dynamically calc min distance between centers
-		double merge_thresh = MERGE_EPS;
+		merge_thresh_ = MERGE_EPS;
 		if(y_.size() > 2)
-			merge_thresh = stat.mean_nn_ * MERGE_THRESH;
+			merge_thresh_ = stat.mean_nn_ * MERGE_THRESH;
 
 		//DEBUG
 		//dist.Resize(1, dist.row_num() * dist.col_num());
@@ -1071,7 +1078,7 @@ public:
 		pairs = norm_tools::closest_pairs< norm_tools::l2 >(dist);
 
 		//find merge cutoff
-		ulong merge_cnt = (ulong)(find_if(dist.begin(), dist.end(), bind2nd(greater< double >(), merge_thresh))
+		ulong merge_cnt = (ulong)(find_if(dist.begin(), dist.end(), bind2nd(greater< double >(), merge_thresh_))
 									- dist.begin());
 		if(merge_cnt == dist.size())
 			//nothing to merge
@@ -1108,9 +1115,8 @@ public:
 		return mc.size() > 0;
 	}
 
-	//! \return - if nonzero then explosion is detected and returned number of clusters should be fixed
-	ulong log_step(ulong cycle) {
-		static ulong expl_steps = 0;
+	ulong detect_explosion(ulong cycle) {
+		//static ulong expl_steps = 0;
 
 		struct expl_trigger {
 			static ulong cancel_expl(da_impl& di, ulong rev_steps) {
@@ -1128,8 +1134,9 @@ public:
 			}
 		};
 
-		//save history
-		log_.push_back(*this);
+		//check whether we should try to detect explosion
+		if(T_ > Texpl_) return 0;
+		else if(expl_det_start_ == 0) expl_det_start_ = cycle;
 
 		//explosion detection
 		//if we had 3 sequental steps of positive dCnum / dbeta
@@ -1137,34 +1144,42 @@ public:
 		//then roll 4 steps back and freeze centers number
 		ulong ret = 0;
 		double dt = log_.head_dT();
-		if(cycle == 0 || dt < -EPS) expl_steps = 0;
-		else if(++expl_steps >= expl_length_ 	//too long cluster number increasing
+		if(cycle == 0 || dt < -EPS) expl_steps_ = 0;
+		else if(++expl_steps_ >= expl_length_ 	//too long cluster number increasing
 				//|| y_.row_num() >= log_.head(expl_steps).y_.row_num() * 2		//too fast increasing
 				)
 		{
 			//freeze centers number
-			ret = expl_trigger::cancel_expl(*this, expl_steps);
+			ret = expl_trigger::cancel_expl(*this, expl_steps_ - 1);
 			//zero expl_steps counter
-			expl_steps = 0;
+			expl_steps_ = 0;
 		}
 
 		if(dt <= EPS)
 			//zero expl_steps counter
-			expl_steps = 0;
-		cout << "expl_steps = " << expl_steps << endl;
+			expl_steps_ = 0;
+		cout << "expl_steps = " << expl_steps_ << endl;
 
 		//another explosion check
 		//if number of centers has grown more than EXPL_MAXGROW times from expl_length_ steps back to current iteration
 		//then explosion is detected and we rewind 1 step back
-		if(cycle > EXPL1_LENGTH) {
-			ulong s = log_.head(EXPL1_LENGTH).y_.size();
-			if(s > 1 && double(y_.size()) > double(s * EXPL_MAXGROW))
-				ret = expl_trigger::cancel_expl(*this, 1);
-		}
+		//if(cycle > expl_det_start_ + EXPL1_LENGTH) {
+		//	ulong s = log_.head(EXPL1_LENGTH).y_.size();
+		//	if(s > 1 && double(y_.size()) > double(s * EXPL_MAXGROW))
+		//		ret = expl_trigger::cancel_expl(*this, 1);
+		//}
 
+		return ret;
+	}
+
+	//! \return - if nonzero then explosion is detected and returned number of clusters should be fixed
+	ulong log_step(ulong cycle) {
+		//save history
+		log_.push_back(*this);
 		//display dCnum / dT info
 		cout << "dCnum/dT = " << log_.head_dT() << endl << endl;
-		return ret;
+
+		return detect_explosion(cycle);
 	}
 
 	//clusterization using deterministic annealing
@@ -1208,10 +1223,24 @@ public:
 
 		//calc Tmin
 		Tmin_ = T_ / COOL_FACTOR;
+		//calc Texpl, from which explosion detection starts
+		Texpl_ = T_ / EXPL_THRESH_FACTOR;
+
+		//display startup info
+		cout << "-------------------------------------------------------------------" << endl;
+		cout << "DA startup conditions listed below" << endl;
+		cout << "Initial T: " << T_ << endl;
+		cout << "Minimum T (main stop condition): " << Tmin_ << endl;
+		cout << "Explosion detection starts from T: " << Texpl_ << endl;
+		cout << "-------------------------------------------------------------------" << endl << endl;
 
 		//clear history
 		log_.clear();
 		//hist_.push_back(*this);
+
+		//zero explosion counters
+		expl_steps_ = 0;
+		expl_det_start_ = 0;
 
 		//main cycle starts here
 		bool spin_update;

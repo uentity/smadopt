@@ -1,15 +1,15 @@
-function [all_res stat] = show_res_()
+function [all_res stat all_cent all_ind] = show_res_()
 %global centers ind;
 
-average = false;
+average = true;
 plot_2d = true;
 plot_3d = true;
 asteps = 10;
 
-if average
-    plot_2d = false;
-    plot_3d = false;
-end
+%if average
+%    plot_2d = false;
+%    plot_3d = false;
+%end
 
 %load data
 p = load('t.txt');
@@ -22,14 +22,18 @@ ind = [];
 if average
     all_err = [];
     all_res = [];
+    all_cent = {};
+    all_ind = {};
     for i = 1:asteps
         %run clustering
-        !ga_client_win.exe 2 20
+        !ga_client_win.exe 1 20
         %process experiment results
-        [centers, ind, pres, err] = process_data(p, f, real_c);
+        [centers, ind, pres, err] = process_data(p, f, real_c, plot_2d, plot_3d);
         %save results
         all_err = [all_err; err];
         all_res = [all_res pres];
+        all_cent{i} = centers;
+        all_ind{i} = ind;
     end
     disp('%============================================================================%');
     %calc stat
@@ -40,15 +44,9 @@ if average
 else
    [centers, ind] = process_data(p, f, real_c);
 end
-if plot_2d
-    do_2d_plot(p, f, real_c, centers, ind);
-end
-if plot_3d
-    do_3d_plot(p, f, real_c, centers, ind);
-end
 end
 
-function [centers, ind, pres, err] = process_data(p, f, real_c)
+function [centers, ind, pres, err] = process_data(p, f, real_c, plot_2d, plot_3d)
 %global centers ind;
 %load results
 centers = load('centers.txt');
@@ -83,6 +81,12 @@ disp('Errors in distances:'); disp(err);
 disp('Mean error:'); disp(pres(3));
 disp('Std variance of error:'); disp(pres(4));
 disp('%-----------------------------------------------------------------------------%');
+if plot_2d
+    do_2d_plot(p, f, real_c, centers, ind);
+end
+if plot_3d
+    do_3d_plot(p, f, real_c, centers, ind);
+end
 end
 
 function do_2d_plot(p, f, real_c, centers, ind)
