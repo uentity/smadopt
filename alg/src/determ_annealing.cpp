@@ -19,9 +19,9 @@
 #define MERGE_THRESH 0.1
 #define PERTURB_MULT 0.05
 #define EXPL_MAXGROW 1.5
-#define EXPL_LENGTH 3
+#define EXPL_LENGTH 4
 #define EXPL1_LENGTH 3
-#define EXPL_THRESH_FACTOR 11.25
+#define EXPL_THRESH_FACTOR 5
 #define COOL_FACTOR 22.5
 
 using namespace GA;
@@ -68,12 +68,48 @@ struct cv_info {
 	//variance of cluster
 	double var_;
 
-	//ctor
+	//ctors
 	cv_info() : parent_(0), pdist_(0), pat_steps_(0) {};
 	cv_info(ulong parent, double pdist) : parent_(parent), pdist_(pdist), pat_steps_(0) {};
 	cv_info(const Matrix& loc, ulong parent, double pdist)
 		: loc_(loc), parent_(parent), pdist_(pdist), pat_steps_(0)
 	{}
+
+	//copy ctor - ensure that loc_ is copied
+	cv_info(const cv_info& cvi)
+		: parent_(cvi.parent_), pdist_(cvi.pdist_), pat_steps_(cvi.pat_steps_),
+		p_(cvi.p_), var_(cvi.var_)
+	{
+		loc_ = cvi.loc_;
+		px_ = cvi.px_;
+	}
+
+	//swaps 2 cv_info structures
+	void swap(cv_info& cvi) {
+		Matrix tmp;
+
+		//swap loc_
+		tmp = loc_;
+		loc_ = cvi.loc_;
+		cvi.loc_ = tmp;
+		//swap px_
+		tmp = px_;
+		px_ = cvi.px_;
+		cvi.px_ = tmp;
+
+		//swap other
+		std::swap(parent_, cvi.parent_);
+		std::swap(pdist_, cvi.pdist_);
+		std::swap(pat_steps_, cvi.pat_steps_);
+		std::swap(p_, cvi.p_);
+		std::swap(var_, cvi.var_);
+	}
+
+	//assignment through swap
+	cv_info& operator=(const cv_info& cvi) {
+		cv_info(cvi).swap(*this);
+		return *this;
+	}
 };
 
 typedef map< ulong, cv_info > cv_map;
@@ -106,6 +142,13 @@ struct da_data {
 	double beta_;
 
 	da_data& operator =(const da_hist& hist);
+
+	void clear() {
+		y_.clear();
+		x_.clear();
+		T_ = 0;
+		beta_ = 0;
+	}
 
 	//generate new unique identifier for cv_map
 	ulong cv_id() const {
@@ -207,7 +250,7 @@ struct da_data {
 //structure to track annealing process
 struct da_hist {
 	cv_map y_;
-	Matrix p_y;
+	//Matrix p_y;
 	double T_;
 	double beta_;
 
@@ -427,6 +470,8 @@ public:
 	void calc_winners(const da_data& dad, hard_clusters_data& hcd) const
 	{
 		hcd.aff_.clear();
+		//hcd.norms_.Resize(1, dad.x_.row_num());
+		//hcd.w_.Resize(1, dad.x_.row_num());
 
 		//normalize threshold
 		double cur_pt = prob_thresh_ / dad.y_.size();
@@ -456,10 +501,9 @@ public:
 	//calc affiliation for particular cluster only
 	void calc_aff(const da_data& dad, hard_clusters_data& hcd, ulong cv_id) const
 	{
-		aff_map::iterator res = hcd.aff_.find(cv_id);
-		if(res == hcd.aff_.end()) return;
+		if(dad.y_.find(cv_id) == dad.y_.end()) return;
 		//clear affiliation list
-		ul_vec& cur_aff = res->second;
+		ul_vec& cur_aff = hcd.aff_[cv_id];
 		cur_aff.clear();
 
 		//normalize threshold
@@ -478,6 +522,8 @@ public:
 	void calc_winners_kmeans(const da_data& dad, hard_clusters_data& hcd) const {
 		//clear affiliation list
 		hcd.aff_.clear();
+		//hcd.norms_.Resize(1, dad.x_.row_num());
+		//hcd.w_.Resize(1, dad.x_.row_num());
 
 		Matrix dv;
 		hcd.e_ = 0;
@@ -836,10 +882,13 @@ public:
 		Matrix::r_iterator cur_pyx;
 		for(cv_map::iterator p_cv = y_.begin(), end = y_.end(); p_cv != end; ++p_cv) {
 			//setup
-			cv_info& cvi = p_cv->second;
-			y <<= cvi.loc_;
-			cur_py = cvi.p_;
-			cur_pyx = cvi.px_.begin();
+			cv_info& src_cvi = p_cv->second;
+			cv_info& dst_cvi = res[p_cv->first];
+			//those source values shouldn't change during whole update epoch
+			y <<= src_cvi.loc_;
+			cur_py = src_cvi.p_;
+			//values p(y_i|x) can be calculated directly to destination
+			cur_pyx = dst_cvi.px_.begin();
 
 			//get p(x) distribution
 			const Matrix& px = (this->*px_fcn_)(p_cv->first);
@@ -850,11 +899,11 @@ public:
 			new_y = 0;
 			for(ulong j = 0; j < x_.row_num(); ++j, ++cur_pyx) {
 				x <<= x_.GetRows(j);
-				//first calc p_yx
+				//first calc numerator of p_yx
 				pyx_num = cur_py * exp(-(*norm2_fcn_)(x, y) * beta_);
 				//next calc denominator for further calculation of p_yx
 				pyx_den = 0;
-				for(cv_map::iterator p_cv1 = y_.begin(), end1 = y_.end(); p_cv1 != end1; ++p_cv1) {
+				for(cv_map::iterator p_cv1 = y_.begin(); p_cv1 != end; ++p_cv1) {
 					if(p_cv->first == p_cv1->first) continue;
 					//pyx_den += p(y[k]) * exp(-||x - y[k]||^2 / T)
 					pyx_den += p_cv1->second.p_ * exp(-(*norm2_fcn_)(x, p_cv1->second.loc_) * beta_);
@@ -878,9 +927,10 @@ public:
 			new_y /= new_py;
 			//update error
 			hcd_.e_ += (*norm_fcn_)(y, new_y);
+
 			//save values
-			res[p_cv->first].loc_ = new_y;
-			res[p_cv->first].p_ = new_py;
+			dst_cvi.loc_ = new_y;
+			dst_cvi.p_ = new_py;
 		}	//end of centers loop
 
 		//complete mse calculation
@@ -998,7 +1048,8 @@ public:
 
 		//check every center for bifurcation
 		ulong cnt = y_.size();
-		for(cv_map::iterator p_cv = y_.begin(), end = y_.end(); p_cv != end && y_.size() < max_clust; ++p_cv)
+		cv_map::iterator p_cv = y_.begin();
+		for(ulong i = 0; i < cnt && y_.size() < max_clust; ++i, ++p_cv)
 			if(T_ < 2 * p_cv->second.var_) fork_center(p_cv->first);
 		return true;
 	}
@@ -1053,6 +1104,7 @@ public:
 		//create y matrix & ind2id map
 		map< ulong, ulong > ind2id;
 		Matrix y;
+		y.reserve(y_.size() * x_.col_num());
 		ulong i = 0;
 		for(cv_map::const_iterator p_cv = y_.begin(), end = y_.end(); p_cv != end; ++p_cv, ++i) {
 			y &= p_cv->second.loc_;
@@ -1101,11 +1153,13 @@ public:
 				continue;
 			//mark centers as merged
 			mc.insert(cv1); mc.insert(cv2);
+			//transform indexes to IDs
+			cv1 = ind2id[cv1]; cv2 = ind2id[cv2];
 			//mark m2 to be erased
-			to_kill.push_back(ind2id[cv2]);
+			to_kill.push_back(cv2);
 
 			//update prob of cv1
-			y_[ind2id[cv1]].p_ += y_[ind2id[cv2]].p_;
+			y_[cv1].p_ += y_[cv2].p_;
 		}
 
 		//second pass - clear existing codebook
@@ -1163,11 +1217,11 @@ public:
 		//another explosion check
 		//if number of centers has grown more than EXPL_MAXGROW times from expl_length_ steps back to current iteration
 		//then explosion is detected and we rewind 1 step back
-		//if(cycle > expl_det_start_ + EXPL1_LENGTH) {
-		//	ulong s = log_.head(EXPL1_LENGTH).y_.size();
-		//	if(s > 1 && double(y_.size()) > double(s * EXPL_MAXGROW))
-		//		ret = expl_trigger::cancel_expl(*this, 1);
-		//}
+//		if(cycle > expl_det_start_ + EXPL1_LENGTH) {
+//			ulong s = log_.head(EXPL1_LENGTH).y_.size();
+//			if(s > 1 && double(y_.size()) > double(s * EXPL_MAXGROW))
+//				ret = expl_trigger::cancel_expl(*this, 1);
+//		}
 
 		return ret;
 	}
@@ -1193,6 +1247,7 @@ public:
 		norm2_fcn_ = &l2_norm2;
 
 		//initialization
+		clear();
 		f_ = f;
 		x_ = data;
 		cv_info cv1(0, 0);
@@ -1203,8 +1258,8 @@ public:
 		//save firsr cv
 		y_[0] = cv1;
 
-		hcd_.w_.Resize(x_.row_num());
-		hcd_.norms_.Resize(x_.row_num());
+		hcd_.w_.Resize(1, x_.row_num());
+		hcd_.norms_.Resize(1, x_.row_num());
 
 		//set position of the first center
 		//signal to recalculate static px (if used)
@@ -1215,6 +1270,8 @@ public:
 		recalc_px_ = false;
 		//all points initially belongs to single center that is placed in the M(x)
 		null_step();
+		//debug
+		//cv1 = y_[0];
 
 		//set initial T > 2 * max variation along principal axis of all data
 		T_ = calc_var_honest(*this, 0, px) * 2;
@@ -1243,7 +1300,7 @@ public:
 		expl_det_start_ = 0;
 
 		//main cycle starts here
-		bool spin_update;
+		bool spin_update = false;
 		for(cycle_ = 0; cycle_ < maxiter; ++cycle_) {
 			for(ulong i = 0; i < maxiter; ++i) {
 				//update probabilities and centers positions
@@ -1251,7 +1308,6 @@ public:
 					update_epoch();
 					spin_update = merge_step();
 					while(spin_update && merge_step()) {};
-				//merge centers
 				} while(spin_update);
 
 				//convergence test

@@ -1,7 +1,7 @@
 function [all_res stat all_cent all_ind] = show_res_()
 %global centers ind;
 
-average = true;
+average = false;
 plot_2d = true;
 plot_3d = true;
 asteps = 10;
@@ -42,7 +42,7 @@ if average
     disp('Overall statistics:');
     disp(stat);
 else
-   [centers, ind] = process_data(p, f, real_c);
+   [centers, ind] = process_data(p, f, real_c, plot_2d, plot_3d);
 end
 end
 
