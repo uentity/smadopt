@@ -12,7 +12,7 @@
 #include <fstream>
 #include <iterator>
 
-#define EPS 0.0000001
+#define EPS 0.000000001
 #define T_EPS 0.0001
 #define MERGE_EPS 0.005
 #define MERGE_PATIENCE 3
@@ -20,9 +20,9 @@
 #define PERTURB_MULT 0.05
 #define EXPL_MAXGROW 1.5
 #define EXPL_LENGTH 4
-#define EXPL1_LENGTH 3
+#define EXPL1_LENGTH 2
 #define EXPL_THRESH_FACTOR 5
-#define COOL_FACTOR 22.5
+#define COOL_FACTOR 30
 
 using namespace GA;
 using namespace prg;
@@ -131,7 +131,6 @@ typedef set< cv_map::value_type*, cvip_sort_desc > cvp_set_desc;
 
 //names of variables follow original notation by K. Rose
 struct da_data {
-
 	//source points
 	Matrix x_;
 	//codevectors with unique identifier
@@ -144,8 +143,8 @@ struct da_data {
 	da_data& operator =(const da_hist& hist);
 
 	void clear() {
-		y_.clear();
 		x_.clear();
+		y_.clear();
 		T_ = 0;
 		beta_ = 0;
 	}
@@ -252,12 +251,8 @@ struct da_hist {
 	cv_map y_;
 	//Matrix p_y;
 	double T_;
-	double beta_;
 
-	da_hist(const da_data& dad) : y_(dad.y_), T_(dad.T_) {
-		if(T_ > 0) beta_ = 1. / T_;
-		else beta_ = 0;
-	}
+	da_hist(const da_data& dad) : y_(dad.y_), T_(dad.T_) {}
 };
 
 da_data& da_data::operator =(const da_hist& hist) {
@@ -272,7 +267,7 @@ inline
 std::basic_ostream< charT, traits >&
 operator <<(std::basic_ostream< charT, traits >& strm, const da_hist& h)
 {
-	strm << h.y_.size() << "	" << h.T_ << "	" << h.beta_;
+	strm << h.y_.size() << "	" << h.T_ << "	" << 1. / h.T_;
 	return strm;
 }
 
@@ -291,8 +286,10 @@ struct da_log {
 
 	void push_back(const da_hist& hist) {
 		hist_.push_back(hist);
-		if(hist_.size() > 1)
-			dt_.push_back( (double(head().y_.size()) - double(head(1).y_.size())) / (head().beta_ - head(1).beta_) );
+		if(hist_.size() > 1) {
+			const da_hist& prev = head(1);
+			dt_.push_back( (double(hist.y_.size()) - double(prev.y_.size())) / (prev.T_ - hist.T_) );
+		}
 		else dt_.push_back(0);
 	}
 
@@ -342,6 +339,8 @@ struct cov_data {
 	double variance_;
 };
 
+
+//============================================= DA implementation ======================================================
 class determ_annealing::da_impl : public da_data {
 	//---------------------------- pat_sel implementation ----------------------------------------------
 	class pat_sel
@@ -432,7 +431,6 @@ class determ_annealing::da_impl : public da_data {
 	};
 
 public:
-
 	//probability threshold for making hard clusters - see calc_winners
 	double prob_thresh_;
 	double patience_;
@@ -442,6 +440,7 @@ public:
 	double merge_thresh_;
 	ulong patience_cycles_, expl_length_, expl_steps_;
 	ulong expl_det_start_;
+	bool is_exploded;
 	bool recalc_px_, kill_zero_prob_cent_, kill_zero_var_cent_;
 
 	hard_clusters_data hcd_;
@@ -462,9 +461,8 @@ public:
 	px_fcn_t px_fcn_;
 
 	da_impl()
-		: prob_thresh_(1.0/3), patience_(0.001), alpha_(0.9), alpha_max_(0.99), Tmin_(0.01), dither_amount_(0.005),
+		: prob_thresh_(1.0/3), patience_(0.0001), alpha_(0.9), alpha_max_(0.99), Tmin_(0.01), dither_amount_(0.005),
 		patience_cycles_(10), expl_length_(EXPL_LENGTH), kill_zero_prob_cent_(true), kill_zero_var_cent_(true)
-
 	{}
 
 	void calc_winners(const da_data& dad, hard_clusters_data& hcd) const
@@ -796,7 +794,7 @@ public:
 		//force winners calculation
 		calc_winners_kmeans(*this, hcd_);
 
-		//DEBUG
+		//dump info
 		cout << y_.size() << " centers & their variances:" << endl;
 		for(cv_map::iterator p_cv = y_.begin(), end = y_.end(); p_cv != end; ++p_cv) {
 			p_cv->second.loc_.Print(cout, false);
@@ -979,16 +977,17 @@ public:
 		//compute next bifurcation prediction
 		double pt_T;
 		ulong pt_ind = ulong(-1);
-		if(y_.size() < maxclust) {
+		if(!is_exploded && y_.size() < maxclust) {
 			for(cvp_set_desc::iterator p_scv = svar.begin(), end = svar.end(); p_scv != end; ++p_scv)
-				if((pt_T = (*p_scv)->second.var_ * 2  < T_)) {
+				if((pt_T = (*p_scv)->second.var_ * 2)  < T_) {
 					pt_ind = (*p_scv)->first;
 					break;
 				}
 
 			//T_ *= alpha_;
 			if(pt_ind != ulong(-1) && pt_T > T_ * alpha_) {
-				cout << "bifurcation point, ";
+				cout << "PT point, ";
+				//T_ = pt_T - T_EPS;
 				T_ = min(pt_T, T_ * alpha_max_);
 
 				//T_ = min(T_ * alpha_max_, max(T_ * alpha_, pt_T));
@@ -1043,7 +1042,7 @@ public:
 		//check low-temp condition
 		if(T_ < Tmin_) return false;
 		//fork centers if any
-//		if(pt_ind < y_.row_num() && y_.row_num() < max_clust)
+//		if(pt_ind != ulong(-1) && y_.find(pt_ind) != y_.end() && y_.size() < max_clust)
 //			fork_center(pt_ind);
 
 		//check every center for bifurcation
@@ -1055,13 +1054,10 @@ public:
 	}
 
 	bool merge_step() {
-		//remove nonsignificant centers
-		kill_weak_centers< >(nz_prob(kill_zero_prob_cent_));
-
 		//perform classic merge step first
-		//bool ret = false;
-		bool ret = merge_step_classic();
-		return ret;
+		bool ret = false;
+//		bool ret = merge_step_classic();
+//		return ret;
 
 		//update distances to parents
 		update_pdist();
@@ -1170,23 +1166,26 @@ public:
 	}
 
 	ulong detect_explosion(ulong cycle) {
+		if(is_exploded) return 0;
 		//static ulong expl_steps = 0;
 
-		struct expl_trigger {
-			static ulong cancel_expl(da_impl& di, ulong rev_steps) {
-				//check for "false" explosion that can occur from the beginning
-				if(di.log_.head(rev_steps).y_.size() == 1) return 0;
+//		struct expl_trigger {
+//			static ulong cancel_expl(da_impl& di, ulong rev_steps) {
+//				//check for "false" explosion that can occur from the beginning
+//				if(di.log_.head(rev_steps).y_.size() == 1) return 0;
+//
+//				//explosion detected
+//				cout << "EXPLOSION detected! Rolling " << rev_steps << " steps back" << endl;
+//				(da_data&)(di) = di.log_.head(rev_steps);
+//				//update variances
+//				//di.update_variances();
+//				//save new log entry
+//				//di.log_.push_back(di);
+//				return di.y_.size();
+//			}
+//		};
 
-				//explosion detected
-				cout << endl << "EXPLOSION detected! Rolling " << rev_steps << " steps back" << endl << endl;
-				(da_data&)(di) = di.log_.head(rev_steps);
-				//update variances
-				di.update_variances();
-				//save new log entry
-				di.log_.push_back(di);
-				return di.y_.size();
-			}
-		};
+		ulong rev_steps = 0;
 
 		//check whether we should try to detect explosion
 		if(T_ > Texpl_) return 0;
@@ -1196,7 +1195,6 @@ public:
 		//if we had 3 sequental steps of positive dCnum / dbeta
 		//and next step wasn't negative (centers were keeped)
 		//then roll 4 steps back and freeze centers number
-		ulong ret = 0;
 		double dt = log_.head_dT();
 		if(cycle == 0 || dt < -EPS) expl_steps_ = 0;
 		else if(++expl_steps_ >= expl_length_ 	//too long cluster number increasing
@@ -1204,24 +1202,46 @@ public:
 				)
 		{
 			//freeze centers number
-			ret = expl_trigger::cancel_expl(*this, expl_steps_ - 1);
-			//zero expl_steps counter
-			expl_steps_ = 0;
+			is_exploded = true;
+			rev_steps = expl_steps_;
+//			cout << "expl_steps = " << expl_steps_ << endl;
+//			ret = expl_trigger::cancel_expl(*this, expl_steps_);
+//			//zero expl_steps counter
+//			expl_steps_ = 0;
 		}
 
 		if(dt <= EPS)
 			//zero expl_steps counter
 			expl_steps_ = 0;
+		//show expl_steps
 		cout << "expl_steps = " << expl_steps_ << endl;
 
 		//another explosion check
 		//if number of centers has grown more than EXPL_MAXGROW times from expl_length_ steps back to current iteration
 		//then explosion is detected and we rewind 1 step back
-//		if(cycle > expl_det_start_ + EXPL1_LENGTH) {
-//			ulong s = log_.head(EXPL1_LENGTH).y_.size();
-//			if(s > 1 && double(y_.size()) > double(s * EXPL_MAXGROW))
-//				ret = expl_trigger::cancel_expl(*this, 1);
-//		}
+		if(cycle > expl_det_start_ + EXPL1_LENGTH) {
+			ulong s = log_.head(EXPL1_LENGTH).y_.size();
+			if(s > 1 && double(y_.size()) > double(s * EXPL_MAXGROW)) {
+				is_exploded = true;
+				rev_steps = 1;
+				//ret = expl_trigger::cancel_expl(*this, 1);
+			}
+		}
+
+		ulong ret = 0;
+		//if explosion detected
+		if(is_exploded && rev_steps > 0) {
+			//check for "false" explosion that can occur from the beginning
+			if(log_.head(rev_steps).y_.size() > 1) {
+				//explosion detected
+				cout << "EXPLOSION detected! Rolling " << rev_steps << " steps back" << endl;
+				//rewind codebook
+				y_ = log_.head(rev_steps).y_;
+			}
+			else is_exploded = false;
+			expl_steps_ = 0;
+			ret = y_.size();
+		}
 
 		return ret;
 	}
@@ -1231,7 +1251,7 @@ public:
 		//save history
 		log_.push_back(*this);
 		//display dCnum / dT info
-		cout << "dCnum/dT = " << log_.head_dT() << endl << endl;
+		cout << "-dCnum/dT = " << log_.head_dT() << endl;
 
 		return detect_explosion(cycle);
 	}
@@ -1298,6 +1318,7 @@ public:
 		//zero explosion counters
 		expl_steps_ = 0;
 		expl_det_start_ = 0;
+		is_exploded = false;
 
 		//main cycle starts here
 		bool spin_update = false;
@@ -1306,7 +1327,10 @@ public:
 				//update probabilities and centers positions
 				do {
 					update_epoch();
-					spin_update = merge_step();
+					//remove nonsignificant centers
+					kill_weak_centers(nz_prob(kill_zero_prob_cent_));
+					//do_merge
+					spin_update = merge_step_classic();
 					while(spin_update && merge_step()) {};
 				} while(spin_update);
 
@@ -1322,10 +1346,13 @@ public:
 			kill_weak_centers(nz_var(kill_zero_var_cent_));
 
 			if(log_step(cycle_)) clust_num = y_.size();
+			//separate iterations
+			cout << endl;
 
 			//add new centers if nessessary
 			if(!phase_transition_epoch(clust_num)) break;
 		}	//end of main loop
+
 		//perform last step
 		null_step();
 
