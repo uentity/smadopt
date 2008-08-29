@@ -1,7 +1,7 @@
 function [all_res stat all_cent all_ind] = show_res_()
 %global centers ind;
 
-average = false;
+average = true;
 plot_2d = true;
 plot_3d = true;
 asteps = 10;
@@ -26,7 +26,7 @@ if average
     all_ind = {};
     for i = 1:asteps
         %run clustering
-        !ga_client_win.exe 1 20
+        !ga_client_win.exe 2 20
         %process experiment results
         [centers, ind, pres, err] = process_data(p, f, real_c, plot_2d, plot_3d);
         %save results

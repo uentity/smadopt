@@ -12,17 +12,17 @@
 #include <fstream>
 #include <iterator>
 
-#define EPS 0.000000001
+#define EPS 0.0000001
 #define T_EPS 0.0001
 #define MERGE_EPS 0.005
 #define MERGE_PATIENCE 3
 #define MERGE_THRESH 0.1
-#define PERTURB_MULT 0.05
-#define EXPL_MAXGROW 1.5
+#define PERTURB_MULT 0.1
+#define EXPL_MAXGROW 1.7
 #define EXPL_LENGTH 4
 #define EXPL1_LENGTH 2
 #define EXPL_THRESH_FACTOR 5
-#define COOL_FACTOR 30
+#define COOL_FACTOR 20
 
 using namespace GA;
 using namespace prg;
@@ -461,7 +461,7 @@ public:
 	px_fcn_t px_fcn_;
 
 	da_impl()
-		: prob_thresh_(1.0/3), patience_(0.0001), alpha_(0.9), alpha_max_(0.99), Tmin_(0.01), dither_amount_(0.005),
+		: prob_thresh_(1.0/3), patience_(0.001), alpha_(0.9), alpha_max_(0.99), Tmin_(0.01), dither_amount_(0.005),
 		patience_cycles_(10), expl_length_(EXPL_LENGTH), kill_zero_prob_cent_(true), kill_zero_var_cent_(true)
 	{}
 
@@ -967,27 +967,37 @@ public:
 	}
 
 	ulong cooling_step(ulong maxclust) {
-
-		//sort variances in descending order
-		cvp_set_desc svar;
-		for(cv_map::iterator p_cv = y_.begin(), end = y_.end(); p_cv != end; ++p_cv) {
-			svar.insert(&(*p_cv));
-		}
-
 		//compute next bifurcation prediction
 		double pt_T;
 		ulong pt_ind = ulong(-1);
 		if(!is_exploded && y_.size() < maxclust) {
+			//sort variances in descending order
+			cvp_set_desc svar;
+			for(cv_map::iterator p_cv = y_.begin(), end = y_.end(); p_cv != end; ++p_cv) {
+				svar.insert(&(*p_cv));
+			}
+
+			//calc pt_T prediction
 			for(cvp_set_desc::iterator p_scv = svar.begin(), end = svar.end(); p_scv != end; ++p_scv)
 				if((pt_T = (*p_scv)->second.var_ * 2)  < T_) {
 					pt_ind = (*p_scv)->first;
 					break;
 				}
 
+			//find cluster with max variance
+//			pt_T = 0;
+//			for(cv_map::iterator p_cv = y_.begin(), end = y_.end(); p_cv != end; ++p_cv) {
+//				if(p_cv->second.var_ > pt_T) {
+//					pt_T = p_cv->second.var_;
+//					pt_ind = p_cv->first;
+//				}
+//			}
+//			pt_T *= 2;
+
 			//T_ *= alpha_;
 			if(pt_ind != ulong(-1) && pt_T > T_ * alpha_) {
 				cout << "PT point, ";
-				//T_ = pt_T - T_EPS;
+				//T_ = min(pt_T, T_) - T_EPS;
 				T_ = min(pt_T, T_ * alpha_max_);
 
 				//T_ = min(T_ * alpha_max_, max(T_ * alpha_, pt_T));
@@ -1004,7 +1014,7 @@ public:
 		}
 
 		beta_ = 1 / T_;
-		cout << "cooling step done, T = " << T_ << endl;
+		cout << "cooling step done, T = " << T_ << ", T - Tmin = " << T_ - Tmin_ << endl;
 
 		//calc dCnum / dT
 
@@ -1201,9 +1211,12 @@ public:
 				//|| y_.row_num() >= log_.head(expl_steps).y_.row_num() * 2		//too fast increasing
 				)
 		{
-			//freeze centers number
-			is_exploded = true;
-			rev_steps = expl_steps_;
+			if(log_.head(expl_steps_).y_.size() > 1) {
+				//freeze centers number
+				is_exploded = true;
+				rev_steps = expl_steps_ - 1;
+			}
+			else expl_steps_ = 0;
 //			cout << "expl_steps = " << expl_steps_ << endl;
 //			ret = expl_trigger::cancel_expl(*this, expl_steps_);
 //			//zero expl_steps counter
@@ -1232,13 +1245,13 @@ public:
 		//if explosion detected
 		if(is_exploded && rev_steps > 0) {
 			//check for "false" explosion that can occur from the beginning
-			if(log_.head(rev_steps).y_.size() > 1) {
-				//explosion detected
-				cout << "EXPLOSION detected! Rolling " << rev_steps << " steps back" << endl;
-				//rewind codebook
-				y_ = log_.head(rev_steps).y_;
-			}
-			else is_exploded = false;
+			//if(log_.head(rev_steps).y_.size() > 1) {
+			//explosion detected
+			cout << "EXPLOSION detected! Rolling " << rev_steps << " steps back" << endl;
+			//rewind codebook
+			y_ = log_.head(rev_steps).y_;
+			//}
+			//else is_exploded = false;
 			expl_steps_ = 0;
 			ret = y_.size();
 		}
@@ -1298,7 +1311,8 @@ public:
 		T_ *= 1.2;
 		beta_ = 1 / T_;
 
-		//calc Tmin
+		//calc Tfreeze
+		//double Tf = T_ / COOL_FACTOR;
 		Tmin_ = T_ / COOL_FACTOR;
 		//calc Texpl, from which explosion detection starts
 		Texpl_ = T_ / EXPL_THRESH_FACTOR;
@@ -1349,6 +1363,12 @@ public:
 			//separate iterations
 			cout << endl;
 
+			//check freeze condition
+//			if(T_ < Tf) {
+//				//simulate explosion
+//				is_exploded = true;
+//				clust_num = y_.size();
+//			}
 			//add new centers if nessessary
 			if(!phase_transition_epoch(clust_num)) break;
 		}	//end of main loop
