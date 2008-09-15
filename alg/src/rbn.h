@@ -365,11 +365,14 @@ void rbn::_neuron_adding_learn(const Matrix& inputs, const Matrix& targets, pLea
 		//start backprop learning
 		common_learn(inputs, targets, false, pProc);
 
+		//palsy check
+		if(state_.status == stop_palsy) break;
+
 		//check if max neurons already added
 		if(rbl.neurons().size() >= max_neurons) break;
 
 		//check state
-		if(state_.status != learned && state_.status != stop_palsy) {
+		if(state_.status != learned) {
 			//if error is still high - add new neurons
 			//make additional simulation first to determine per-sample errors
 			for(ulong i = 0; i < inputs.col_num(); ++i) {
