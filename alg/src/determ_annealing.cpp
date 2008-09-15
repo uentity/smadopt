@@ -22,7 +22,7 @@
 #define EXPL_LENGTH 4
 #define EXPL1_LENGTH 2
 #define EXPL_THRESH_FACTOR 5
-#define COOL_FACTOR 20
+#define COOL_FACTOR 25
 
 using namespace GA;
 using namespace prg;
@@ -447,6 +447,9 @@ public:
 	//function values
 	Matrix f_;
 	ulong cycle_;
+
+	//statistics for source points
+	norm_tools::dist_stat srcp_stat_;
 
 	//annealing history
 	//vector< da_hist > hist_;
@@ -998,7 +1001,7 @@ public:
 			if(pt_ind != ulong(-1) && pt_T > T_ * alpha_) {
 				cout << "PT point, ";
 				//T_ = min(pt_T, T_) - T_EPS;
-				T_ = min(pt_T, T_ * alpha_max_);
+				T_ = min(pt_T - T_EPS, T_ * alpha_max_);
 
 				//T_ = min(T_ * alpha_max_, max(T_ * alpha_, pt_T));
 				//T_ = max(T_ * alpha_, pt_T);
@@ -1127,7 +1130,7 @@ public:
 		//dynamically calc min distance between centers
 		merge_thresh_ = MERGE_EPS;
 		if(y_.size() > 2)
-			merge_thresh_ = stat.mean_nn_ * MERGE_THRESH;
+			merge_thresh_ = (stat.mean_nn_ + srcp_stat_.mean_nn_) * MERGE_THRESH * 0.5;
 
 		//DEBUG
 		//dist.Resize(1, dist.row_num() * dist.col_num());
@@ -1278,6 +1281,10 @@ public:
 		order_fcn_ = &da_impl::selection_based_order;
 		norm_fcn_ = &l2_norm;
 		norm2_fcn_ = &l2_norm2;
+
+		//calc statistics for source points distribution
+		Matrix dist;
+		srcp_stat_ = norm_tools::calc_dist_matrix< norm_tools::l2 >(data, dist);
 
 		//initialization
 		clear();

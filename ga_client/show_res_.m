@@ -26,7 +26,7 @@ if average
     all_ind = {};
     for i = 1:asteps
         %run clustering
-        !ga_client_win.exe 2 20
+        !./ga_client_matlab 2 20
         %process experiment results
         [centers, ind, pres, err] = process_data(p, f, real_c, plot_2d, plot_3d);
         %save results
@@ -105,8 +105,8 @@ end
 plot(real_c(:, 1), real_c(:, 2), 'ok', 'LineWidth', 2, 'MarkerSize', 12);
 hold off
 grid on
-set(gca,'fontsize',14);
-set(gca,'fontname','arial');
+set(gca,'fontsize', 14);
+%set(gca,'fontname','arial');
 end
 
 function do_3d_plot(p, f, real_c, centers, ind)
@@ -125,7 +125,7 @@ plot3(real_c(:, 1), real_c(:, 2), zeros(size(real_c, 1), 1), 'ok', 'LineWidth', 
 hold off
 grid on
 set(gca,'fontsize',14);
-set(gca,'fontname','arial');
+%set(gca,'fontname','arial');
 end
 
 %surface plot

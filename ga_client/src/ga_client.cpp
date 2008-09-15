@@ -470,7 +470,6 @@ ga_stat TestFcnOpt(int nVars, test_fun_t tf = rastrigins, uint runs_num = 1,
 
 	bool bContinue;
 	ga_stat stat;
-	const ga_stat* cur_stat;
 	for(ulong i = 0; i < runs_num; ++i) {
 		Start(pop.GetBuffer(), nVars, false);
 		do {
