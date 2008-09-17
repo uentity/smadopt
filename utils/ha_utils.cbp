@@ -29,7 +29,7 @@
 				<Option createDefFile="1" />
 				<Option createStaticLib="1" />
 				<Compiler>
-					<Add option="-O2" />
+					<Add option="-O3" />
 				</Compiler>
 			</Target>
 			<Target title="release_lin_s">
@@ -42,7 +42,7 @@
 				<Option createDefFile="1" />
 				<Option projectLinkerOptionsRelation="1" />
 				<Compiler>
-					<Add option="-O2" />
+					<Add option="-O3" />
 				</Compiler>
 				<Linker>
 					<Add option="-static-libgcc" />

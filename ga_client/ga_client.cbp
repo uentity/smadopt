@@ -33,7 +33,7 @@
 				<Option compiler="gcc" />
 				<Option parameters="1 7" />
 				<Compiler>
-					<Add option="-O2" />
+					<Add option="-O3" />
 					<Add directory="../utils/src" />
 					<Add directory="../alg/src" />
 				</Compiler>
@@ -50,7 +50,7 @@
 				<Option parameters="1 7" />
 				<Option projectLinkerOptionsRelation="1" />
 				<Compiler>
-					<Add option="-O2" />
+					<Add option="-O3" />
 					<Add directory="../utils/src" />
 					<Add directory="../alg/src" />
 				</Compiler>

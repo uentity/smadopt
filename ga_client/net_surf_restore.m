@@ -82,6 +82,6 @@ trisurf(tri, test(:, 1), test(:, 2), test(:, 3));
 shading interp;
 
 plot3(c(:, 1), c(:, 2), zeros(size(c, 1), 1), '*black');
-plot3(bs(1, 1), bs(1, 2), bs(1, 3), 'og', 'MarkerEdgeColor', 'k', 'MarkerFaceColor', [.49 1 .63], 'MarkerSize', 12);
+plot3(bs(1, 1), bs(1, 2), 0, 'og', 'MarkerEdgeColor', 'k', 'MarkerFaceColor', [.49 1 .63], 'MarkerSize', 12);
 plot3(ss(:, 1), ss(:, 2), zeros(size(ss, 1), 1), '.g');
 hold off
