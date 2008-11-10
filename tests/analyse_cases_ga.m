@@ -92,8 +92,8 @@ plot(log10(graphs{find(scores == max(scores))}), '-k', 'LineWidth', 2);
 
 grid('on');
 set(gca,'fontsize',12);
-xlabel('Итерации', 'fontsize', 12);
-ylabel('Значение целевой функции', 'fontsize', 12);
+xlabel('Iterations', 'fontsize', 12);
+ylabel('Objective function value', 'fontsize', 12);
 hold off
 
 disp('==================================================================================================');

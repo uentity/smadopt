@@ -1477,12 +1477,12 @@ Matrix kmeans::kmeans_impl::drops_hetero_simple(const Matrix& data, const Matrix
 	Matrix dist;
 	norm_tools::dist_stat ds = norm_tools::calc_dist_matrix< norm_tools::l2 >(data, dist);
 	//calc drop radius
-	const double quant = ds.mean_nn_; //(md - qd)*quant_mult;
+	double quant = ds.mean_nn_; //(md - qd)*quant_mult;
 	_drop_params::init_r_ = quant;
 	//const double quant = 2*mind;
 	//const double quant_v = pow(quant, dim);
 
-	Matrix dv, norm, _data, dist_row;
+	Matrix dv, norm, _data(data.minmax()), dist_row;
 	//drops containing map instantiation
 	drops_map drops;
 
@@ -1492,36 +1492,35 @@ Matrix kmeans::kmeans_impl::drops_hetero_simple(const Matrix& data, const Matrix
 
 	//heuristic calculation assuming uniform coverage by drops
 	//calc drops count
-	_data <<= data.minmax();
-	init_cnt = 1;
-	Matrix dcnt_bydim(1, dim);
-	for(ulong i = 0; i < dim; ++i) {
-		dist_row <<= _data.GetColumns(i);
-		dcnt_bydim[i] = ceil((dist_row[1] - dist_row[0])/quant);
-		init_cnt *= dcnt_bydim[i];
-	}
+//	init_cnt = 1;
+//	Matrix dcnt_bydim(1, dim);
+//	for(ulong i = 0; i < dim; ++i) {
+//		dist_row <<= _data.GetColumns(i);
+//		dcnt_bydim[i] = ceil((dist_row[1] - dist_row[0])/quant);
+//		init_cnt *= dcnt_bydim[i];
+//	}
 
 	//select drops positions
 	dv.NewMatrix(1, dim);
 
 	//random selection
-	//dist_row <<= _data.GetRows(1) - _data.GetRows(0);
-	//_data <<= _data.GetRows(0);
-	//for(ulong i = 0; i < init_cnt; ++i) {
-	//	generate(dv.begin(), dv.end(), prg::rand01);
-	//	dv *= dist_row; dv += _data;
-	//	(this->*_pNormFcn)(dv, data, norm);
-	//	ind = norm.min_ind();
-	//	++drops[ind].qcnt_;
-	//}
+	dist_row <<= _data.GetRows(1) - _data.GetRows(0);
+	_data <<= data.GetRows(0);
+	for(ulong i = 0; i < init_cnt; ++i) {
+		generate(dv.begin(), dv.end(), prg::rand01);
+		dv *= dist_row; dv += _data;
+		norm <<= (*_pNormFcn)(dv, data);
+		ind = norm.min_ind();
+		++drops[ind].qcnt_;
+	}
 
 	//uniform selection
-	gen_uniform_cent(_data.GetRows(0), dcnt_bydim, dv, drops, quant);
+	//gen_uniform_cent(_data.GetRows(0), dcnt_bydim, dv, drops, quant);
 
-	//now calc drops radiuses
-	//for(drops_iterator p_drop = drops.begin(), end = drops.end(); p_drop != end; ++p_drop) {
-	//	p_drop->second.r_ = quant;
-	//}
+	//now set drops radiuses
+//	for(drops_iterator p_drop = drops.begin(), end = drops.end(); p_drop != end; ++p_drop) {
+//		p_drop->second.r_ = quant;
+//	}
 
 	//main algorithm starts here
 	Matrix::indMatrix cl_ind;
@@ -1538,7 +1537,7 @@ Matrix kmeans::kmeans_impl::drops_hetero_simple(const Matrix& data, const Matrix
 			//find which of closest points have lowest function value
 			ind = p_drop->first; minf = f[ind]; R = 0;
 			for(ulong j = 1; j < cl_ind.size(); ++j) {
-				if(dist_row[j] > p_drop->second.r_) break;
+				if(dist_row[j] > quant) break;
 				if(f[cl_ind[j]] < minf) {
 					ind = cl_ind[j];
 					minf = f[ind];
@@ -1573,6 +1572,23 @@ Matrix kmeans::kmeans_impl::drops_hetero_simple(const Matrix& data, const Matrix
 
 		//no moves - exit
 		if(moves_cnt == 0) break;
+
+		//calc mean nearest neighbour distance for current drops
+		double mean_dr_nn = 0;
+		double min_dist;
+		for(drops_iterator d = drops.begin(); d != drops.end(); ++d) {
+			min_dist = 0;
+			dist_row <<= dist.GetRows(d->first);
+			for(drops_iterator d1 = drops.begin(); d1 != drops.end(); ++d1) {
+				if(d->first == d1->first) continue;
+				if(min_dist == 0 || dist_row[d1->first] < min_dist)
+					min_dist = dist_row[d1->first];
+			}
+			mean_dr_nn += min_dist;
+		}
+		mean_dr_nn /= double(drops.size());
+		//update quant size
+		quant = (_drop_params::init_r_ + mean_dr_nn) * 0.5;
 
 #ifdef _DEBUG
 		ind = 0;
