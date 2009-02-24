@@ -1,5 +1,5 @@
-#ifndef _COMMON_H
-#define _COMMON_H
+#ifndef _UTILS_COMMON_H
+#define _UTILS_COMMON_H
 
 #ifdef _WIN32
 	#include <windows.h>
@@ -41,6 +41,8 @@
 #include <string>
 #include <iosfwd>
 #include <time.h>
+
+#define NW 13
 
 //this manipulator skips line
 template <class charT, class traits>
@@ -258,8 +260,8 @@ public:
 	void operator delete[](void* p, void* _Where) { };
 	void operator delete(void* p, void* _Where) { };
 };
-
 #endif
+
 namespace hybrid_adapt {
 //misc functions
 _LIBAPI void my_sprintf(std::string& buf, const char* fmt, ...);

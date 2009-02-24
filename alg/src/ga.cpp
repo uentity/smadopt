@@ -240,6 +240,7 @@ Matrix ga::ScalingRankSqr(const Matrix& scores)
 	tmp = scores;
 	ulong scSize = tmp.size();
 	indMatrix mInd = tmp.RawSort();
+	if(opt_.minimizing) reverse(mInd.begin(), mInd.end());
 
 	Matrix expect(scSize, 1);
 	for(ulong i=0; i<scSize; ++i) {
@@ -917,7 +918,7 @@ void ga::_sepRepeats(Matrix& source, const ulMatrix& rep_ind, Matrix* pRepeats, 
 
 	ulMatrix mInd = rep_ind.GetColumns(0);
 	indMatrix scInd = mInd.RawSort();
-	for(long i=mInd.size() - 1; i>=0; --i) {
+	for(ulong i = mInd.size() - 1; i >= 0 && i < mInd.size(); --i) {
 		if(pRepeats) *pRepeats &= source.GetRows(mInd[i]);
 		if(pPrevReps) pPrevReps->push_back(rep_ind(scInd[i], 1));
 		source.DelRows(mInd[i]);
@@ -1198,7 +1199,7 @@ Matrix ga::VSPStepGAalt(const Matrix& thisPop, const Matrix& thisScore, ul_vec& 
 		opt_.h_scheme = ClearGA;
 
 	//big GA
-	newPop <<= StepGA(thisPop, state_.mainScore, opt_.initRange, elite_ind, addon_ind, 0, nNewKids);
+	newPop <<= StepGA(thisPop, thisScore.GetColumns(thisScore.col_num() - 1), opt_.initRange, elite_ind, addon_ind, 0, nNewKids);
 	if(opt_.sepAddonForEachVSP)
 		//restore hybrid scheme
 		opt_.h_scheme = save;
@@ -1207,9 +1208,12 @@ Matrix ga::VSPStepGAalt(const Matrix& thisPop, const Matrix& thisScore, ul_vec& 
 		opt_.h_scheme = ClearGA;
 
 	//prepare template of indexes that can be replaced
-	for(ulong i = 0; i < newPop.row_num(); ++i)
-		if(find(elite_ind.begin(), elite_ind.end(), i) == elite_ind.end())
+	for(ulong i = 0; i < newPop.row_num(); ++i) {
+		// we shiuldn't relace elite and addons
+		if(find(elite_ind.begin(), elite_ind.end(), i) == elite_ind.end() &&
+			find(addon_ind.begin(), addon_ind.end(), i) == addon_ind.end())
 			free_ind_t.push_back(i);
+	}
 
 	//ul_vec::iterator beg_ei(elite_ind.begin()), end_ei(elite_ind.end());
 
@@ -1222,7 +1226,7 @@ Matrix ga::VSPStepGAalt(const Matrix& thisPop, const Matrix& thisScore, ul_vec& 
 	ulong nKids;
 	ulong v_offs = 0, ind, rep_ind, pool_ind;
 	for(ulong i = 0; i < opt_.vspSize.size(); ++i) {
-		nKids = min< ulong >(newPop.row_num() * opt_.vspFract[i], newPop.row_num() - elite_ind.size());
+		nKids = min< ulong >(newPop.row_num() * opt_.vspFract[i], free_ind_t.size());
 		if(nKids == 0) {
 			v_offs += opt_.vspSize[i];
 			continue;
@@ -1272,13 +1276,13 @@ Matrix ga::VSPStepGAalt(const Matrix& thisPop, const Matrix& thisScore, ul_vec& 
 
 	prg::switch_stream(0);
 	if(!opt_.sepAddonForEachVSP)
-		//restore gybrid scheme
+		//restore hybrid scheme
 		opt_.h_scheme = save;
 
 	return newPop;
 }
 
-ulMatrix ga::FindRepeats(const Matrix where, const Matrix& what)
+ulMatrix ga::FindRepeats(const Matrix& where, const Matrix& what)
 {
 	ulMatrix reps, rep_row(1, 2);
 	//if(opt_.globalSearch) where.NewExtern(state_.stackPop);
@@ -1296,59 +1300,123 @@ ulMatrix ga::FindRepeats(const Matrix where, const Matrix& what)
 	return reps;
 }
 
-ulMatrix ga::EnsureUnique(Matrix& nextPop, const Matrix& thisPop, const Matrix& thisScore, const ul_vec& elite_ind)
+ulMatrix ga::EnsureUnique(Matrix& nextPop, const Matrix& thisPop, const Matrix& thisScore, ul_vec& elite_ind)
 {
 	ulong nUnique;
 	ulMatrix reps;
 	if(!opt_.calcUnique) return reps;
 
-	if(opt_.globalSearch)
-		reps = FindRepeats(state_.stackPop, nextPop);
-	else
-		reps = FindRepeats(thisPop, nextPop);
-	nUnique = nextPop.row_num() - reps.row_num();
-
-	if(nUnique < opt_.minUnique) {
-		//add new generation :)
-		Matrix addPop;
-		ulMatrix addReps;
-		ul_vec addEliteInd, addAddonInd;
-		ulong save_ec = opt_.eliteCount, nCnt, cur_ind, rep_ind;
-		int save_gscheme = opt_.h_scheme;
-		ul_vec::const_iterator p_beg(elite_ind.begin()), p_end(elite_ind.end());
-
-		opt_.eliteCount = 0;
-		opt_.h_scheme = ClearGA;
-		while(nUnique < opt_.minUnique && reps.row_num() > elite_ind.size()) {
-			addPop = StepGACall(thisPop, thisScore, addEliteInd, addAddonInd);
-			//get repeats for new generation
-			if(opt_.globalSearch)
-				addReps = FindRepeats(state_.stackPop & nextPop, addPop);
-			else
-				addReps = FindRepeats(thisPop & nextPop, addPop);
-			_sepRepeats(addPop, addReps);
-			//how many we can add?
-			nCnt = min(min(opt_.minUnique - nUnique, reps.row_num() - elite_ind.size()), addPop.row_num());
-			//replace row in nextPop
-			//rep_ind = reps.row_num() - 1;
-			while(nCnt > 0) {
-				do {
-					rep_ind = prg::randIntUB(reps.row_num());
-				} while(find(p_beg, p_end, reps(rep_ind, 0)) != p_end);
-
-				cur_ind = prg::randIntUB(addPop.row_num());
-				nextPop.SetRows(addPop.GetRows(cur_ind), reps(rep_ind, 0));
-				addPop.DelRows(cur_ind);
-				reps.DelRows(rep_ind);
-				++nUnique; --nCnt;
-				//--rep_ind;
-			}
-		}
-		opt_.eliteCount = save_ec;
-		opt_.h_scheme = save_gscheme;
+	// first of all save previous generation to stack
+	if(opt_.globalSearch) {
+		// grow history of unique individuals
+		reps = FindRepeats(state_.stackPop, thisPop);
+		PushGeneration(thisPop, thisScore, reps);
 	}
+	else {
+		// for simple search stack is equal to prev generation
+		state_.stackPop = thisPop;
+		state_.stackScore = thisScore;
+	}
+	// find repeats in next generation
+	reps <<= FindRepeats(state_.stackPop, nextPop);
+	// check if we initially have enough unique rows
+	if(nextPop.row_num() - reps.row_num() >= opt_.minUnique) return reps;
 
+	// extract unique rows from nextPop
+	// and keep only repeats
+	Matrix unq_stack, unq_pool, addPop;
+	// save pop size
+	ulong pop_size = nextPop.row_num();
+	// elite always survive
+	sort(elite_ind.begin(), elite_ind.end(), greater< ulong >());
+	for(ul_vec::const_iterator i = elite_ind.begin(); i != elite_ind.end(); ++i) {
+		unq_pool &= nextPop.GetRows(*i);
+		nextPop.DelRows(*i);
+	}
+	// refresh repeats
+	reps <<= FindRepeats(state_.stackPop, nextPop);
+	addPop = nextPop;
+	nextPop.clear();
+	_sepRepeats(addPop, reps, &nextPop);
+	// full stack of unique chromosomes will be stored here
+	unq_stack = state_.stackPop;
+
+	// first pass - generate required unique chrom-s
+	Matrix unq_row;
+	ul_vec addEliteInd, addAddonInd;
+	ulong save_ec = opt_.eliteCount;
+	int save_gscheme = opt_.h_scheme;
+	opt_.eliteCount = 0;
+	opt_.h_scheme = ClearGA;
+	while(unq_pool.row_num() < opt_.minUnique + elite_ind.size()) {
+		// add new generation :)
+		//while(nUnique < opt_.minUnique && reps.row_num() > elite_ind.size()) {
+		if(addPop.row_num() == 0)
+			addPop = StepGACall(thisPop, thisScore, addEliteInd, addAddonInd);
+		// remove repeats from new generation
+		_sepRepeats(addPop, FindRepeats(unq_stack, addPop));
+		// append random row to unique pool
+		unq_row <<= addPop.GetRows(prg::randIntUB(addPop.row_num()));
+		unq_pool &= unq_row;
+		unq_stack &= unq_row;
+	}
+	// restore saved global options
+	opt_.eliteCount = save_ec;
+	opt_.h_scheme = save_gscheme;
+
+	// randomly append repeats to unq_pool if needed
+	while(unq_pool.row_num() < pop_size && nextPop.row_num() > 0) {
+		ulong i = prg::randIntUB(nextPop.row_num());
+		unq_pool &= nextPop.GetRows(i);
+		nextPop.DelRows(i);
+	}
+	// finally refresh repeat index and return
+	reps <<= FindRepeats(state_.stackPop, unq_pool);
+	nextPop <<= unq_pool;
 	return reps;
+
+	//// second pass -- randomly replace repeats in nextPop from unq_pool
+	//if(nUnique < opt_.minUnique) {
+	//	// add new generation :)
+	//	Matrix addPop;
+	//	ulMatrix addReps;
+	//	ul_vec addEliteInd, addAddonInd;
+	//	ulong save_ec = opt_.eliteCount, nCnt, cur_ind, rep_ind;
+	//	int save_gscheme = opt_.h_scheme;
+	//	ul_vec::const_iterator p_beg(elite_ind.begin()), p_end(elite_ind.end());
+
+	//	opt_.eliteCount = 0;
+	//	opt_.h_scheme = ClearGA;
+	//	while(nUnique < opt_.minUnique && reps.row_num() > elite_ind.size()) {
+	//		addPop = StepGACall(thisPop, thisScore, addEliteInd, addAddonInd);
+	//		//get repeats for new generation
+	//		if(opt_.globalSearch)
+	//			addReps = FindRepeats(state_.stackPop & nextPop, addPop);
+	//		else
+	//			addReps = FindRepeats(thisPop & nextPop, addPop);
+	//		_sepRepeats(addPop, addReps);
+	//		//how many we can add?
+	//		nCnt = min(min(opt_.minUnique - nUnique, reps.row_num() - elite_ind.size()), addPop.row_num());
+	//		//replace row in nextPop
+	//		//rep_ind = reps.row_num() - 1;
+	//		while(nCnt > 0) {
+	//			do {
+	//				rep_ind = prg::randIntUB(reps.row_num());
+	//			} while(find(p_beg, p_end, reps(rep_ind, 0)) != p_end);
+
+	//			cur_ind = prg::randIntUB(addPop.row_num());
+	//			nextPop.SetRows(addPop.GetRows(cur_ind), reps(rep_ind, 0));
+	//			addPop.DelRows(cur_ind);
+	//			reps.DelRows(rep_ind);
+	//			++nUnique; --nCnt;
+	//			//--rep_ind;
+	//		}
+	//	}
+	//	opt_.eliteCount = save_ec;
+	//	opt_.h_scheme = save_gscheme;
+	//}
+
+	//return reps;
 }
 
 Matrix ga::StepGACall(const Matrix& thisPop, const Matrix& thisScore, ul_vec& elite_ind, ul_vec& addon_ind, ulong nKids)
@@ -1636,9 +1704,11 @@ Matrix ga::Run(FitnessFcnCallback FitFcn, int genomeLength, bool bReadOptFromIni
 			nextScore <<= FitnessFcnCall(nextPop, state_.rep_ind);
 			//here we always get nextScore with popSize rows
 
-			//add new generation to history
-			//rep_ind should be valid, so PushGeneration goes _before_ Migrate
-			PushGeneration(nextPop, nextScore, state_.rep_ind);
+			// add new generation to history
+			// rep_ind should be valid, so PushGeneration goes _before_ Migrate
+			// !saving GA history is now performed in EnsureUnique!
+			//PushGeneration(nextPop, nextScore, state_.rep_ind);
+
 			//migration
 			Migrate(nextPop, nextScore, state_.elite_ind);
 			//here rep_ind is invalid, but we don't need it _values_ anymore
@@ -1807,9 +1877,6 @@ bool ga::NextPop(double* pPrevScore, double* pNextPop, unsigned long* pPopSize)
 			state_.lastScore <<= state_.lastScore.GetRows(0, opt_.popSize);
 		}
 
-		//save history
-		PushGeneration(state_.lastPop, state_.lastScore, state_.rep_ind);
-
 		//count calculated FF values
 		if(opt_.calcUnique)
 			state_.nChromCount += opt_.popSize - state_.rep_ind.row_num();
@@ -1863,6 +1930,10 @@ bool ga::NextPop(double* pPrevScore, double* pNextPop, unsigned long* pPopSize)
 //				//return false;
 //			}
 //		}
+
+		// save history
+		// history is only needed for unique search - so this functionality moved to EnsureUnique
+		//PushGeneration(state_.lastPop, state_.lastScore, state_.rep_ind);
 
 		//find repeats - search only _one_ last generation
 		state_.rep_ind <<= EnsureUnique(nextPop, state_.lastPop, state_.lastScore, state_.elite_ind);

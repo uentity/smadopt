@@ -4,6 +4,7 @@
 #include "nn_common.h"
 #include "kmeans.h"
 #include "determ_annealing.h"
+#include "text_table.h"
 
 namespace NN {
 	class _CLASS_DECLSPEC neuron_base
@@ -391,6 +392,14 @@ namespace NN {
 		virtual int learn(const Matrix& input, const Matrix& targets, bool initialize = true,
 			pLearnInformer pProc = NULL) = 0;
 
+		// return NN type
+		virtual nn_types nn_type() const = 0;
+
+		// return NN detailed info
+		virtual text_table detailed_info() const;
+		// return current network status desccription
+		virtual std::string status_info() const;
+
 		Matrix sim(const Matrix& inp);
 	};
 
@@ -430,6 +439,8 @@ namespace NN {
 		int learn(const Matrix& input, const Matrix& targets, bool initialize = true, pLearnInformer pProc = NULL) {
 			return common_learn(input, targets, initialize, pProc);
 		}
+
+		nn_types nn_type() const { return mlp_nn; }
 	};
 
 //--------------------------------Falman cascade correlation network---------------------------------------------
@@ -624,6 +635,9 @@ namespace NN {
 		void reset();
 		//complex learning function - implies network constructing
 		int learn(const Matrix& inputs, const Matrix& targets, bool initialize = true, pLearnInformer pProc = NULL);
+
+		// nn_type
+		nn_types nn_type() const { return cc_nn; }
 	};
 
 	//----------------------------------PCA network-----------------------------------------------------------
@@ -649,6 +663,9 @@ namespace NN {
 		void set_output_layer(ulong prin_comp_num = 0);
 		//learn function
 		int learn(const Matrix& inputs, const Matrix& targets, bool initialize = true, pLearnInformer pProc = NULL);
+
+		// nn_type
+		nn_types nn_type() const { return pca_nn; }
 	};
 
 	//--------------------------------------RBF network----------------------------------------------------
@@ -733,6 +750,9 @@ namespace NN {
 
 		//learning function for rbf networks
 		int learn(const Matrix& inputs, const Matrix& targets, bool initialize = true, pLearnInformer pProc = NULL);
+
+		// nn_type
+		nn_types nn_type() const { return rb_nn; }
 	};
 }
 

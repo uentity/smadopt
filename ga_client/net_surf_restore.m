@@ -77,9 +77,17 @@ end
 function plot_data(learn, test, c, bs, ss)
 plot3(learn(:, 1), learn(:, 2), learn(:, 3), '.r');
 hold on
-tri = delaunay(test(:, 1), test(:, 2));
-trisurf(tri, test(:, 1), test(:, 2), test(:, 3));
+
+% another 3d surf plot engine
+[XI, YI] = meshgrid(min(test(:, 1)) : 0.05 : max(test(:, 1)), min(test(:, 2)) : 0.05 : max(test(:, 2)));
+ZI = griddata(test(:, 1), test(:, 2), test(:, 3), XI, YI, 'cubic');
+surfl(XI, YI, ZI);
+
+%tri = delaunay(test(:, 1), test(:, 2));
+%trisurf(tri, test(:, 1), test(:, 2), test(:, 3));
+
 shading interp;
+grid on;
 
 plot3(c(:, 1), c(:, 2), zeros(size(c, 1), 1), '*black');
 plot3(bs(1, 1), bs(1, 2), 0, 'og', 'MarkerEdgeColor', 'k', 'MarkerFaceColor', [.49 1 .63], 'MarkerSize', 12);

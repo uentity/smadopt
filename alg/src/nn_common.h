@@ -10,6 +10,7 @@
 #include "alg_except.h"
 #include "alg_opt.h"
 #include "kmeans_common.h"
+#include "text_table.h"
 
 typedef bool (*pLearnInformer)(ulong uCycle, double dSSE, void* pNet);
 typedef ulong (*pNewLAProc)(int nStatus, ulong uCycle, double dSSE, void* pNet);
@@ -34,6 +35,14 @@ namespace NN {
 	class MNet; class objnet;
 	class mlp; class pcan;
 	class rbn; class ccn;
+
+	// NN types
+	enum nn_types {
+		mlp_nn,		// multilayered perceptron
+		cc_nn,		// cascade-correlation network
+		pca_nn, 	// principal compnent analysis NN
+		rb_nn		// radial basis NN
+	};
 
 	enum nn_flags {
 		useBiases = 1,
@@ -133,6 +142,13 @@ namespace NN {
 		Matrix validate_tar;
 		std::string lastError;
 	};
+
+// helper function to decode NN types
+	std::string decode_nn_type(nn_types type);
+// helper function to decode neuron types
+	std::string decode_neuron_type(ActFun af);
+	text_table decode_neuron_type(const iMatrix& af, bool summarize = false);
+
 
 //-----------------------------------------------------------------------------------------------------------
 	struct anti_grad {

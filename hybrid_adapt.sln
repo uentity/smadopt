@@ -1,5 +1,5 @@
-Microsoft Visual Studio Solution File, Format Version 9.00
-# Visual Studio 2005
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ga_client", "ga_client\ga_client.vcproj", "{10F9E9E3-92E5-4779-9CF0-8258151157F7}"
 	ProjectSection(ProjectDependencies) = postProject
 		{7D5E91A2-91B1-4841-B3FD-D990C508AC59} = {7D5E91A2-91B1-4841-B3FD-D990C508AC59}

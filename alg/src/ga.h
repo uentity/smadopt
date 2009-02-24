@@ -97,8 +97,8 @@ namespace GA {
 		Matrix VSPStepGAalt(const Matrix& thisPop, const Matrix& thisScore, ul_vec& elite_ind, ul_vec& addon_ind,
 			ulong nNewKids = 0);
 
-		ulMatrix FindRepeats(const Matrix where, const Matrix& what);
-		ulMatrix EnsureUnique(Matrix& nextPop, const Matrix& thisPop, const Matrix& thisScore, const ul_vec& elite_ind);
+		ulMatrix FindRepeats(const Matrix& where, const Matrix& what);
+		ulMatrix EnsureUnique(Matrix& nextPop, const Matrix& thisPop, const Matrix& thisScore, ul_vec& elite_ind);
 
 		void InformWorld(void);
 		std::ostream& OutpFinishInfo(std::ostream& outs, const Matrix& bestChrom, double bestScore);

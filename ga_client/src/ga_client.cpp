@@ -9,6 +9,8 @@
 #include "kmeans.h"
 #include "determ_annealing.h"
 
+#include "text_table.h"
+
 #include "kar2words.h"
 
 #include <cmath>
@@ -25,6 +27,7 @@ using namespace GA;
 using namespace NN;
 using namespace KM;
 using namespace DA;
+//using namespace hybrid_adapt;
 
 int vspNum = 0;
 double deliver_mult = 100;
@@ -86,10 +89,16 @@ void RosenbrocksFcn(int nVars, int nPopSize, const double* pPop, double* pScore)
 	const double* pTek = pPop;
 	for(int i=0; i<nPopSize; ++i) {
 		dSum = 0;
-		for(int j=0; j < nVars - 1; ++j) {
+		if(nVars > 1) {
+			for(int j=0; j < nVars - 1; ++j) {
+				dTmp = (*pTek)*(*pTek);
+				dSum += 100*(dTmp - *(pTek + 1))*(dTmp - *(pTek + 1)) + (1 - dTmp)*(1 - dTmp);
+				++pTek;
+			}
+		}
+		else {
 			dTmp = (*pTek)*(*pTek);
-			dSum += 100*(dTmp - *(pTek + 1))*(dTmp - *(pTek + 1)) + (1 - dTmp)*(1 - dTmp);
-			++pTek;
+			dSum = 100*(dTmp - 1)*(dTmp - 1) + (1 - dTmp)*(1 - dTmp);
 		}
 		++pTek;
 		pScore[i] = dSum;
@@ -625,6 +634,22 @@ void TestDA(int c_num) {
 	ind.Print(f2);
 }
 
+void test_text_table() {
+	text_table tt;
+	tt.fmt().wrap = true;
+	tt.fmt().align = 2;
+	tt.fmt().sep_cols = true;
+	tt << text_table::begh() << "## 0 # 0 # 0 # 24 ##" << text_table::endr();
+	tt << text_table::begr() << "\\hline" << text_table::endr();
+	tt << "Column 1 & Column 2 & Column 3 & Column 4" << text_table::endrh();
+	tt << 12 << "&" << 24.5 << "& col3 test & col4 looooooooooooong veeeeeery llllllloooong text"  << text_table::endr();
+	tt << "\\hline" << text_table::endr();
+	string res = tt.format();
+	cout << res << endl;
+	res = tt.format();
+	cout << res << endl;
+}
+
 int main(int argc, char* argv[])
 {
 	int test_t = 0, c_num = 5;
@@ -652,8 +677,10 @@ int main(int argc, char* argv[])
 		case 0: TestFcnOpt(c_num, fun); break;
 		case 1: TestKmeans(c_num); break;
 		case 2: TestDA(c_num); break;
+		case 3: test_text_table(); break;
 	}
 
+	std::string s;
 	//Kar2Words();
 	//vsp_test_mig_rates();
 

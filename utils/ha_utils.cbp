@@ -15,7 +15,7 @@
 				<Option createDefFile="1" />
 				<Option createStaticLib="1" />
 				<Compiler>
-					<Add option="-ggdb" />
+					<Add option="-ggdb3" />
 					<Add option="-O0" />
 					<Add option="-D_DEBUG" />
 				</Compiler>
@@ -95,6 +95,8 @@
 		<Unit filename="src/mbuf_traits.h" />
 		<Unit filename="src/prg.cpp" />
 		<Unit filename="src/prg.h" />
+		<Unit filename="src/text_table.cpp" />
+		<Unit filename="src/text_table.h" />
 		<Unit filename="src/utils.cpp" />
 		<Extensions>
 			<code_completion />

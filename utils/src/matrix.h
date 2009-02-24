@@ -1529,7 +1529,7 @@ public:
 	}
 
 	std::ostream& operator ()(std::ostream& outs, bool delimRows = true) const {
-		return Print(outs);
+		return Print(outs, delimRows);
 	}
 
 	template< template< class > class r_buf_traits >
@@ -1731,6 +1731,13 @@ bool operator <= (const PARAM_MATRIX& m, Tr val) {
 TEMPLATE_PARAM
 bool operator <= (Tr val, const PARAM_MATRIX& m) {
 	return !(val > m);
+}
+
+//---------------------------------- stream output operator through Print ----------------------------------------------
+TEMPLATE_PARAM
+std::ostream& operator <<(std::ostream& os, const PARAM_MATRIX& m) {
+	m.Print(os);
+	return os;
 }
 
 //---------------------------------- global functions ------------------------------------------------------------------

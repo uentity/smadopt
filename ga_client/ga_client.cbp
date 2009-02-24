@@ -13,9 +13,9 @@
 				<Option external_deps="../exe/debug/libha_utils.so;../exe/debug/libha_alg.so;" />
 				<Option type="1" />
 				<Option compiler="gcc" />
-				<Option parameters="3 20" />
+				<Option parameters="0 2 rastrigins" />
 				<Compiler>
-					<Add option="-ggdb" />
+					<Add option="-ggdb3" />
 					<Add option="-O0" />
 					<Add option="-D_DEBUG" />
 					<Add directory="../utils/src" />
@@ -83,7 +83,10 @@
 		<Unit filename="src/kar2words.cpp" />
 		<Unit filename="src/kar2words.h" />
 		<Extensions>
-			<code_completion />
+			<code_completion>
+				<search_path add="/usr/include" />
+				<search_path add="/usr/include/c++/4.3.2" />
+			</code_completion>
 			<envvars />
 			<debugger />
 			<lib_finder disable_auto="1" />

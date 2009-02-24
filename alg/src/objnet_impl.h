@@ -1,16 +1,85 @@
 #include "objnet.h"
 #include "m_algorithm.h"
+// text tables
+//#include "text_table.h"
 
 #include <time.h>
 #include <sstream>
 //#include <iosfwd>
 #include <iostream>
 
+// defaul record width for formatted output
+#define NW 13
+
 //using namespace NN;
 namespace NN {
 
 using namespace std;
 using namespace hybrid_adapt;
+
+std::string decode_nn_type(nn_types type) {
+	switch(type) {
+		case mlp_nn:
+			return "Multi-Layered Perceptron";
+		case cc_nn:
+			return "Cascade-Correlation NN";
+		case rb_nn:
+			return "Radial Basis NN";
+		case pca_nn:
+			return "Principal Component Analysis NN";
+		default:
+			return "Unknown NN";
+	}
+}
+
+std::string decode_neuron_type(ActFun af) {
+	switch(af) {
+		case logsig:
+			return "logsig";
+		case tansig:
+			return "tansig";
+		case radbas:
+			return "radbas";
+		case purelin:
+			return "purelin";
+		case poslin:
+			return "poslin";
+		case expws:
+			return "expws";
+		case multiquad:
+			return "multiquad";
+		case revradbas:
+			return "revradbas";
+		case revmultiquad:
+			return "revmultiquad";
+		default:
+			return "unknown";
+	}
+}
+
+text_table decode_neuron_type(const iMatrix& af, bool summarize) {
+	iMatrix af_(1, af.size(), af.GetBuffer());
+	if(summarize)
+		af_ = af.Sort(less< int >());
+	else af_ = af;
+	// ensure af_ is a row
+	// af_.Resize(1, af_.size());
+
+	// go throw matrix
+	text_table tt;
+	tt << "- 0 _ 0 -" << tt_endr();
+	ulong n;
+	for(ulong i = 0; i < af_.size(); ++i) {
+		n = 1;
+		if(summarize) {
+			while(i < af_.size() - 1 && af_[i + 1] == af_[i]) {
+				++n; ++i;
+			}
+		}
+		tt << n << "&" << decode_neuron_type(static_cast< ActFun >(af_[i])) << tt_endr();
+	}
+	return tt;
+}
 
 //-------------------------------objnet implementation-------------------------------------------
 void objnet::_print_err(const char* pErr)
@@ -586,6 +655,39 @@ Matrix objnet::sim(const Matrix& inp)
 		}
 	}
 	return mOutp;
+}
+
+text_table objnet::detailed_info() const {
+	text_table tt;
+	tt.fmt().sep_cols = true;
+	tt.fmt().align = 2;
+
+	// show type
+	tt << tt_begh() << "- 30 - 0 -" << tt_endrh();
+	tt << "Network type: &" << decode_nn_type(nn_type()) << tt_endr();
+	tt << "Layers number: &" << layers_num() << tt_endrh();
+	cout << tt;
+
+	// display table with detailed information about layers
+	tt << tt_begh() << "| 0 | 0 | 0 | 0 |" << tt_endrh();
+	tt << "Layer # & Layer type & Neurons num & Neuron types" << tt_endrh();
+	TMatrix< string > neur_info;
+	for(ulong i = 0; i < layers_.size(); ++i) {
+		// decode layer's info about neuron types
+		neur_info = decode_neuron_type(layers_[i].aft(), true).content();
+		for(ulong j = 0; j < neur_info.row_num(); ++j) {
+			if(j == 0)
+				tt << i;
+			tt << "& &" << neur_info(j, 0) << "&" << neur_info(j, 1) << tt_endr();
+		}
+		tt << "\\hline" << tt_endr();
+		//for(ulong j = 0; j < layers_[i].size(); ++j)
+	}
+	return tt;
+}
+
+std::string objnet::status_info() const {
+	return "";
 }
 
 }	//end of namespace NN

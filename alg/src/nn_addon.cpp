@@ -714,6 +714,8 @@ int nn_addon::_learn_network(const Matrix& input, const Matrix& targets, ulong n
 			cerr << opt_.name << ": WRN: NN" << net_ind << " state after learning = " << ret_state << endl;
 
 #ifdef VERBOSE
+		// display detailed network info
+		cout << _onet[net_ind]->detailed_info().format();
 		//test learned network
 		Matrix tres;
 		if(opt_.netType == matrix_nn)
