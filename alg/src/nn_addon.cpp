@@ -715,7 +715,8 @@ int nn_addon::_learn_network(const Matrix& input, const Matrix& targets, ulong n
 
 #ifdef VERBOSE
 		// display detailed network info
-		cout << _onet[net_ind]->detailed_info().format();
+		text_table nn_info =_onet[net_ind]->detailed_info() << text_table::borders(0);
+		cout << nn_info.format();
 		//test learned network
 		Matrix tres;
 		if(opt_.netType == matrix_nn)

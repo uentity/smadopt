@@ -1,0 +1,74 @@
+import os, os.path;
+
+# directories
+build_dir = 'build';
+dbg_dir = 'debug';
+rel_dir = 'release';
+exe_dir = '../exe';
+lib_name = 'ha_alg';
+
+# construct base environ
+Import('*');
+base_env = custom_env.Clone();
+base_env.Append(
+	CCFLAGS = ['-W', '-Wall', '-Wno-deprecated', '-pthread'], #'-fvisibility=hidden', '-fvisibility-inlines-hidden'],
+	CPPPATH = ['src', '../utils/src'],
+	LIBS = ['ha_utils']
+);
+
+# construct debug and release env
+debug_env = base_env.Clone();
+debug_env.Append(
+		CPPDEFINES = ['_DEBUG'],
+		CCFLAGS = ['-O0', '-ggdb3'], 
+		LIBPATH = [os.path.join(exe_dir, dbg_dir)]);
+
+release_env = base_env.Clone();
+release_env.Append(
+		CCFLAGS = ['-O2'],
+		LIBPATH = [os.path.join(exe_dir, rel_dir)]);
+
+# make targets
+# debug
+def build_debug() :
+	print 'Active target [' + lib_name + '.debug]';
+	build_dir_dbg = os.path.join(build_dir, dbg_dir);
+	exe_dir_dbg = os.path.join(exe_dir, dbg_dir);
+
+	VariantDir(build_dir_dbg, 'src', duplicate = 0);
+	#debug = debug_env.SharedLibrary(target = lib_name, source = Glob(os.path.join(build_dir_dbg, '*.cpp'), True, True));
+	ha_alg_debug = debug_env.SharedLibrary(target = os.path.join(exe_dir_dbg, lib_name), source = Glob(os.path.join(build_dir_dbg, '*.cpp'), True, True));
+	Depends(ha_alg_debug, ha_utils_debug);
+	#ha_alg_debug = debug_env.Install(exe_dir_dbg, debug);
+	debug_env.Alias('ha_alg', ha_alg_debug);
+	Export('ha_alg_debug');
+
+# release
+def build_release() :
+	print 'Active target [' + lib_name + '.release]';
+	build_dir_rel = os.path.join(build_dir, rel_dir);
+	exe_dir_rel = os.path.join(exe_dir, rel_dir);
+
+	VariantDir(build_dir_rel, 'src', duplicate = 0);
+	ha_alg_release = release_env.SharedLibrary(target = os.path.join(exe_dir_rel, lib_name), source = Glob(os.path.join(build_dir_rel, '*.cpp'), True, True));
+	Depends(ha_alg_release, ha_utils_release);
+	#ha_alg_release = release_env.Install(exe_dir_rel, release);
+	release_env.Alias('ha_alg', ha_alg_release);
+	Export('ha_alg_release');
+
+# actually build targets
+if custom_env['debug'] == '1' :
+	build_debug();
+if custom_env['release'] == '1' :
+	build_release();
+
+#if custom_env.subst('$debug') == '1' :
+#	build_debug();
+#if custom_env.subst('$release') == '1' :
+#	build_release();
+
+#if GetOption('ha_debug') == 1 :
+#	build_debug();
+#if GetOption('ha_release') == 1 :
+#	build_release();
+

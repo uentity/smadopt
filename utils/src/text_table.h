@@ -15,6 +15,7 @@ public:
 		bool wrap;			// whether to wrap long text on several lines
 		int align;			// 0 = right, 1 = left
 		bool online;		// if true, rows are printed immidiately
+		bool no_borders;	// if true, borders are replaced by whitespaces
 		//std::ios::fmtflags f;	// custom formatting flags (applied to all fields)
 
 		// standard settings here
@@ -28,6 +29,10 @@ public:
 	struct endrh {};
 	struct hline {};
 	struct eline {};
+	struct borders {
+		borders(int draw_borders) : b_(draw_borders) {}
+		int b_;
+	};
 
 	// text table ctors
 	text_table(bool online = false);
@@ -130,6 +135,16 @@ private:
 		static void put(text_table& tt, const text_table::eline&) {
 			// add hline
 			tt << "\\eline" << endr();
+		}
+	};
+
+	template< class unused >
+	struct row_manip< text_table::borders, unused > {
+		static void put(text_table& tt, const text_table::borders& b) {
+			if(b.b_ > 0)
+				tt.fmt().no_borders = false;
+			else
+				tt.fmt().no_borders = true;
 		}
 	};
 

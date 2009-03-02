@@ -75,7 +75,7 @@ string trim_fill(const string& ss, char fill_c = '_') {
 
 // fmt_flags default ctor
 text_table::fmt_flags::fmt_flags()
-	: sep_cols(false), sep_rows(false), w(NW), wrap(true), align(0)
+	: sep_cols(false), sep_rows(false), w(NW), wrap(true), align(0), no_borders(false)
 {}
 
 class text_table::tt_impl {
@@ -292,7 +292,11 @@ public:
 			// print field
 			//if(fmt_.sep_cols) os_ << setw(1) << '|';
 			// print column delimiter
-			os << delims_[i];
+			if(fmt_.no_borders) {
+				os << setw(delims_[i].size()) << "";
+			}
+			else
+				os << delims_[i];
 			// print field
 			os << setw(w_[i]);
 			if(i < sv.size()) {
@@ -324,7 +328,11 @@ public:
 				os << "";
 		}
 		// finish line
-		os << delims_[w_.size()];
+		if(fmt_.no_borders) {
+			os << setw(delims_[w_.size()].size()) << "";
+		}
+		else
+			os << delims_[w_.size()];
 		// if(fmt_.sep_cols) os_ << setw(1) << '|';
 		os << std::endl;
 
@@ -352,7 +360,10 @@ public:
 			a = b + 1;
 			// check if this is an hline command
 			if(f == "\\hline") {
-				hl_ids_.insert(hlines_t::value_type(cells_.row_num(), 0));
+				if(fmt_.no_borders)
+					hl_ids_.insert(hlines_t::value_type(cells_.row_num(), 1));
+				else
+					hl_ids_.insert(hlines_t::value_type(cells_.row_num(), 0));
 				//is_hline = true;
 				return;
 			}

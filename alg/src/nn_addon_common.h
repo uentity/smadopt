@@ -8,7 +8,7 @@
 
 namespace GA {
 
-//	#define VERBOSE
+	#define VERBOSE
 	#define TOL 1e-10
 
 	//forward declarations
