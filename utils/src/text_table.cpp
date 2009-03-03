@@ -75,7 +75,7 @@ string trim_fill(const string& ss, char fill_c = '_') {
 
 // fmt_flags default ctor
 text_table::fmt_flags::fmt_flags()
-	: sep_cols(false), sep_rows(false), w(NW), wrap(true), align(0), no_borders(false)
+	: sep_cols(false), sep_rows(false), w(NW), wrap(true), align(0), no_borders(false), hline_char('_')
 {}
 
 class text_table::tt_impl {
@@ -86,7 +86,7 @@ public:
 	text_table::fmt_flags fmt_;
 
 	// header and body spec
-	//string head_;
+	string head_;
 	typedef std::list< string > body_t;
 	body_t body_;
 
@@ -134,15 +134,17 @@ public:
 //	}
 
 	void set_header(const string& h) {
+		// save original header spec
+		head_ = h;
 		istringstream is;
 		is.str(h);
 
 		// clear all fmt info
 		w_.clear();
 		delims_.clear();
-		cells_.clear();
-		body_.clear();
-		hl_ids_.clear();
+		//cells_.clear();
+		//body_.clear();
+		//hl_ids_.clear();
 
 		// process header to count columns & borders
 		string d;
@@ -166,7 +168,7 @@ public:
 		if(delims_.size() <= w_.size())
 			delims_.Resize(1, w_.size() + 1, "");
 
-		// if we are online-make corrections now
+		// if we are online - make corrections now
 		wb_ready_ = false;
 		if(fmt_.online)
 			adjust_wb();
@@ -176,6 +178,12 @@ public:
 			os_ << left;
 		else
 			os_ << right;
+	}
+
+	void clear_body() {
+		cells_.clear();
+		body_.clear();
+		hl_ids_.clear();
 	}
 
 	void set_width(const ivector& w) {
@@ -219,8 +227,9 @@ public:
 //		os_ << setfill(' ') << std::endl;
 //	}
 
-	void draw_hline(char fill_c = '_', bool side_borders = false) {
+	void draw_hline(char fill_c, bool side_borders = false) {
 		if(w_.size() == 0) return;
+		if(fmt_.no_borders) fill_c = ' ';
 
 		// calc full length of all row
 		long full_w = accumulate(w_.begin(), w_.end(), 0);
@@ -233,8 +242,13 @@ public:
 		// draw left border
 		string b1, b2;
 		if(side_borders) {
-			b1 = trim(delims_[0]);
-			b2 = trim(delims_[w_.size()]);
+			if(fmt_.no_borders) {
+				b1 = b2 = "";
+			}
+			else {
+				b1 = trim(delims_[0]);
+				b2 = trim(delims_[w_.size()]);
+			}
 			os << b1;
 			full_w = max< long >(full_w - b1.size() - b2.size(), 0);
 		}
@@ -252,7 +266,10 @@ public:
 		os_ << lastr_;
 	}
 
-	void draw_inner_hline(char fill_c = '_') {
+	void draw_inner_hline(char fill_c) {
+		if(w_.size() == 0) return;
+		if(fmt_.no_borders) fill_c = ' ';
+
 		// new algo - trims whitespaces in delimiters
 		ostringstream os;
 		// copy format from global stream
@@ -262,11 +279,21 @@ public:
 		string d;
 		for(ulong i = 0; i < w_.size(); ++i) {
 			// replace whitespaces in delimiter
-			os << trim_fill(delims_[i], fill_c);
+			if(fmt_.no_borders) {
+				os << setw(delims_[i].size()) << "";
+			}
+			else
+				os << trim_fill(delims_[i], fill_c);
 			// draw hline in field
 			os << setw(w_[i]) << "";
 		}
-		os << trim_fill(delims_[w_.size()], fill_c) << endl;
+		// draw rightmost border
+		if(fmt_.no_borders) {
+			os << setw(delims_[w_.size()].size()) << "";
+		}
+		else
+			os << trim_fill(delims_[w_.size()], fill_c);
+		os << endl;
 
 		lastr_ = os.str();
 		os_ << lastr_;
@@ -360,10 +387,8 @@ public:
 			a = b + 1;
 			// check if this is an hline command
 			if(f == "\\hline") {
-				if(fmt_.no_borders)
-					hl_ids_.insert(hlines_t::value_type(cells_.row_num(), 1));
-				else
-					hl_ids_.insert(hlines_t::value_type(cells_.row_num(), 0));
+				//if(fmt_.no_borders)
+				hl_ids_.insert(hlines_t::value_type(cells_.row_num(), 0));
 				//is_hline = true;
 				return;
 			}
@@ -444,6 +469,31 @@ public:
 	}
 
 	std::string format(ulong start_row, ulong how_many) {
+		// test version of no-borders
+		if(fmt_.no_borders) {
+			// create new text_table with modified spec
+			// reset own adjustment
+			set_header(head_);
+			ostringstream mod_head;
+			mod_head << "- ";
+			for(ulong i = 0; i < w_.size(); ++i) {
+				if(i) mod_head << " _ ";
+				mod_head << w_[i];
+			}
+			mod_head << " -";
+
+			text_table filter;
+			filter.fmt() = fmt_;
+			filter.fmt().no_borders = false;
+			filter.fmt().sep_rows = false;
+			filter.fmt().hline_char = ' ';
+			filter << tt_begh() << mod_head.str() << tt_endr();
+
+			// copy data to new table
+			copy(body_.begin(), body_.end(), inserter(filter.pimpl_->body_, filter.pimpl_->body_.begin()));
+			//filter.pimpl_->body_ = body_;
+			return filter.format();
+		}
 		// convert table spec to cells matrix
 		cells_.clear();
 		hl_ids_.clear();
@@ -464,24 +514,23 @@ public:
 		how_many = min(start_row + how_many, cells_.row_num());
 
 		str_mat row;
-		char hfill[] = {'_', ' '};
+		char hfill[] = {fmt_.hline_char, ' '};
 		pair< hlines_t::const_iterator, hlines_t::const_iterator > hl_rng;
 		for(ulong i = start_row; i <= how_many; ++i) {
 			// draw hlines
 			if(fmt_.sep_rows)
-				draw_hline();
+				draw_hline(hfill[0]);
 			hl_rng = hl_ids_.equal_range(i);
 			for(;hl_rng.first != hl_rng.second; ++hl_rng.first) {
 				if(i == start_row)
-					draw_hline();
+					draw_hline(hfill[hl_rng.first->second]);
 				else if(i == how_many)
-					draw_hline(hfill[0], true);
+					draw_hline(hfill[hl_rng.first->second], true);
 				else
 					draw_inner_hline(hfill[hl_rng.first->second]);
 			}
-
-			// print row
 			if(i == how_many) break;
+			// print row
 			row <<= cells_.GetRows(i);
 			lastr_ = "";
 			print_row(row);
@@ -575,6 +624,10 @@ TMatrix< std::string > text_table::content(ulong start_row, ulong how_many) {
 
 ostream& text_table::row_stream() {
 	return line_;
+}
+
+void text_table::clear() {
+	pimpl_->clear_body();
 }
 
 std::ostream& operator <<(std::ostream& os, text_table& tt) {

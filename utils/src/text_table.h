@@ -16,6 +16,8 @@ public:
 		int align;			// 0 = right, 1 = left
 		bool online;		// if true, rows are printed immidiately
 		bool no_borders;	// if true, borders are replaced by whitespaces
+
+		char hline_char;
 		//std::ios::fmtflags f;	// custom formatting flags (applied to all fields)
 
 		// standard settings here
@@ -44,12 +46,20 @@ public:
 
 	// table's format accessor
 	fmt_flags& fmt();
+
 	// set header for table
 	void set_header(const std::string& h);
 	// add next row with content
 	void add_row(const std::string& l);
 	// remove n-th line
 	bool rem_row(ulong line_num);
+	// return rows number
+	ulong row_num() const;
+	// retrieve row
+	std::string get_row(ulong num) const;
+	// clear table
+	void clear();
+
 	// get last formatted row - usable for online mode
 	std::string last_row() const;
 	// get stream, used to inupt data via << operator
@@ -58,7 +68,7 @@ public:
 	ulong size() const;
 	// get ready-to-use table in a string form
 	std::string format(ulong start_row = 0, ulong how_many = 0);
-	// get table content in matrix form
+	// get formatted table content in matrix form
 	TMatrix< std::string > content(ulong start_row = 0, ulong how_many = 0);
 
 	// overload operators << for any type
@@ -74,6 +84,16 @@ private:
 		// overload operators << for any type
 		static void put(text_table& tt, const T& v) {
 			tt.line_ << v;
+		}
+	};
+
+	// copy data from one table to another
+	template< class unused >
+	struct row_manip< text_table, unused > {
+		static void put(text_table& dst, const text_table& src) {
+			ulong n = src.row_num();
+			for(ulong i = 0; i < n; ++i)
+				dst.add_row(src.get_row(i));
 		}
 	};
 
@@ -101,6 +121,8 @@ private:
 		static void put(text_table& tt, const text_table::endr&) {
 			if(tt.inp_state_ == 1) {
 				tt.set_header(tt.line_.str());
+				// clear existing table contents
+				tt.clear();
 				// auto-switch to rows input
 				tt.inp_state_ = 0;
 			}

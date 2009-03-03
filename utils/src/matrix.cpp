@@ -6,7 +6,7 @@
 
 template<>
 TMatrix<bool>::TMatrix(size_type rows, size_type cols, cbuf_pointer ptr) :
-	_pData(new buf_type(size_ = rows*cols))
+	data_(new buf_type(size_ = rows*cols))
 {
 	rows_ = cols_ = 0;
 	if(size_ > 0) {

@@ -44,6 +44,13 @@ namespace NN {
 		rb_nn		// radial basis NN
 	};
 
+	// NN layer types
+	enum layer_types {
+		common_nnl,
+		rb_nnl,
+		falman_nnl
+	};
+
 	enum nn_flags {
 		useBiases = 1,
 		useGradient = 2,
@@ -145,10 +152,12 @@ namespace NN {
 
 // helper function to decode NN types
 	std::string decode_nn_type(nn_types type);
+// helper function to decode layer types
+	std::string decode_layer_type(layer_types type);
+
 // helper function to decode neuron types
 	std::string decode_neuron_type(ActFun af);
 	text_table decode_neuron_type(const iMatrix& af, bool summarize = false);
-
 
 //-----------------------------------------------------------------------------------------------------------
 	struct anti_grad {

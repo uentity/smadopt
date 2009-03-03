@@ -94,7 +94,7 @@ private:
 	typedef typename std::vector< double >::iterator dr_iterator;
 
 	//data members
-	sp_buf _pData;
+	sp_buf data_;
 
 	int alloc_;
 	size_type size_;
@@ -105,7 +105,7 @@ private:
 	std::ostream& _print(std::ostream& outs, bool delimRows, int num_width) const
 	{
 		if(num_width == 0) num_width = DEF_WIDTH;
-		it pos(_pData->begin());
+		it pos(data_->begin());
 		for(size_type i=0; i<rows_; ++i) {
 			for(size_type j=0; j<cols_; ++j) {
 				outs.width(num_width);
@@ -139,7 +139,7 @@ public:
 		bool cycled_;
 
 		explicit column_iterator(matrix_t& m, bool cycled = false)
-			: pos_(m.begin()), data_(m._pData), cols_(m.cols_), cycled_(cycled)
+			: pos_(m.begin()), data_(m.data_), cols_(m.cols_), cycled_(cycled)
 		{}
 
 		reference operator *() const {
@@ -307,14 +307,14 @@ public:
 
 
 	//ctors
-	TMatrix() : _pData(new buf_type)
+	TMatrix() : data_(new buf_type)
 	{
 		rows_ = cols_ = size_ = 0;
 		alloc_ = INNER;
 	}
 
 	TMatrix(size_type rows, size_type cols, cbuf_pointer ptr = NULL)
-		: _pData(new buf_type(size_ = rows*cols))
+		: data_(new buf_type(size_ = rows*cols))
 	{
 		rows_ = cols_ = 0;
 		alloc_ = INNER;
@@ -325,7 +325,7 @@ public:
 	}
 
 	//conversion constructor
-	TMatrix(const this_t& m) : _pData(m._pData)
+	TMatrix(const this_t& m) : data_(m.data_)
 	{
 		rows_ = m.rows_; cols_ = m.cols_;
 		size_ = m.size_;
@@ -340,12 +340,12 @@ public:
 	{
 		size_ = rows*cols;
 		if(alloc_ == EXTERN) {
-			_pData = new buf_type(size_, fill_val);
+			data_ = new buf_type(size_, fill_val);
 			alloc_ = INNER;
 		}
 		else {
-			_pData->clear();
-			if(size_ > 0) _pData->resize(size_, fill_val);
+			data_->clear();
+			if(size_ > 0) data_->resize(size_, fill_val);
 		}
 
 		if(size_ > 0) {
@@ -373,7 +373,7 @@ public:
 		}
 		rows_ = rows; cols_ = cols;
 		alloc_ = EXTERN;
-		_pData = sp_buf;
+		data_ = sp_buf;
 	}
 	*/
 
@@ -381,9 +381,9 @@ public:
 		size_ = m.size_;
 		rows_ = m.rows_; cols_ = m.cols_;
 		alloc_ = EXTERN;
-		_pData = m._pData;
+		data_ = m.data_;
 
-		//NewExtern(m.rows_, m.cols_, m._pData);
+		//NewExtern(m.rows_, m.cols_, m.data_);
 	}
 
 	//NewExtern operator for matrix
@@ -406,75 +406,75 @@ public:
 	//matrix element access in form m[i] (all elements in one long vector, row by row)
 	reference operator [](size_type ind)
 	{
-		return buf_traits::val(_pData, ind);
+		return buf_traits::val(data_, ind);
 	}
 
 	const_reference operator [](size_type ind) const
 	{
-		return buf_traits::val(_pData, ind);
+		return buf_traits::val(data_, ind);
 	}
 
 	//buffer elements access
 	buf_reference at_buf(size_type ind)
 	{
-		return _pData->operator [](ind);
+		return data_->operator [](ind);
 	}
 
 	cbuf_reference at_buf(size_type ind) const
 	{
-		return _pData->operator [](ind);
+		return data_->operator [](ind);
 	}
 
 	//buffer element access in form m(i, j)
 	buf_reference at_buf(size_type row, size_type col)
 	{
-		return _pData->operator [](row*cols_ + col);
+		return data_->operator [](row*cols_ + col);
 	}
 
 	cbuf_reference at_buf(size_type row, size_type col) const
 	{
-		return _pData->operator [](row*cols_ + col);
+		return data_->operator [](row*cols_ + col);
 	}
 
 	//implicit conversion to buf_type
 	operator const buf_type&() const {
-		return *_pData.p;
+		return *data_.p;
 	}
 
 	const buf_type* get_container() const {
-		return _pData.p;
+		return data_.p;
 	}
 
 	cr_iterator begin() const {
-		return cr_iterator(_pData->begin());
+		return cr_iterator(data_->begin());
 	}
 
 	r_iterator begin() {
-		return r_iterator(_pData->begin());
+		return r_iterator(data_->begin());
 	}
 
 	cr_iterator end() const {
-		return cr_iterator(_pData->end());
+		return cr_iterator(data_->end());
 	}
 
 	r_iterator end() {
-		return r_iterator(_pData->end());
+		return r_iterator(data_->end());
 	}
 
 	cbuf_iterator buf_begin() const {
-		return _pData->begin();
+		return data_->begin();
 	}
 
 	buf_iterator buf_begin() {
-		return _pData->begin();
+		return data_->begin();
 	}
 
 	cbuf_iterator buf_end() const {
-		return _pData->end();
+		return data_->end();
 	}
 
 	buf_iterator buf_end() {
-		return _pData->end();
+		return data_->end();
 	}
 
 	size_type row_num() const {
@@ -491,14 +491,14 @@ public:
 	}
 
 	buf_pointer GetBuffer() {
-		if(!_pData->empty())
-			return &_pData->operator[](0);
+		if(!data_->empty())
+			return &data_->operator[](0);
 		else return NULL;
 	}
 
 	cbuf_pointer GetBuffer() const {
-		if(!_pData->empty())
-			return &_pData->operator[](0);
+		if(!data_->empty())
+			return &data_->operator[](0);
 		else return NULL;
 	}
 
@@ -513,12 +513,12 @@ public:
 	}
 
 	void reserve(size_type count) {
-		_pData->reserve(count);
+		data_->reserve(count);
 	}
 
 	//reset matrix
 	void clear() {
-		_pData->clear();
+		data_->clear();
 		size_ = rows_ = cols_ = 0;
 	}
 
@@ -530,7 +530,7 @@ public:
 			rows_ = m.row_num(); cols_ = m.col_num();
 			if(size_ != m.size()) {
 				size_ = rows_ * cols_;
-				_pData->resize(size_);
+				data_->resize(size_);
 			}
 			std::copy(m.begin(), m.end(), begin());
 		}
@@ -543,7 +543,7 @@ public:
 			rows_ = m.rows_; cols_ = m.cols_;
 			if(size_ != m.size_) {
 				size_ = rows_ * cols_;
-				_pData->resize(size_);
+				data_->resize(size_);
 			}
 			copy(m.buf_begin(), m.buf_end(), buf_begin());
 		}
@@ -842,11 +842,11 @@ public:
 			*this ^= m;
 		}
 		else if(cols_ == m.cols_) {
-			_pData->reserve(_pData->size() + m.size());
-			_pData->insert(buf_end(), m.buf_begin(), m.buf_end());
-			//copy(m.begin(), m.end(), back_inserter(*_pData));
+			data_->reserve(data_->size() + m.size());
+			data_->insert(buf_end(), m.buf_begin(), m.buf_end());
+			//copy(m.begin(), m.end(), back_inserter(*data_));
 			rows_ += m.rows_;
-			size_ = _pData->size();
+			size_ = data_->size();
 		}
 
 		return *this;
@@ -856,8 +856,8 @@ public:
 	void push_back(cbuf_reference val, bool grow_column = true)
 	{
 		if(size_ == 0 || rows_ == 1 || cols_ == 1) {
-			_pData->push_back(val);
-			size_ = _pData->size();
+			data_->push_back(val);
+			size_ = data_->size();
 			if(grow_column) {
 				rows_ = size_;
 				cols_ = 1;
@@ -881,8 +881,8 @@ public:
 	void insert(cbuf_reference val, size_type where, bool grow_column = true)
 	{
 		if((size_ == 0 || rows_ == 1 || cols_ == 1) && where <= size_) {
-			_pData->insert(buf_begin() + where, val);
-			size_ = _pData->size();
+			data_->insert(buf_begin() + where, val);
+			size_ = data_->size();
 			if(size_ == 1) {
 				rows_ = cols_ = 1;
 			}
@@ -926,17 +926,17 @@ public:
 			*this ^= m;
 		}
 		else if(rows_ == m.rows_) {
-			_pData->reserve(_pData->size() + m.size());
+			data_->reserve(data_->size() + m.size());
 			cbuf_iterator src(m.buf_begin());
 			buf_iterator dst(buf_begin() + cols_);
 			for(size_type i=0; i<rows_; ++i) {
-				_pData->insert(dst, src, src + m.cols_);
-				//copy(src, src + m.cols_, inserter(*_pData, dst));
+				data_->insert(dst, src, src + m.cols_);
+				//copy(src, src + m.cols_, inserter(*data_, dst));
 				src += m.cols_;
 				dst += (cols_ + m.cols_);
 			}
 			cols_ += m.cols_;
-			size_ = _pData->size();
+			size_ = data_->size();
 		}
 
 		return *this;
@@ -1056,11 +1056,11 @@ public:
 	{
 		if(row >= rows_) return;
 		num = min(num, rows_ - row);
-		_pData->erase(buf_begin() + row*cols_, buf_begin() + (row + num)*cols_);
+		data_->erase(buf_begin() + row*cols_, buf_begin() + (row + num)*cols_);
 
 		rows_ -= num;
 		if(rows_ == 0) cols_ = 0;
-		size_ = _pData->size();
+		size_ = data_->size();
 	}
 
 	void DelColumns(size_type nColumn, size_type nNum = 1)
@@ -1069,12 +1069,12 @@ public:
 		nNum = std::min<size_type>(nNum, cols_ - nColumn);
 		buf_iterator pos = buf_begin() + nColumn;
 		for(size_type i=0; i<rows_; ++i) {
-			_pData->erase(pos, pos + nNum);
+			data_->erase(pos, pos + nNum);
 			pos = pos + cols_ - nNum;
 		}
 		cols_ -= nNum;
 		if(cols_ == 0) rows_ = 0;
-		size_ = _pData->size();
+		size_ = data_->size();
 	}
 
 	this_t& Resize(size_type newRows = 0, size_type newCols = 0, buf_value_type fill_val = 0)
@@ -1084,23 +1084,23 @@ public:
 			rows_ = newRows;
 			if(cols_ == 0) cols_ = 1;
 			size_ = rows_*cols_;
-			_pData->resize(size_);
+			data_->resize(size_);
 		}
 		//resize in columns
 		if(newCols > 0 && newCols != cols_) {
 			if(newCols > cols_) {
 				//reserve memory
 				if(rows_ == 0) rows_ = 1;
-				_pData->reserve(rows_*newCols);
+				data_->reserve(rows_*newCols);
 				//for all columns except last insert zero elements
 				buf_iterator pos(buf_begin() + cols_);
 				for(size_type i=0; i < rows_; ++i) {
-					_pData->insert(pos, newCols - cols_, fill_val);
+					data_->insert(pos, newCols - cols_, fill_val);
 					pos += newCols;
 				}
 				//for last column add elements by resizing
-				//_pData->resize(_pData->size() + newCols - cols_);
-				size_ = _pData->size();
+				//data_->resize(data_->size() + newCols - cols_);
+				size_ = data_->size();
 				cols_ = newCols;
 			}
 			else DelColumns(newCols, cols_ - newCols);
@@ -1110,7 +1110,7 @@ public:
 
 	this_t& raw_resize(size_type newRows = 0, size_type newCols = 0, buf_value_type fill_val = 0) {
 		size_ = newRows * newCols;
-		_pData->resize(size_, fill_val);
+		data_->resize(size_, fill_val);
 		if(size_) {
 			rows_ = newRows; cols_ = newCols;
 		}
@@ -1671,9 +1671,9 @@ public:
 //	}
 //}
 
-//---------------------------------- comparision operators -------------------------------------------------------------
+//---------------------------------- comparison operators -------------------------------------------------------------
 //#define TEMPLATE_MATVAL template< class Tr, template< class > class r_buf_traits, class V >
-//comparision operators
+//comparison operators
 TEMPLATE_PARAM
 bool operator ==(const PARAM_MATRIX& m, Tr val)
 {

@@ -269,6 +269,11 @@ namespace NN {
 
 		virtual void propagate();
 		virtual void init_weights(const Matrix& inputs);
+
+		// get layer type
+		virtual layer_types layer_type() const {
+			return common_nnl;
+		}
 	};
 
 	//typedef TMatrix<layer> layerMatrix;
@@ -396,9 +401,9 @@ namespace NN {
 		virtual nn_types nn_type() const = 0;
 
 		// return NN detailed info
-		virtual text_table detailed_info() const;
+		virtual text_table detailed_info(int level = 1) const;
 		// return current network status desccription
-		virtual std::string status_info() const;
+		virtual std::string status_info(int level = 1) const;
 
 		Matrix sim(const Matrix& inp);
 	};
@@ -411,19 +416,16 @@ namespace NN {
 	public:
 		bp_layer(objnet& net, ulong neurons_count = 0, int af_type = logsig)
 			:layer(net, neurons_count, af_type)
-		{
-		}
+		{}
 
 		bp_layer(objnet& net, const iMatrix& act_fun)
 			:layer(net, act_fun)
-		{
-		}
+		{}
 
 		//copy constructor
 		bp_layer(const layer& l)
 			:layer(l)
-		{
-		}
+		{}
 	};
 
 	class _CLASS_DECLSPEC mlp : public objnet
@@ -552,6 +554,10 @@ namespace NN {
 
 		ulong get_winner_ind() {
 			return winner_ind_.max_ind();
+		}
+
+		layer_types layer_type() const {
+			return falman_nnl;
 		}
 	};
 
@@ -686,19 +692,16 @@ namespace NN {
 
 		rb_layer(objnet& net, int gft = DEF_GFT)
 			:layer(net), gft_(gft)
-		{
-		}
+		{}
 
 		rb_layer(objnet& net, ulong neurons_count, int gft = DEF_GFT)
 			:layer(net, neurons_count, gft), gft_(gft)
-		{
-		}
+		{}
 
 		//copy constructor
 		rb_layer(const rb_layer& l)
 			:layer(l), gft_(l.gft_)
-		{
-		}
+		{}
 
 		//exact rbf layer construction - neurons num equal to learning samples num
 		void construct_exact(const Matrix& inputs);
@@ -715,6 +718,10 @@ namespace NN {
 
 
 		void init_weights(const Matrix& inputs);
+
+		layer_types layer_type() const {
+			return rb_nnl;
+		}
 	};
 
 	class _CLASS_DECLSPEC rbn : public objnet

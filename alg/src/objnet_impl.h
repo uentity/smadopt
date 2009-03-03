@@ -32,6 +32,19 @@ std::string decode_nn_type(nn_types type) {
 	}
 }
 
+std::string decode_layer_type(layer_types type) {
+	switch(type) {
+		case common_nnl:
+			return "Std layer";
+		case rb_nnl:
+			return "RBN layer";
+		case falman_nnl:
+			return "Fahlman layer";
+		default:
+			return "Unknown layer";
+	}
+}
+
 std::string decode_neuron_type(ActFun af) {
 	switch(af) {
 		case logsig:
@@ -657,36 +670,40 @@ Matrix objnet::sim(const Matrix& inp)
 	return mOutp;
 }
 
-text_table objnet::detailed_info() const {
+text_table objnet::detailed_info(int level) const {
 	text_table tt;
 	tt.fmt().sep_cols = true;
 	tt.fmt().align = 2;
 
-	// show type
-	tt << tt_begh() << "- 30 - 0 -" << tt_endrh();
-	tt << "Network type: &" << decode_nn_type(nn_type()) << tt_endr();
-	tt << "Layers number: &" << layers_num() << tt_endrh();
-	cout << tt;
-
-	// display table with detailed information about layers
-	tt << tt_begh() << "| 0 | 0 | 0 | 0 |" << tt_endrh();
-	tt << "Layer # & Layer type & Neurons num & Neuron types" << tt_endrh();
-	TMatrix< string > neur_info;
-	for(ulong i = 0; i < layers_.size(); ++i) {
-		// decode layer's info about neuron types
-		neur_info = decode_neuron_type(layers_[i].aft(), true).content();
-		for(ulong j = 0; j < neur_info.row_num(); ++j) {
-			if(j == 0)
-				tt << i;
-			tt << "& &" << neur_info(j, 0) << "&" << neur_info(j, 1) << tt_endr();
+	// level 0 - brief info about NN layers num
+	if(level == 0) {
+		// show type
+		tt << tt_begh() << "- 30 - 0 -" << tt_endrh();
+		tt << "Network type: &" << decode_nn_type(nn_type()) << tt_endr();
+		tt << "Layers number: &" << layers_num() << tt_endrh();
+	}
+	else if(level > 0) {
+		// deep level of information about network
+		// display table with detailed information about layers
+		tt << tt_begh() << "| 0 | 0 | 0 | 0 |" << tt_endrh();
+		tt << "Layer # & Layer type & Neurons num & Neuron types" << tt_endrh();
+		TMatrix< string > neur_info;
+		for(ulong i = 0; i < layers_.size(); ++i) {
+			// decode layer's info about neuron types
+			neur_info = decode_neuron_type(layers_[i].aft(), level > 2 ? false : true).content();
+			for(ulong j = 0; j < neur_info.row_num(); ++j) {
+				if(j == 0)
+					tt << i;
+				tt << "&" << decode_layer_type(layers_[i].layer_type()) << "&" << neur_info(j, 0) << "&" << neur_info(j, 1) << tt_endr();
+			}
+			tt << "\\hline" << tt_endr();
+			//for(ulong j = 0; j < layers_[i].size(); ++j)
 		}
-		tt << "\\hline" << tt_endr();
-		//for(ulong j = 0; j < layers_[i].size(); ++j)
 	}
 	return tt;
 }
 
-std::string objnet::status_info() const {
+std::string objnet::status_info(int level) const {
 	return "";
 }
 
