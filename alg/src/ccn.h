@@ -7,8 +7,8 @@ using namespace NN;
 void falman_layer::_construct_aft()
 {
 	vector<int> aft;
-	//aft.push_back(logsig);
-	//aft.push_back(tansig);
+	aft.push_back(logsig);
+	aft.push_back(tansig);
 	//aft.push_back(radbas);
 	aft.push_back(revradbas);
 	//aft.push_back(multiquad);
@@ -511,13 +511,12 @@ int ccn::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLe
 		for(mainState_.cycle = 1; mainState_.cycle <= opt_.maxFL_; ++mainState_.cycle) {
 			//learn last layer
 			if(learn_outl) {
-				//cout << "last layer learn started" << endl;
 				//check if first falman layer is pre-creted
-				if(rbfl_) {
-					mainState_.status = NN::ccn_fully_bp;
-					rbfl_ = false;
-				}
-				else
+			//	if(rbfl_) {
+			//		mainState_.status = NN::ccn_fully_bp;
+			//		rbfl_ = false;
+			//	}
+			//	else
 					mainState_.status = learning;
 				cur_fl_ = NULL;
 				if(mainState_.cycle == 1) layers_.begin()->init_weights(inputs);
@@ -529,6 +528,8 @@ int ccn::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLe
 
 				common_learn(inputs, targets, false, pProc);
 				mainState_.perf = state_.perf;
+				// drop rbfl_ flag
+				rbfl_ = false;
 				if(state_.status == learned || state_.status == stop_breaked) {
 					mainState_.status = state_.status;
 					break;
@@ -658,3 +659,86 @@ void ccn::reset()
 		//save only first falman layer
 		flayers_.Resize(1, 1, smart_ptr< falman_layer >());
 }
+
+std::string ccn::status_info(int level) const {
+	ostringstream os;
+	string stop_state = decode_nn_state(state_.status);
+	if(mainState_.status == learning) {
+		// outpul layer learning status
+		if(state_.cycle == 1) {
+			if(rbfl_)
+				os << "Initial Radial-basis network learning started";
+			else
+				os << "Output layer learning started";
+			os << endl;
+		}
+		os << objnet::status_info();
+		if(stop_state != "")
+			os << "Output layer: " << stop_state << endl << endl;
+	}
+	else {
+		// Fahlman layer learning status
+		if(state_.status == learning) {
+			if(state_.cycle == 1)
+				os << "Error still high - new falman layer #" << flayers_num() << " added" << endl;
+			os << "cycle " << state_.cycle << ", goal " << state_.perf << endl;
+		}
+		// Result of fahlman layer learning
+		if(stop_state != "") {
+			os << "Fahlman layer: " << stop_state << endl;
+			if(mainState_.status == ccn_maxcor) {
+				os << "The winner is: " << decode_neuron_type(cur_fl_->aft()[cur_fl_->get_winner_ind()]);
+				os << " neuron " << endl << endl;
+			}
+			else os << endl;
+		}
+		// Overall NN learning status
+		if(mainState_.status != opt_.learnType)
+			os << "We end up with " << flayers_num() << " falman layers" << endl << endl;
+	}
+	
+	// print resulting status of main CCN
+	if((stop_state = decode_nn_state(mainState_.status)) != "")
+		os << "CCN: " << decode_nn_state(mainState_.status) << endl << endl;
+
+	return os.str();
+}
+
+text_table ccn::detailed_info(int level) const {
+	struct fmt_layer_info {
+		static text_table& go(text_table& tt, const layer& l, int level) {
+			// decode layer's info about neuron types
+			TMatrix< string > neur_info = decode_neuron_type(l.aft(), level > 2 ? false : true).content();
+			for(ulong j = 0; j < neur_info.row_num(); ++j) {
+				tt << "&" << decode_layer_type(l.layer_type()) << "&" << neur_info(j, 0);
+				tt << "&" << neur_info(j, 1) << tt_endr();
+			}
+			tt << "\\hline" << tt_endr();
+			return tt;
+		}
+	};
+
+	if(!level) return objnet::detailed_info(level);
+
+	text_table tt;
+	tt.fmt().sep_cols = true;
+	tt.fmt().align = 2;
+
+	// deep level of information about network
+	// display table with detailed information about layers
+	tt << tt_begh() << "| 0 | 0 | 0 | 0 |" << tt_endrh();
+	tt << "Layer # & Layer type & Neurons num & Neuron types" << tt_endrh();
+	// display fahlman layers
+	ulong cnt = 0;
+	for(ulong i = 0; i < flayers_.size(); ++i, ++cnt) {
+		tt << cnt;
+		fmt_layer_info::go(tt, flayers_[i], level);
+	}
+	// display other layers
+	for(ulong i = 0; i < layers_.size(); ++i, ++cnt) {
+		tt << cnt;
+		fmt_layer_info::go(tt, layers_[i], level);
+	}
+	return tt;
+}
+

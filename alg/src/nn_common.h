@@ -151,13 +151,16 @@ namespace NN {
 	};
 
 // helper function to decode NN types
-	std::string decode_nn_type(nn_types type);
+	std::string decode_nn_type(int type);
 // helper function to decode layer types
-	std::string decode_layer_type(layer_types type);
+	std::string decode_layer_type(int type);
 
 // helper function to decode neuron types
-	std::string decode_neuron_type(ActFun af);
+	std::string decode_neuron_type(int af);
 	text_table decode_neuron_type(const iMatrix& af, bool summarize = false);
+
+// helper function to decode NN resulting state
+	std::string decode_nn_state(int status);
 
 //-----------------------------------------------------------------------------------------------------------
 	struct anti_grad {

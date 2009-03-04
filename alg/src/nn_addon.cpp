@@ -87,51 +87,52 @@ bool MNetInformer(ulong uCycle, double perf, void* pNet)
 
 bool StandardInformer(ulong uCycle, double perf, void* pNet)
 {
-	mlp* pNN = (mlp*)pNet;
-	cout << "cycle " << uCycle << ", error " << perf << ", goal " << pNN->opt_.goal << endl;
-	print_nn_state(pNN->state());
+//	mlp* pNN = (mlp*)pNet;
+//	cout << "cycle " << uCycle << ", error " << perf << ", goal " << pNN->opt_.goal << endl;
+//	print_nn_state(pNN->state());
 
-	//char c = cin.peek();
-	//if(c == 's') return false;
+	cout << ((objnet*)pNet)->status_info();
 	return true;
 }
 
 bool CcnInformer(ulong uCycle, double perf, void* pNet)
 {
-	ccn* pNN = (ccn*)pNet;
-	nnState mainState = pNN->get_mainState();
-	nnState tstate = pNN->state();
-	falman_layer* p_l = pNN->get_cur_flayer();
-	if(mainState.status == learning) {
-		if(tstate.cycle == 1) {
-			/*
-			if(pNN->flayers_num() > 0) {
-				p_l = &pNN->get_flayer(pNN->flayers_num() - 1);
-				print_winner(p_l->aft()[p_l->get_winner_ind()]);
-			}
-			*/
-			cout << "Output layer learning started" << endl;
-		}
-		cout << "cycle " << uCycle << ", error " << perf << ", goal " << pNN->opt_.goal << endl;
-		print_nn_state(tstate, "Output layer:");
-	}
-	else {
-		if(tstate.cycle == 1)
-			cout << "Error still high - new falman layer #" << pNN->flayers_num() << " learning started" << endl;
-		cout << "cycle " << uCycle << ", goal " << perf << endl;
-		print_nn_state(tstate, "Falman layer:");
-		if(mainState.status == ccn_maxcor && tstate.status != learning)
-			print_winner(p_l->aft()[p_l->get_winner_ind()]);
-	}
-	//else if(mainState.status == bp_falman_learning) {
-	//	if(tstate.cycle == 1)
-	//		cout << "Output with last falman layers learning started" << endl;
-	//	cout << "cycle " << uCycle << ", error " << perf << ", goal " << pNN->opt_.goal << endl;
-	//	print_nn_state(tstate, "Output layer:");
-	//}
-	print_nn_state(mainState, "CCN");
-	if(mainState.status != learning && mainState.status != pNN->opt_.learnType)
-		cout << "We end up with " << pNN->flayers_num() << " falman layers" << endl;
+//	ccn* pNN = (ccn*)pNet;
+//	nnState mainState = pNN->get_mainState();
+//	nnState tstate = pNN->state();
+//	falman_layer* p_l = pNN->get_cur_flayer();
+//	if(mainState.status == learning) {
+//		if(tstate.cycle == 1) {
+//			/*
+//			if(pNN->flayers_num() > 0) {
+//				p_l = &pNN->get_flayer(pNN->flayers_num() - 1);
+//				print_winner(p_l->aft()[p_l->get_winner_ind()]);
+//			}
+//			*/
+//			cout << "Output layer learning started" << endl;
+//		}
+//		cout << "cycle " << uCycle << ", error " << perf << ", goal " << pNN->opt_.goal << endl;
+//		print_nn_state(tstate, "Output layer:");
+//	}
+//	else {
+//		if(tstate.cycle == 1)
+//			cout << "Error still high - new falman layer #" << pNN->flayers_num() << " learning started" << endl;
+//		cout << "cycle " << uCycle << ", goal " << perf << endl;
+//		print_nn_state(tstate, "Falman layer:");
+//		if(mainState.status == ccn_maxcor && tstate.status != learning)
+//			print_winner(p_l->aft()[p_l->get_winner_ind()]);
+//	}
+//	//else if(mainState.status == bp_falman_learning) {
+//	//	if(tstate.cycle == 1)
+//	//		cout << "Output with last falman layers learning started" << endl;
+//	//	cout << "cycle " << uCycle << ", error " << perf << ", goal " << pNN->opt_.goal << endl;
+//	//	print_nn_state(tstate, "Output layer:");
+//	//}
+//	print_nn_state(mainState, "CCN");
+//	if(mainState.status != learning && mainState.status != pNN->opt_.learnType)
+//		cout << "We end up with " << pNN->flayers_num() << " falman layers" << endl;
+
+	cout << ((objnet*)pNet)->status_info();
 
 	ifstream f("stop.txt");
 	if(f.rdbuf()->sgetc() == '1') return false;
@@ -663,17 +664,23 @@ int nn_addon::_learn_network(const Matrix& input, const Matrix& targets, ulong n
 		}
 
 		cout << opt_.name << ": NN" << net_ind << " learning" << endl;
+		// if we're using goal quota - calc new goal
+		double dyn_goal;
+		if(opt_.goalQuota > 0)
+			dyn_goal = max(_calc_goalQuota(tar), state_.min_goal);
+
+		// actually learn network
 		if(opt_.netType == matrix_nn) {
 			net_._inp_range <<= inp.minmax(true);
-			if(opt_.goalQuota > 0)
-				net_.opt_.goal = max(_calc_goalQuota(tar), state_.min_goal);
 			ret_state = net_.BPLearn(inp, tar, state_.init_nn, MNetInformer);
+			if(opt_.goalQuota > 0)
+				net_.opt_.goal = dyn_goal;
 		}
 		else {
 			objnet* p_net = _onet[net_ind].get();
 			p_net->opt_.inp_range_ <<= inp.minmax(true);
 			if(opt_.goalQuota > 0)
-				p_net->opt_.goal = max(_calc_goalQuota(tar), state_.min_goal);
+				p_net->opt_.goal = dyn_goal;
 
 			if(opt_.netType == rb_nn) {
 				switch(opt_.rbn_learn_type) {

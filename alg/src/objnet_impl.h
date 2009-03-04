@@ -17,7 +17,7 @@ namespace NN {
 using namespace std;
 using namespace hybrid_adapt;
 
-std::string decode_nn_type(nn_types type) {
+std::string decode_nn_type(int type) {
 	switch(type) {
 		case mlp_nn:
 			return "Multi-Layered Perceptron";
@@ -32,7 +32,7 @@ std::string decode_nn_type(nn_types type) {
 	}
 }
 
-std::string decode_layer_type(layer_types type) {
+std::string decode_layer_type(int type) {
 	switch(type) {
 		case common_nnl:
 			return "Std layer";
@@ -45,7 +45,7 @@ std::string decode_layer_type(layer_types type) {
 	}
 }
 
-std::string decode_neuron_type(ActFun af) {
+std::string decode_neuron_type(int af) {
 	switch(af) {
 		case logsig:
 			return "logsig";
@@ -94,6 +94,22 @@ text_table decode_neuron_type(const iMatrix& af, bool summarize) {
 	return tt;
 }
 
+std::string decode_nn_state(int status) {
+	switch(status) {
+		case learned:
+			return "learning successfull - goal reached!";
+		case stop_maxcycle:
+			return "learning stopped - max cycles reached";
+		case stop_palsy:
+			return "learning stopped - palsy";
+		case stop_patience:
+			return "learning stopped - no significant performance improve";
+		case stop_test_validation:
+			return "learning stopped - error on validation set doesn't improve";
+		default:
+			return "";
+	}
+}
 //-------------------------------objnet implementation-------------------------------------------
 void objnet::_print_err(const char* pErr)
 {
@@ -704,7 +720,9 @@ text_table objnet::detailed_info(int level) const {
 }
 
 std::string objnet::status_info(int level) const {
-	return "";
+	ostringstream os;
+	os << "cycle " << state_.cycle << ", error " << state_.perf << ", goal " << opt_.goal << endl;
+	return os.str();
 }
 
 }	//end of namespace NN

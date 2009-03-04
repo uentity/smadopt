@@ -644,6 +644,10 @@ namespace NN {
 
 		// nn_type
 		nn_types nn_type() const { return cc_nn; }
+
+		// NN information function
+		text_table detailed_info(int layer = 1) const;
+		std::string status_info(int level = 1) const;
 	};
 
 	//----------------------------------PCA network-----------------------------------------------------------
