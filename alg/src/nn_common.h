@@ -17,7 +17,7 @@ typedef ulong (*pNewLAProc)(int nStatus, ulong uCycle, double dSSE, void* pNet);
 
 namespace NN {
 
-	#define VERBOSE
+//	#define VERBOSE
 	#define HORIZONTAL 1
 	#define VERTICAL 0
 	#define E_EXP 2.7182818284591

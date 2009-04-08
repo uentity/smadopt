@@ -402,8 +402,8 @@ bool nna_opt::process_option(std::istream& inif, std::string& word)
 				tmp = Matrix::Read(inif, 2);
 				//copy to inner vectors
 				layers_num = tmp.col_num();
-				layers_.resize(tmp.col_num());
-				lTypes_.resize(tmp.col_num());
+				layers_.resize(layers_num);
+				lTypes_.resize(layers_num);
 				for(ulong i=0; i<layers_num; ++i) {
 					layers_[i] = tmp(0, i);
 					lTypes_[i] = tmp(1, i);

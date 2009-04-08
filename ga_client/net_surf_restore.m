@@ -79,12 +79,12 @@ plot3(learn(:, 1), learn(:, 2), learn(:, 3), '.r');
 hold on
 
 % another 3d surf plot engine
-[XI, YI] = meshgrid(min(test(:, 1)) : 0.05 : max(test(:, 1)), min(test(:, 2)) : 0.05 : max(test(:, 2)));
-ZI = griddata(test(:, 1), test(:, 2), test(:, 3), XI, YI, 'cubic');
-surfl(XI, YI, ZI);
+%[XI, YI] = meshgrid(min(test(:, 1)) : 0.05 : max(test(:, 1)), min(test(:, 2)) : 0.05 : max(test(:, 2)));
+%ZI = griddata(test(:, 1), test(:, 2), test(:, 3), XI, YI, 'cubic');
+%surfl(XI, YI, ZI);
 
-%tri = delaunay(test(:, 1), test(:, 2));
-%trisurf(tri, test(:, 1), test(:, 2), test(:, 3));
+tri = delaunay(test(:, 1), test(:, 2));
+trisurf(tri, test(:, 1), test(:, 2), test(:, 3));
 
 shading interp;
 grid on;
