@@ -285,9 +285,15 @@ void objnet::bp_epoch(const Matrix& inputs, const Matrix& targets)
 		palsy &= calc_grad(targets.GetColumns(*p_order));
 		bp_after_grad();
 
-		if(!opt_.batch) _update_epoch();
+		if(!opt_.batch) update_epoch();
 	}
 
+	bp_batch_correct_grad(inputs, targets);
+
+	if(palsy) state_.status = stop_palsy;
+}
+
+void objnet::bp_batch_correct_grad(const Matrix& inputs, const Matrix& targets) {
 	if(opt_.batch) {
 		for(l_iterator p_l = layers_.begin(); p_l != layers_.end(); ++p_l) {
 			if(opt_.learnFun != R_BP) {
@@ -304,8 +310,6 @@ void objnet::bp_epoch(const Matrix& inputs, const Matrix& targets)
 			}
 		}
 	}
-
-	if(palsy) state_.status = stop_palsy;
 }
 
 void objnet::lsq_epoch(const Matrix& inputs, const Matrix& targets)
@@ -363,9 +367,12 @@ void objnet::lsq_epoch(const Matrix& inputs, const Matrix& targets)
 			++p_G; ++cnt;
 		}
 
-		//first do standard gradient calculation for preceding layers
+		// do standard gradient calculation for preceding layers
 		calc_grad(targets.GetColumns(i));
+		bp_after_grad();
 	}
+
+	bp_batch_correct_grad(inputs, targets);
 
 	//update weights in last layer
 	Matrix piG, full_weights;
@@ -378,99 +385,14 @@ void objnet::lsq_epoch(const Matrix& inputs, const Matrix& targets)
 		full_weights <<= piG * (!targets.GetRows(i));
 		p_n->weights_ <<= full_weights.GetRows(0, p_n->weights_.size());
 		ol->B_[i] = full_weights[full_weights.size() - 1];
+		// zero gradient to prevent later wheights modification
+		p_n->grad_ = 0;
 		++p_n; ++p_G;
 	}
-
-	//debug lsq_patience
-	//state_.perf = 9.1;
-
-
-	//estimate SSE
-	//state_.perf = 0;
-	//for(ulong i = 0; i < inputs.col_num(); ++i) {
-	//	set_input(inputs.GetColumns(i));
-	//	propagate();
-	//	ol->Goal_ = targets.GetColumns(i) - o_axons;
-	//	state_.perf += ol->Goal_.Mul(ol->Goal_).Sum();
-	//}
-
-	//if error is high - try backprop
-	//double save = opt_.patience;
-	//opt_.patience = rbl_patience_;
-	/*
-	while(state_.status != learned) {
-		common_learn(inputs, targets, false, pProc);
-		break;
-		//if(state_.status == learned) break;
-		//add new neuron
-		neuron& n = gl->add_neuron(gl->gft_, create_ptr_mat(input_.neurons()));
-
-		//generate(n.weights_.begin(), n.weights_.end(), prg::rand01);
-		//n.weights_ -= 0.5; n.weights_ *= 2*opt_.wiRange;
-		//collect errors
-		Matrix err(inputs.col_num(), 1), er_col;
-		for(ulong i = 0; i < inputs.col_num(); ++i) {
-			set_input(inputs.GetColumns(i));
-			propagate();
-			er_col <<= targets.GetColumns(i) - o_axons;
-			err[i] = er_col.Mul(er_col).Sum();
-		}
-		ulong worst = err.ElementInd(err.Max());
-		n.weights_ = inputs.GetColumns(worst);
-
-		if(gl->gft_ == radbas)
-			gl->B_[gl->size() - 1] = 0;
-		else
-			gl->B_[gl->size() - 1] = 1;
-	}
-	//opt_.patience = save;
-
-	ol->backprop_lg_ = true;
-	*/
-
-	/*
-	if(state_.perf > opt_.epsilon) {
-		//dump weights
-		layer* l = &layers_[0];
-		Matrix weights;
-		for(n_iterator p_n = l->neurons().begin(); p_n != l->neurons().end(); ++p_n)
-			weights |= p_n->weights_;
-		DumpMatrix(weights, "weights.txt");
-		DumpMatrix(l->B_, "biases.txt");
-
-		o_axons <<= l->out();
-		for(ulong i = 0; i < inputs.col_num(); ++i) {
-			set_input(inputs.GetColumns(i));
-			l->propagate();
-			G.SetRows(!o_axons, i);
-		}
-		DumpMatrix(G, "G.txt", 50);
-
-		//DumpMatrix(G, "G.txt", 50);
-		Matrix U, V, E;
-		svd(G, U, E, V);
-		DumpMatrix(U, "U.txt", 50);
-		DumpMatrix(V, "V.txt", 50);
-		DumpMatrix(E, "E.txt", 50);
-
-		Matrix::r_iterator p_e(E.begin());
-		for(ulong i = 0; i < E.row_num(); ++i) {
-			if(abs(*p_e) > 0.0000000001) *p_e = 1 / *p_e;
-			p_e += E.col_num() + 1;
-		}
-		DumpMatrix(E, "invE.txt", 50);
-		U <<= !U;
-		DumpMatrix(U, "Ut.txt", 50);
-		DumpMatrix(piG, "piG.txt", 50);
-
-		throw nn_except("Big error!");
-	}
-
-	return state_.status;
-	*/
+	ol->BG_ = 0;
 }
 
-void objnet::_update_epoch()
+void objnet::std_update_epoch()
 {
 	if(state_.status == learning) {
 		for(l_iterator p_l = layers_.begin(); p_l != layers_.end(); ++p_l)
@@ -479,7 +401,8 @@ void objnet::_update_epoch()
 	}
 }
 
-int objnet::common_learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLearnInformer pProc)
+int objnet::common_learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLearnInformer pProc, 
+		smart_ptr< const Matrix > test_inp, smart_ptr< const Matrix > test_tar)
 {
 	try {
 #ifdef VERBOSE
@@ -497,23 +420,56 @@ int objnet::common_learn(const Matrix& inputs, const Matrix& targets, bool initi
 
 		//prepare for learning
 		prepare2learn();
-		//init weights if needed
-		if(initialize) init_weights(inputs);
+
+		Matrix real_inputs;
+		Matrix real_targets;
 		//if using early stopping - do initialization
-		if(opt_.goal_checkFun == test_validation)
-			check_early_stop(inputs, targets);
+		if(opt_.goal_checkFun == test_validation) {
+			if(!test_inp) {
+				// copy learning set
+				real_inputs = inputs;
+				real_targets = targets;
+
+				// extract randomly validation set from learning set
+				ulong val_size = ha_round(inputs.col_num() * opt_.validation_fract);
+				Matrix* p_inp = new Matrix(inputs.row_num(), val_size);
+				Matrix* p_tar = new Matrix(targets.row_num(), val_size);
+				ulong val_ind;
+				for(ulong i = 0; i < val_size; ++i) {
+					val_ind = prg::randIntUB(real_inputs.col_num());
+					p_inp->SetColumns(real_inputs.GetColumns(val_ind), i);
+					real_inputs.DelColumns(val_ind);
+					p_tar->SetColumns(real_targets.GetColumns(val_ind), i);
+					real_targets.DelColumns(val_ind);
+				}
+				test_inp = p_inp;
+				test_tar = p_tar;
+			}
+			else {
+				real_inputs <<= inputs;
+				real_targets <<= targets;
+			}
+			// do some initialization
+			check_early_stop(state_, *test_inp, *test_tar);
+		}
+		else {
+			real_inputs <<= inputs;
+			real_targets <<= targets;
+		}
+
+		//init weights if needed
+		if(initialize) init_weights(real_inputs);
 
 		//main learn cycle
-		while(state_.status == learning)
-		{
+		while(state_.status == learning) {
 			if(state_.cycle > 0) state_.lastPerf = state_.perf;
 
 			//epoch main data processing function
-			learn_epoch(inputs, targets);
+			learn_epoch(real_inputs, real_targets);
 
 			//calc final performance
 			if(opt_.perfFun == mse)
-				state_.perf /= inputs.col_num();
+				state_.perf /= real_inputs.col_num();
 
 			//update cycles counter
 			++state_.cycle;
@@ -526,10 +482,10 @@ int objnet::common_learn(const Matrix& inputs, const Matrix& targets, bool initi
 				if(opt_.goal_checkFun & patience)
 					check_patience(state_, opt_.patience, opt_.patience_cycles);
 				if(opt_.goal_checkFun & test_validation)
-					check_early_stop(inputs, targets);
+					check_early_stop(state_, *test_inp, *test_tar);
 			}
 
-			//update weights
+			// update weights
 			update_epoch();
 
 			//if(++state_.cycle == opt_.maxCycles && state_.status == learning)
@@ -604,32 +560,13 @@ int objnet::check_patience(nnState& state, double patience, ulong patience_cycle
 	return _check_patience< anti_grad >(state, patience, patience_cycles, patience_status);
 }
 
-void objnet::check_early_stop(const Matrix& inputs, const Matrix& targets)
+ulong objnet::check_early_stop(nnState& state, const Matrix& test_set, const Matrix& test_tar)
 {
-	static Matrix test_set;
-	static Matrix test_tar;
 	static nnState test_state;
 
-	if(state_.cycle == 0) {
-		//initialization phase - extract validation set from learning
-		//remove constness from learning set
-		Matrix& inp_uc = const_cast< Matrix& >(inputs);
-		Matrix& tar_uc = const_cast< Matrix& >(targets);
-		//extract validation set
-		ulong val_size = ha_round(inputs.col_num()*opt_.validation_fract);
-		test_set.Resize(inputs.row_num(), val_size);
-		test_tar.Resize(targets.row_num(), val_size);
-		ulong val_ind;
-		for(ulong i = 0; i < val_size; ++i) {
-			val_ind = prg::randIntUB(inp_uc.col_num());
-			test_set.SetColumns(inp_uc.GetColumns(val_ind), i);
-			inp_uc.DelColumns(val_ind);
-			test_tar.SetColumns(tar_uc.GetColumns(val_ind), i);
-			tar_uc.DelColumns(val_ind);
-		}
-
+	if(state.cycle == 0) {
 		test_state.status = learning;
-		return;
+		return 0;
 	}
 
 	//calc error on validation set
@@ -642,34 +579,27 @@ void objnet::check_early_stop(const Matrix& inputs, const Matrix& targets)
 		cur_err <<= test_tar.GetColumns(i) - outp.out();
 		val_err += cur_err.norm2();
 	}
+	// DEBUG
+	cout << "check_early_stop: last test set err = " << test_state.perfMean << "; current err = " << val_err << endl;
+
+	//check stop conditions with patience
+	test_state.perf = val_err;
+	test_state.cycle = state.cycle;
+	check_patience(test_state, 0.001, 5, stop_test_validation);
+	cout << "check_early_stop: patience_counter = " << test_state.patience_counter << endl;
+	state.status = test_state.status;
+	return test_state.patience_counter;
+	//test_state.perfMean = val_err;
 
 	//simple check
-//	if(state_.cycle == 1)
+//	if(state.cycle == 1)
 //		test_state.perfMean = val_err;
 //	else {
 //		double delta;
 //		anti_grad::assign(delta, val_err - test_state.perfMean);
-//		if(delta < 0) state_.status = stop_test_validation;
+//		if(delta < 0) state.status = stop_test_validation;
 //		test_state.perfMean = val_err;
 //	}
-
-	//check stop conditions with patience
-	test_state.perf = val_err;
-	test_state.cycle = state_.cycle;
-	check_patience(test_state, 0.001, 10, stop_test_validation);
-	state_.status = test_state.status;
-	//test_state.perfMean = val_err;
-
-	//if(state_.cycle == 1) {
-	//	state_.patience_counter = 0;
-	//	state_.perfMean = val_err;
-	//}
-	//else if(state_.perfMean < val_err) {
-	//	state_.patience_counter = 0;
-	//	state_.perfMean = state_.perf;
-	//}
-	//else if(++state_.patience_counter == opt_.patience_cycles)
-	//	state_.status = stop_test_validation;
 }
 
 Matrix objnet::sim(const Matrix& inp)

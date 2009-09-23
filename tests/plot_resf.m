@@ -1,4 +1,4 @@
-function [stat, graphs] = plot_resf(root_dir, fun_t, exp_num, cnum, rbn_templ, ccn_templ, cga_templ)
+function [stat, graphs] = plot_resf(root_dir, fun_t, exp_num, cnum, rbn_templ, ccn_templ, cga_templ, mlp_templ)
 global iter_limit
 iter_limit = 100;
 
@@ -10,6 +10,9 @@ if nargin < 6
 end
 if nargin < 7
     cga_templ = 'cga_';
+end
+if nargin < 8
+    mlp_templ = 'mlp_';
 end
 
 do_plot = true;
@@ -26,20 +29,23 @@ if do_time_plot == false
     do_time_export = false;
 end
 
-exp_templ = {rbn_templ; ccn_templ; cga_templ};
+exp_templ = {rbn_templ; ccn_templ; cga_templ; mlp_templ};
+cga_idx = 3;
 params = [2 3 5 10 50 100];
-cmap = ['b'; 'r'; 'k'];
-line_st = {'-'; '--'; '-'};
-line_w = [2 2 1];
+cmap = ['b'; 'r'; 'k'; 'g'];
+line_st = {'-'; '--'; '-'; '.-'};
+line_w = [2 2 1 2];
 font_sz = 16;
-algs = {'ГА+НС'; 'ГА+НС+ДО'; 'ГА'};
+algs = {'ГА+НС'; 'ГА+НС+ДО'; 'ГА'; 'ГА+НС (МП)'};
+algs_label = {'GA+NN'; 'GA+NN+AL'; 'GA'; 'GA+NN (MP)'};
+timel_legend = {'GA+NN'; 'GA+NN+AL'; 'GA+NN (MP'};
 % cd(root_dir);
 
 root_dir = strcat(root_dir, '/', fun_t);
 
 disp('==================================================================================================');
-graphs = cell(3, exp_num);
-stat = cell(3, exp_num);
+graphs = cell(length(exp_templ), exp_num);
+stat = cell(length(exp_templ), exp_num);
 time_line = [];
 fid = 0;
 %hold on
@@ -74,7 +80,7 @@ for i=1:exp_num
     for t=1:length(exp_templ)       
         fprintf('Results for: %s\n', exp_templ{t});
         stat_i = []; graph_i = [];        
-        if t ~= length(exp_templ)
+        if t ~= cga_idx
             [stat_i graph_i] = process_ga_nn(i, cnum, root_dir, exp_templ{t});
             fprintf('\n');
         else
@@ -104,7 +110,8 @@ for i=1:exp_num
         xlabel('Iterations', 'fontsize', font_sz);
         ylabel('Objective Function Value', 'fontsize', font_sz);
         title(sprintf('%d params', params(i)), 'fontsize', font_sz);
-        legend('GA+NN', 'GA+NN+AL', 'GA');
+        legend(algs_label);
+        %legend('GA+NN', 'GA+NN+AL', 'GA');
         %set(gca, 'XLim', [1 xlim]);
         hold off
         grid('on');
@@ -121,7 +128,16 @@ for i=1:exp_num
         fclose(fid);
     end
     
-    time_line = [time_line; [stat{1, i}(3) stat{2, i}(3)]];
+    % fill timeline
+    % collect times for hybrid algs
+    time_slice = [];
+    for t = 1:length(exp_templ)
+        %if t ~= cga_idx
+        time_slice = [time_slice stat{t, i}(3)];
+        %end
+    end
+    time_line = [time_line; time_slice];
+    %time_line = [time_line; [stat{1, i}(3) stat{2, i}(3)]];
 end
 
 if do_time_plot
@@ -130,16 +146,24 @@ if do_time_plot
     set(h, 'Position', [100 500 600 600]);
     
     time_line = time_line ./ 3600;
-    plot([1:size(time_line, 1)], time_line(1:end, 1), 'b', 'LineWidth', 2);
-    hold on
-    plot([1:size(time_line, 1)], time_line(1:end, 2), '--r', 'LineWidth', 2);
+    for i = 1:size(time_line, 2)
+        if i == cga_idx continue; end;
+        plot([1:size(time_line, 1)], time_line(1:end, i), line_st{i}, 'LineWidth', line_w(i), 'Color', cmap(i));
+        if i == 1
+            hold on
+        end
+    end
+    %plot([1:size(time_line, 1)], time_line(1:end, 1), 'b', 'LineWidth', 2);
+    %hold on
+    %plot([1:size(time_line, 1)], time_line(1:end, 2), '--r', 'LineWidth', 2);
     
     set(gca, 'XTick', [1:length(params)], 'XTickLabel', params);
     set(gca,'fontsize', font_sz);
     xlabel('Parameters Number', 'fontsize', font_sz);
     ylabel('Processor Time', 'fontsize', font_sz);
     %title(sprintf('%d params', params(i)), 'fontsize', font_sz);
-    legend('GA+NN', 'GA+NN+AL');
+    legend(timel_legend);
+    %legend('GA+NN', 'GA+NN+AL');
     grid on
     hold off
     

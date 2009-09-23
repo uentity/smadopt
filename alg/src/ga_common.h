@@ -13,7 +13,7 @@
 #define TIME_NW 21
 
 //forward declaration
-namespace GA { class ga; }
+//namespace GA { class ga; }
 
 namespace GA {
 	#define ERR_VAL 1e16

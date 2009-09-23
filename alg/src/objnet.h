@@ -304,33 +304,36 @@ namespace NN {
 		//void _construct_biases();
 		//void _construct_grad(bool prev_also = false);
 
-		virtual bool calc_grad(const Matrix& target);
-
 		template<class layer_type>
 		layer_type& add_layer(ulong neurons_count, int af_type = logsig, ulong where_ind = -1);
 		template<class layer_type>
 		layer_type& add_layer(ulong neurons_count, const iMatrix& af_mat, ulong where_ind = -1);
 
-		//default prepare is to minimize error - go in anti-grad direction
+		// default prepare is to minimize error - go in anti-grad direction
 		virtual void prepare2learn();
+		
+		virtual bool calc_grad(const Matrix& target);
+		// this function will be called for each pattern after gradient calculation
+		virtual void bp_after_grad() {};
 
-		//standart back propagation learning epoch
+		// standart back propagation learning epoch
 		void bp_epoch(const Matrix& inputs, const Matrix& targets);
-		//least-squares learn function for linear neurons in last layer
+		// do some needed in batch mode grad correction
+		// called inside bp_epoch
+		void bp_batch_correct_grad(const Matrix& inputs, const Matrix& targets);
+		// least-squares learn function for linear neurons in last layer
 		void lsq_epoch(const Matrix& inputs, const Matrix& targets);
 
-		//default learning epoch is bp_epoch
+		// default learning epoch is bp_epoch
 		virtual void learn_epoch(const Matrix& inputs, const Matrix& targets) {
 			bp_epoch(inputs, targets);
 		}
-		//this function will be called for each pattern after gradient calculation
-		virtual void bp_after_grad() {};
 
 		//standart back propagation update after learn
-		void _update_epoch();
+		void std_update_epoch();
 		//default update is bp_update_epoch
 		virtual void update_epoch() {
-			if(opt_.batch) _update_epoch();
+			if(opt_.batch) std_update_epoch();
 		}
 
 		//checks whether learning is successful or not
@@ -354,10 +357,11 @@ namespace NN {
 			int patience_status = stop_patience);
 
 		//checks whether error on test samples rises
-		void check_early_stop(const Matrix& inputs, const Matrix& targets);
+		ulong check_early_stop(nnState& state, const Matrix& inputs, const Matrix& targets);
 
 		//common learn function
-		int common_learn(const Matrix& inputs, const Matrix& targets, bool initialize = true, pLearnInformer pProc = NULL);
+		int common_learn(const Matrix& inputs, const Matrix& targets, bool initialize = true, pLearnInformer pProc = NULL,
+				smart_ptr< const Matrix > test_inp = NULL, smart_ptr< const Matrix > test_tar = NULL);
 
 		smart_ptr< nn_opt > opt_holder_;
 		//constructor for overriding options from derived classes
@@ -384,6 +388,10 @@ namespace NN {
 			return layers_[std::min<ulong>(layer_ind, layers_.size() - 1)];
 		}
 
+		layer& output() {
+			return get_layer(layers_num() - 1);
+		}
+
 		nnState state() const {
 			return state_;
 		}
@@ -394,8 +402,8 @@ namespace NN {
 		virtual void propagate();
 		virtual void init_weights(const Matrix& inputs);
 
-		virtual int learn(const Matrix& input, const Matrix& targets, bool initialize = true,
-			pLearnInformer pProc = NULL) = 0;
+		virtual int learn(const Matrix& input, const Matrix& targets, bool initialize = true, pLearnInformer pProc = NULL,
+				smart_ptr< const Matrix > test_inp = NULL, smart_ptr< const Matrix > test_tar = 0) = 0;
 
 		// return NN type
 		virtual nn_types nn_type() const = 0;
@@ -438,8 +446,10 @@ namespace NN {
 		bp_layer& add_layer(ulong neurons_count, int af_type = logsig);
 		bool set_layer(ulong layer_ind, ulong neurons_count, int af_type);
 		bool set_layer_type(ulong layer_ind, int af_type);
-		int learn(const Matrix& input, const Matrix& targets, bool initialize = true, pLearnInformer pProc = NULL) {
-			return common_learn(input, targets, initialize, pProc);
+		int learn(const Matrix& input, const Matrix& targets, bool initialize = true, pLearnInformer pProc = NULL, 
+				smart_ptr< const Matrix > test_inp = NULL, smart_ptr< const Matrix > test_tar = NULL)
+		{
+			return common_learn(input, targets, initialize, pProc, test_inp, test_tar);
 		}
 
 		nn_types nn_type() const { return mlp_nn; }
@@ -458,53 +468,8 @@ namespace NN {
 			use_cache = 2
 		};
 
-		struct cache_prop {
-			falman_layer& l_;
-			Matrix cache;
-			ulong ind;
-			int mode, save_mode;
-
-			cache_prop(falman_layer& layer) : l_(layer) {
-				mode = no_cache;
-				save_mode = collecting;
-				ind = 0;
-			}
-			//copy constructor
-			cache_prop(const cache_prop& cp)
-				: l_(cp.l_), cache(cp.cache), ind(cp.ind), mode(cp.mode), save_mode(cp.save_mode)
-			{}
-			//swaps 2 cache_props
-			void swap(cache_prop& cp) {
-				std::swap(l_, cp.l_);
-				std::swap(cache, cp.cache);
-				std::swap(ind, cp.ind);
-				std::swap(mode, cp.mode);
-				std::swap(save_mode, cp.save_mode);
-			}
-
-			cache_prop& operator =(const cache_prop& cp) {
-				//assignment through swap
-				cache_prop(cp).swap(*this);
-				//cache = cp.cache;
-				//ind = cp.ind;
-				//mode = cp.mode; save_mode = cp.save_mode;
-				return *this;
-			}
-
-			void get_axons() {
-				l_.axons_ = cache.GetColumns(ind);
-				if(++ind == cache.col_num())
-					ind = 0;
-			}
-			void save_axons() {
-				cache.SetColumns(l_.axons_, ind);
-				if(++ind == cache.col_num()) {
-					ind = 0;
-					//auto switch to use cache
-					if(mode == collecting) mode = use_cache;
-				}
-			}
-		} cp_;
+		struct cache_prop;
+		smart_ptr< cache_prop > cp_;
 
 		//best performing neurons indexes
 		ulMatrix winner_ind_;
@@ -512,9 +477,9 @@ namespace NN {
 		void _construct_aft();
 
 		//cache mode control
-		void cache_mode_on(ulong trace_length);
+		void cache_mode_on();
 		void cache_mode_off();
-		void cache_mode_pause();
+		//void cache_mode_pause();
 		//void cache_mode_unpause();
 
 		//update rules specifications
@@ -523,26 +488,12 @@ namespace NN {
 		//}
 
 	public:
-		falman_layer(objnet& net, ulong candidates_count = 5)
-			:layer(net, candidates_count, 0), cp_(*this)
-		{
-			if(candidates_count < MIN_CAND_COUNT)
-				init(MIN_CAND_COUNT);
-			_construct_aft();
-		}
-
-		falman_layer(objnet& net, const iMatrix& act_fun)
-			:layer(net, act_fun), cp_(*this)
-		{}
-
-		falman_layer(const layer& l)
-			: layer(l), cp_(*this)
-		{}
+		falman_layer(objnet& net, ulong candidates_count = 5);
+		falman_layer(objnet& net, const iMatrix& act_fun);
+		falman_layer(const layer& l);
 
 		//copy constructor
-		falman_layer(const falman_layer& l)
-			:layer(l), cp_(l.cp_), winner_ind_(l.winner_ind_)
-		{}
+		falman_layer(const falman_layer& l);
 
 		const iMatrix& aft() {
 			return layer::aft();
@@ -564,8 +515,54 @@ namespace NN {
 	//--------------------------------------CCN declaration----------------------------------------------------
 	class _CLASS_DECLSPEC ccn : public objnet
 	{
+	public:
+		ccn_opt& opt_;
+
+		ccn();
+		~ccn() {};
+
+		//void set_def_opt(bool create_defs = true);
+		//number of falman layers
+		ulong flayers_num() const {
+			return flayers_.size();
+		}
+		//access to specific falman layer
+		falman_layer& get_flayer(ulong layer_ind) {
+			return flayers_[std::min<ulong>(layer_ind, flayers_.size() - 1)];
+		}
+		//current learning falman layer
+		falman_layer* get_cur_flayer() {
+			return cur_fl_;
+		}
+
+		//add falman layer with radial basis neurons based on pre-clustering
+		void add_rb_layer(const Matrix& inputs, const Matrix& targets, const Matrix& centers, double stock_mult);
+
+		nnState get_mainState() const {
+			return mainState_;
+		}
+		//modified propagation function
+		void propagate();
+		//construct output layer
+		void set_output_layer(ulong neurons_count, int af_type = logsig);
+		//resets network t only one output layer
+		void reset();
+		//complex learning function - implies network constructing
+		int learn(const Matrix& inputs, const Matrix& targets, bool initialize = true, pLearnInformer pProc = NULL,
+				smart_ptr< const Matrix > test_inp = NULL, smart_ptr< const Matrix > test_tar = NULL);
+
+		// nn_type
+		nn_types nn_type() const { return cc_nn; }
+
+		// NN information function
+		text_table detailed_info(int layer = 1) const;
+		std::string status_info(int level = 1) const;
+
+	private:
 		typedef TMatrix<falman_layer, val_sp_buffer> flMatrix;
 		typedef flMatrix::r_iterator fl_iterator;
+
+		class ccn_impl;
 
 		flMatrix flayers_;
 		falman_layer* cur_fl_;
@@ -606,48 +603,6 @@ namespace NN {
 		void _calc_winner_corr(const Matrix& inputs, const Matrix& targets);
 
 		//bool process_option(std::istream& inif, std::string& word);
-
-	public:
-		ccn_opt& opt_;
-
-		ccn();
-		~ccn() {};
-
-		//void set_def_opt(bool create_defs = true);
-		//number of falman layers
-		ulong flayers_num() const {
-			return flayers_.size();
-		}
-		//access to specific falman layer
-		falman_layer& get_flayer(ulong layer_ind) {
-			return flayers_[std::min<ulong>(layer_ind, flayers_.size() - 1)];
-		}
-		//current learning falman layer
-		falman_layer* get_cur_flayer() {
-			return cur_fl_;
-		}
-
-		//add falman layer with radial basis neurons based on pre-clustering
-		void add_rb_layer(const Matrix& inputs, const Matrix& targets, const Matrix& centers, double stock_mult);
-
-		nnState get_mainState() const {
-			return mainState_;
-		}
-		//modified propagation function
-		void propagate();
-		//construct output layer
-		void set_output_layer(ulong neurons_count, int af_type = logsig);
-		//resets network t only one output layer
-		void reset();
-		//complex learning function - implies network constructing
-		int learn(const Matrix& inputs, const Matrix& targets, bool initialize = true, pLearnInformer pProc = NULL);
-
-		// nn_type
-		nn_types nn_type() const { return cc_nn; }
-
-		// NN information function
-		text_table detailed_info(int layer = 1) const;
-		std::string status_info(int level = 1) const;
 	};
 
 	//----------------------------------PCA network-----------------------------------------------------------
@@ -672,7 +627,8 @@ namespace NN {
 
 		void set_output_layer(ulong prin_comp_num = 0);
 		//learn function
-		int learn(const Matrix& inputs, const Matrix& targets, bool initialize = true, pLearnInformer pProc = NULL);
+		int learn(const Matrix& inputs, const Matrix& targets, bool initialize = true, pLearnInformer pProc = NULL,
+				smart_ptr< const Matrix > test_inp = NULL, smart_ptr< const Matrix > test_tar = NULL);
 
 		// nn_type
 		nn_types nn_type() const { return pca_nn; }
@@ -734,7 +690,8 @@ namespace NN {
 
 		rb_layer& add_rb_layer();
 		void prepare2learn();
-		void _neuron_adding_learn(const Matrix& inputs, const Matrix& targets, pLearnInformer pProc);
+		void _neuron_adding_learn(const Matrix& inputs, const Matrix& targets, pLearnInformer pProc,
+				smart_ptr< const Matrix > test_inp, smart_ptr< const Matrix > test_tar);
 
 		//override std learning epoch
 		void learn_epoch(const Matrix& inputs, const Matrix& targets);
@@ -760,7 +717,8 @@ namespace NN {
 		void set_output_layer(ulong neurons_count);
 
 		//learning function for rbf networks
-		int learn(const Matrix& inputs, const Matrix& targets, bool initialize = true, pLearnInformer pProc = NULL);
+		int learn(const Matrix& inputs, const Matrix& targets, bool initialize = true, pLearnInformer pProc = NULL,
+				smart_ptr< const Matrix > test_inp = NULL, smart_ptr< const Matrix > test_tar = NULL);
 
 		// nn_type
 		nn_types nn_type() const { return rb_nn; }

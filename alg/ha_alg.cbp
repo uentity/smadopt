@@ -3,13 +3,22 @@
 	<FileVersion major="1" minor="6" />
 	<Project>
 		<Option title="ha_alg" />
+		<Option makefile="SConscript" />
+		<Option makefile_is_custom="1" />
 		<Option pch_mode="2" />
 		<Option compiler="gcc" />
+		<MakeCommands>
+			<Build command="scons -u -j2 $(scons_vars) $(build_kinds)=1 $(my_target)" />
+			<CompileFile command="scons -u -j2 $(scons_vars) $(build_kinds)=1 $file" />
+			<Clean command="scons -u -j2 -c $(scons_vars) $(build_kinds)=1 $(my_target)" />
+			<DistClean command="$make -f $makefile distclean$target" />
+			<AskRebuildNeeded command="" />
+			<SilentBuild command="scons -u -j2 $(scons_vars) $(build_kinds)=1 $(my_target)" />
+		</MakeCommands>
 		<Build>
 			<Target title="debug_lin">
 				<Option output="../exe/debug/libha_alg" prefix_auto="1" extension_auto="1" />
 				<Option object_output="build/Debug/" />
-				<Option external_deps="../exe/debug/libha_utils.so;" />
 				<Option type="3" />
 				<Option compiler="gcc" />
 				<Option createDefFile="1" />
@@ -23,11 +32,18 @@
 				<Linker>
 					<Add directory="../exe/debug" />
 				</Linker>
+				<MakeCommands>
+					<Build command="" />
+					<CompileFile command="" />
+					<Clean command="" />
+					<DistClean command="$make -f $makefile distclean$target" />
+					<AskRebuildNeeded command="" />
+					<SilentBuild command="" />
+				</MakeCommands>
 			</Target>
 			<Target title="release_lin">
 				<Option output="../exe/release/libha_alg" prefix_auto="1" extension_auto="1" />
 				<Option object_output="build/Release/" />
-				<Option external_deps="../exe/release/libha_utils.so;" />
 				<Option type="3" />
 				<Option compiler="gcc" />
 				<Option createDefFile="1" />
@@ -39,12 +55,22 @@
 				<Linker>
 					<Add directory="../exe/release" />
 				</Linker>
+				<Environment>
+					<Variable name="build_kinds" value="release" />
+				</Environment>
+				<MakeCommands>
+					<Build command="" />
+					<CompileFile command="" />
+					<Clean command="" />
+					<DistClean command="$make -f $makefile distclean$target" />
+					<AskRebuildNeeded command="" />
+					<SilentBuild command="" />
+				</MakeCommands>
 			</Target>
 			<Target title="release_lin_s">
 				<Option output="../exe/release/libha_alg" prefix_auto="1" extension_auto="1" />
 				<Option working_dir="" />
 				<Option object_output="build/Release/" />
-				<Option external_deps="../exe/release/libha_utils.a;" />
 				<Option type="2" />
 				<Option compiler="gcc" />
 				<Option createDefFile="1" />
@@ -57,9 +83,23 @@
 					<Add directory="../exe/release" />
 					<Add directory="." />
 				</Linker>
+				<Environment>
+					<Variable name="build_kinds" value="release" />
+				</Environment>
+				<MakeCommands>
+					<Build command="" />
+					<CompileFile command="" />
+					<Clean command="" />
+					<DistClean command="$make -f $makefile distclean$target" />
+					<AskRebuildNeeded command="" />
+					<SilentBuild command="" />
+				</MakeCommands>
 			</Target>
 			<Environment>
+				<Variable name="my_target" value="ha_alg" />
 				<Variable name="static_libgcc" value='&quot;`g++ -print-file-name=libstdc++.a`&quot;' />
+				<Variable name="build_kinds" value="debug" />
+				<Variable name="scons_vars" value="" />
 			</Environment>
 		</Build>
 		<Compiler>
@@ -69,6 +109,7 @@
 		<Linker>
 			<Add library="ha_utils" />
 		</Linker>
+		<Unit filename="SConscript" />
 		<Unit filename="src/alg.cpp" />
 		<Unit filename="src/alg_api.cpp" />
 		<Unit filename="src/alg_api.h" />

@@ -948,8 +948,11 @@ void layer::_rp_plus_update(bool zero_grad)
 void layer::empty_update(bool zero_grad)
 {
 	//just zero gradient if needed
-	for(n_iterator p_n = neurons_.begin(); p_n != neurons_.end(); ++p_n)
-		if(zero_grad) p_n->grad_ = 0;
+	if(zero_grad) {
+		for(n_iterator p_n = neurons_.begin(); p_n != neurons_.end(); ++p_n)
+			p_n->grad_ = 0;
+	}
 }
 
 }	//end of namespace NN
+

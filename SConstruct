@@ -4,7 +4,8 @@
 all_ss = [
 		'utils/SConscript',
 		'alg/SConscript',
-		'ga_client/SConscript'
+		'ga_client/SConscript',
+		'gis_neuro/SConscript'
 		]
 
 # process custom settings

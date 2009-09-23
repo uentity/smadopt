@@ -255,7 +255,8 @@ namespace NN {
 	//new options
 	template<>
 	struct _CLASS_DECLSPEC nnOptions< objnet > {
-		int initFun, perfFun, learnFun, learnType, goal_checkFun;
+		int initFun, perfFun, learnFun, learnType;
+		unsigned int goal_checkFun;
 		bool batch, adaptive, saturate, useSimpleRP, useSimpleQP;
 		ulong showPeriod, maxCycles, patience_cycles;
 		double nu, mu, goal;

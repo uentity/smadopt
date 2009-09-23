@@ -12,7 +12,8 @@ Import('*');
 base_env = custom_env.Clone();
 base_env.Append(
 	CCFLAGS = ['-W', '-Wall', '-Wno-deprecated', '-pthread'], #'-fvisibility=hidden', '-fvisibility-inlines-hidden'],
-	CPPPATH = ['src', '../utils/src'],
+	CPPPATH = ['#utils', 'src'],
+	CPPINCLUDE = ['#utils']
 #	LIBS = ['utils']
 );
 
@@ -25,7 +26,7 @@ debug_env.Append(
 
 release_env = base_env.Clone();
 release_env.Append(
-		CCFLAGS = ['-O2'],
+		CCFLAGS = ['-O3'],
 		LIBPATH = [os.path.join(exe_dir, rel_dir)]);
 
 # make targets

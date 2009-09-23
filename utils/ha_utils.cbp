@@ -3,8 +3,18 @@
 	<FileVersion major="1" minor="6" />
 	<Project>
 		<Option title="ha_utils" />
+		<Option makefile="SConscript" />
+		<Option makefile_is_custom="1" />
 		<Option pch_mode="2" />
 		<Option compiler="gcc" />
+		<MakeCommands>
+			<Build command="scons -u -j2 $(scons_vars) $(build_kinds)=1 $(my_target)" />
+			<CompileFile command="scons -u -j2 $(scons_vars) $(build_kinds)=1 $file" />
+			<Clean command="scons -u -j2 -c $(scons_vars) $(build_kinds)=1 $(my_target)" />
+			<DistClean command="$make -f $makefile distclean$target" />
+			<AskRebuildNeeded command="" />
+			<SilentBuild command="scons -u -j2 $(scons_vars) $(build_kinds)=1 $(my_target)" />
+		</MakeCommands>
 		<Build>
 			<Target title="debug_lin">
 				<Option platforms="Unix;" />
@@ -19,6 +29,17 @@
 					<Add option="-O0" />
 					<Add option="-D_DEBUG" />
 				</Compiler>
+				<Environment>
+					<Variable name="build_kinds" value="debug" />
+				</Environment>
+				<MakeCommands>
+					<Build command="" />
+					<CompileFile command="" />
+					<Clean command="" />
+					<DistClean command="$make -f $makefile distclean$target" />
+					<AskRebuildNeeded command="" />
+					<SilentBuild command="" />
+				</MakeCommands>
 			</Target>
 			<Target title="release_lin">
 				<Option platforms="Unix;" />
@@ -31,6 +52,17 @@
 				<Compiler>
 					<Add option="-O3" />
 				</Compiler>
+				<Environment>
+					<Variable name="build_kinds" value="release" />
+				</Environment>
+				<MakeCommands>
+					<Build command="" />
+					<CompileFile command="" />
+					<Clean command="" />
+					<DistClean command="$make -f $makefile distclean$target" />
+					<AskRebuildNeeded command="" />
+					<SilentBuild command="" />
+				</MakeCommands>
 			</Target>
 			<Target title="release_lin_s">
 				<Option platforms="Unix;" />
@@ -48,53 +80,79 @@
 					<Add option="-static-libgcc" />
 					<Add directory="." />
 				</Linker>
+				<Environment>
+					<Variable name="build_kinds" value="release" />
+				</Environment>
+				<MakeCommands>
+					<Build command="" />
+					<CompileFile command="" />
+					<Clean command="" />
+					<DistClean command="$make -f $makefile distclean$target" />
+					<AskRebuildNeeded command="" />
+					<SilentBuild command="" />
+				</MakeCommands>
 			</Target>
 			<Environment>
+				<Variable name="my_target" value="ha_utils" />
 				<Variable name="static_libgcc" value='&quot;`g++ -print-file-name=libstdc++.a`&quot;' />
+				<Variable name="build_kinds" value="debug" />
+				<Variable name="scons_vars" value="" />
 			</Environment>
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />
 			<Add option="-fPIC" />
 		</Compiler>
+		<Unit filename="SConscript" />
+		<Unit filename="jama/jama_cholesky.h" />
+		<Unit filename="jama/jama_eig.h" />
+		<Unit filename="jama/jama_lu.h" />
+		<Unit filename="jama/jama_qr.h" />
+		<Unit filename="jama/jama_svd.h" />
+		<Unit filename="jama/tnt.h" />
+		<Unit filename="jama/tnt_array1d.h" />
+		<Unit filename="jama/tnt_array1d_utils.h" />
+		<Unit filename="jama/tnt_array2d.h" />
+		<Unit filename="jama/tnt_array2d_utils.h" />
+		<Unit filename="jama/tnt_array3d.h" />
+		<Unit filename="jama/tnt_array3d_utils.h" />
+		<Unit filename="jama/tnt_cmat.h" />
+		<Unit filename="jama/tnt_fortran_array1d.h" />
+		<Unit filename="jama/tnt_fortran_array1d_utils.h" />
+		<Unit filename="jama/tnt_fortran_array2d.h" />
+		<Unit filename="jama/tnt_fortran_array2d_utils.h" />
+		<Unit filename="jama/tnt_fortran_array3d.h" />
+		<Unit filename="jama/tnt_fortran_array3d_utils.h" />
+		<Unit filename="jama/tnt_i_refvec.h" />
+		<Unit filename="jama/tnt_math_utils.h" />
+		<Unit filename="jama/tnt_sparse_matrix_csr.h" />
+		<Unit filename="jama/tnt_stopwatch.h" />
+		<Unit filename="jama/tnt_subscript.h" />
+		<Unit filename="jama/tnt_vec.h" />
+		<Unit filename="jama/tnt_version.h" />
+		<Unit filename="polarssl/bignum.h" />
+		<Unit filename="polarssl/bn_mul.h" />
+		<Unit filename="polarssl/config.h" />
+		<Unit filename="polarssl/sha1.h" />
+		<Unit filename="polarssl/sha2.h" />
+		<Unit filename="polarssl/sha4.h" />
 		<Unit filename="src/alg_except.cpp" />
 		<Unit filename="src/alg_except.h" />
 		<Unit filename="src/alg_opt.cpp" />
 		<Unit filename="src/alg_opt.h" />
+		<Unit filename="src/bignum.cpp" />
 		<Unit filename="src/common.cpp" />
 		<Unit filename="src/common.h" />
-		<Unit filename="src/jama/jama_cholesky.h" />
-		<Unit filename="src/jama/jama_eig.h" />
-		<Unit filename="src/jama/jama_lu.h" />
-		<Unit filename="src/jama/jama_qr.h" />
-		<Unit filename="src/jama/jama_svd.h" />
-		<Unit filename="src/jama/tnt.h" />
-		<Unit filename="src/jama/tnt_array1d.h" />
-		<Unit filename="src/jama/tnt_array1d_utils.h" />
-		<Unit filename="src/jama/tnt_array2d.h" />
-		<Unit filename="src/jama/tnt_array2d_utils.h" />
-		<Unit filename="src/jama/tnt_array3d.h" />
-		<Unit filename="src/jama/tnt_array3d_utils.h" />
-		<Unit filename="src/jama/tnt_cmat.h" />
-		<Unit filename="src/jama/tnt_fortran_array1d.h" />
-		<Unit filename="src/jama/tnt_fortran_array1d_utils.h" />
-		<Unit filename="src/jama/tnt_fortran_array2d.h" />
-		<Unit filename="src/jama/tnt_fortran_array2d_utils.h" />
-		<Unit filename="src/jama/tnt_fortran_array3d.h" />
-		<Unit filename="src/jama/tnt_fortran_array3d_utils.h" />
-		<Unit filename="src/jama/tnt_i_refvec.h" />
-		<Unit filename="src/jama/tnt_math_utils.h" />
-		<Unit filename="src/jama/tnt_sparse_matrix_csr.h" />
-		<Unit filename="src/jama/tnt_stopwatch.h" />
-		<Unit filename="src/jama/tnt_subscript.h" />
-		<Unit filename="src/jama/tnt_vec.h" />
-		<Unit filename="src/jama/tnt_version.h" />
 		<Unit filename="src/m_algorithm.cpp" />
 		<Unit filename="src/m_algorithm.h" />
+		<Unit filename="src/matrix.cpp" />
 		<Unit filename="src/matrix.h" />
 		<Unit filename="src/mbuf_traits.h" />
 		<Unit filename="src/prg.cpp" />
 		<Unit filename="src/prg.h" />
+		<Unit filename="src/sha1.cpp" />
+		<Unit filename="src/sha2.cpp" />
+		<Unit filename="src/sha4.cpp" />
 		<Unit filename="src/text_table.cpp" />
 		<Unit filename="src/text_table.h" />
 		<Unit filename="src/utils.cpp" />

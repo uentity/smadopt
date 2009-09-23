@@ -92,6 +92,7 @@ private:
 	typedef TMatrix< double, val_buffer > Matrix;
 	typedef std::auto_ptr< Matrix > dMPtr;
 	typedef typename std::vector< double >::iterator dr_iterator;
+	typedef typename std::vector< double >::const_iterator cdr_iterator;
 
 	//data members
 	sp_buf data_;
@@ -1373,7 +1374,7 @@ public:
 		}
 		//new version
 		//thisMatrix save;
-		dr_iterator pos_(mean.begin());
+		cr_iterator pos_(mean.begin());
 		cr_iterator src(begin());
 		retr_iterator dst(r.begin());
 		for(size_type i=0; i<rows_; ++i) {
@@ -1514,6 +1515,27 @@ public:
 				r &= row;
 			else break;
 			if(max_rows > 0 && r.row_num() == max_rows) break;
+		}
+		return r;
+	}
+
+	static retMatrix Read_unfmt(std::istream& is, size_type col_num, size_type max_rows = 0)
+	{
+		retMatrix r, row(1, col_num);
+		value_type val;
+		std::string s;
+		//std::istringstream sinp;
+		size_type col_ind = 0;
+
+		while(is >> val) {
+			// make row
+			if(col_ind < col_num)
+				row[col_ind++] = val;
+			else {
+				r &= row;
+				if(max_rows > 0 && r.row_num() == max_rows) break;
+				col_ind = 0;
+			}
 		}
 		return r;
 	}

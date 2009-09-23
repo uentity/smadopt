@@ -5,9 +5,10 @@
 			<Depends filename="../../../../mnt/D/my_projects/hybrid_adapt.git/utils/ha_utils.cbp" />
 		</Project>
 		<Project filename="../../../../mnt/D/my_projects/hybrid_adapt.git/utils/ha_utils.cbp" />
-		<Project filename="../../../../mnt/D/my_projects/hybrid_adapt.git/ga_client/ga_client.cbp" active="1">
+		<Project filename="../../../../mnt/D/my_projects/hybrid_adapt.git/ga_client/ga_client.cbp">
 			<Depends filename="../../../../mnt/D/my_projects/hybrid_adapt.git/alg/ha_alg.cbp" />
 			<Depends filename="../../../../mnt/D/my_projects/hybrid_adapt.git/utils/ha_utils.cbp" />
 		</Project>
+		<Project filename="../../../../mnt/D/my_projects/hybrid_adapt.git/gis_neuro/gis_neuro.cbp" active="1" />
 	</Workspace>
 </CodeBlocks_workspace_file>

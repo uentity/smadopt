@@ -84,8 +84,10 @@ void pcan::learn_epoch(const Matrix& inputs, const Matrix& targets)
 	}
 }
 
-int pcan::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLearnInformer pProc)
+int pcan::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLearnInformer pProc,
+		smart_ptr< const Matrix > test_inp, smart_ptr< const Matrix > test_tar)
 {
 	opt_.goal_checkFun = no_check;
 	return objnet::common_learn(inputs, targets, initialize, pProc);
 }
+

@@ -69,13 +69,22 @@ public:
 	long* count;
 
 	//typedef T _PtrClass;
-	explicit smart_ptr(T* lp = NULL)
+	smart_ptr(T* lp = NULL)
 		: p(lp), count(new long(1))
 	{
 	}
 
+	// copy ctor
 	smart_ptr(const smart_ptr<T>& lp) throw()
 		: p(lp.p), count(lp.count) {
+		++*count;
+	}
+
+	// ctor from smart_ptr of castable type
+	template< class R >
+	smart_ptr(const smart_ptr< R >& lp) throw()
+		: p(lp.p), count(lp.count) 
+	{
 		++*count;
 	}
 
@@ -105,7 +114,7 @@ public:
 
 	T* get() const throw() { return p; }
     operator T*() const throw () {return p; }
-	operator const T*() const throw () {return p; }
+	//operator const T*() const throw () {return p; }
     T& operator*() const throw() {return *p; }
     //T** operator&() const throw () {return (T**)&p; }
     T* operator->() const throw() {return p; }
@@ -128,7 +137,7 @@ public:
 	long* count;
 
 	//typedef T _PtrClass;
-	explicit smart_ptr(void* lp = NULL)
+	smart_ptr(void* lp = NULL)
 		: p(lp), count(new long(1))
 	{
 	}
@@ -175,7 +184,7 @@ private:
 	}
 };
 
-//common tyepdefs
+//common typedefs
 typedef unsigned long ulong;
 typedef unsigned int uint;
 typedef std::vector<ulong> ul_vec;

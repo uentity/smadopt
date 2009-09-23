@@ -350,7 +350,8 @@ void rbn::prepare2learn() {
 	}
 }
 
-void rbn::_neuron_adding_learn(const Matrix& inputs, const Matrix& targets, pLearnInformer pProc)
+void rbn::_neuron_adding_learn(const Matrix& inputs, const Matrix& targets, pLearnInformer pProc, 
+		smart_ptr< const Matrix > test_inp, smart_ptr< const Matrix > test_tar)
 {
 	Matrix ps_er(1, inputs.col_num()), cur_er;
 	Matrix::indMatrix er_ind;
@@ -363,7 +364,7 @@ void rbn::_neuron_adding_learn(const Matrix& inputs, const Matrix& targets, pLea
 	neurMatrixPtr input_ptr = create_ptr_mat(input_.neurons());
 	do {
 		//start backprop learning
-		common_learn(inputs, targets, false, pProc);
+		common_learn(inputs, targets, false, pProc, test_inp, test_tar);
 
 		//palsy check
 		if(state_.status == stop_palsy) break;
@@ -412,7 +413,8 @@ void rbn::_neuron_adding_learn(const Matrix& inputs, const Matrix& targets, pLea
 	} while(state_.status != learned);
 }
 
-int rbn::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLearnInformer pProc)
+int rbn::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLearnInformer pProc, 
+		smart_ptr< const Matrix > test_inp, smart_ptr< const Matrix > test_tar)
 {
 	if(layers_num() < 1) throw nn_except("Radial basis layer must be initialized before learning can start");
 	layer& ol = layers_[layers_num() - 1];
@@ -420,14 +422,14 @@ int rbn::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLe
 		case rbn_random:
 		case rbn_exact:
 			//lsq_learn(inputs, targets, pProc);
-			common_learn(inputs, targets, false, pProc);
+			common_learn(inputs, targets, false, pProc, test_inp, test_tar);
 			break;
 		case rbn_neuron_adding:
 			layers_[layers_num() - 1].init_weights(inputs);
 			//set output's layer weight = 1 - DEBUG!
 			//for(n_iterator p_n = ol.neurons_.begin(); p_n != ol.neurons_.end(); ++p_n)
 			//	p_n->weights_ = 0.01;
-			_neuron_adding_learn(inputs, targets, pProc);
+			_neuron_adding_learn(inputs, targets, pProc, test_inp, test_tar);
 			break;
 		case rbn_kmeans:
 			//set output's layer weight = 1 - DEBUG!
@@ -439,7 +441,7 @@ int rbn::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLe
 		default:
 			layers_[layers_num() - 1].init_weights(inputs);
 			//_svd_learn(inputs, targets, pProc);
-			common_learn(inputs, targets, false, pProc);
+			common_learn(inputs, targets, false, pProc, test_inp, test_tar);
 			break;
 	}
 	return state_.status;

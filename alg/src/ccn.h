@@ -1,16 +1,180 @@
 #include "objnet.h"
+#include "polarssl/sha1.h"
+#include "polarssl/bignum.h"
+#include <map>
+#include <string.h>
+
+#define HASH_SIZE 20
+const unsigned int hash_buf_size = HASH_SIZE / sizeof(t_int);
 
 using namespace std;
 using namespace NN;
 
 //-------------------------------falman layer implementation-------------------------------------
+struct falman_layer::cache_prop {
+	// all const_casts needed to wrap around
+	// stupid C iface of polarssl library
+	struct mpi_hash : public mpi {
+		mpi_hash() {
+			s = 0;
+			n = hash_buf_size;
+			p = buf_;
+			memset(buf(), 0, HASH_SIZE);
+		}
+
+		mpi_hash(const char* p_hash) {
+			s = 0;
+			n = hash_buf_size;
+			p = buf_;
+			memcpy(buf(), p_hash, HASH_SIZE);
+		}
+
+		mpi_hash(const mpi_hash& lhs) {
+			s = 0;
+			n = hash_buf_size;
+			p = buf_;
+			memcpy(buf(), lhs.buf(), HASH_SIZE);
+		}
+
+		//mpi_hash& operator=(const char* p_hash) {
+		//	memcpy(buf(), p_hash, HASH_SIZE);
+		//}
+
+		bool operator <(const mpi_hash& lhs) const {
+			return mpi_cmp_abs(
+					const_cast< mpi* >((const mpi*)&lhs),
+					const_cast< mpi* >((const mpi*)this)
+					) > 0 ? true : false;
+		}
+
+		unsigned char* buf() {
+			return (unsigned char*)buf_;
+		}
+
+		const unsigned char* buf() const {
+			return (const unsigned char*)buf_;
+		}
+
+		t_int buf_[hash_buf_size];
+	};
+
+	struct m_hash {
+		m_hash(const Matrix& m) {
+			assign(m);
+		}
+
+		template< template < class > class buf_traits_t >
+		m_hash(const TMatrix< double, buf_traits_t >& m) {
+			Matrix tmp;
+			tmp = m;
+			assign(tmp);
+		}
+
+		void assign(const Matrix& m) {
+			sha1(
+				const_cast< unsigned char* >((const unsigned char*)m.GetBuffer()), 
+				m.raw_size(),
+				hash_.buf()
+				);
+		}
+
+		bool operator <(const m_hash& lhs) const {
+			return hash_ < lhs.hash_;
+		}
+
+		void dump(ostream& outs) const {
+			outs << hex;
+			for(uint i = 0; i < HASH_SIZE; ++i)
+				outs << int(hash_.buf()[i]);
+			outs << dec;
+		}
+
+		ostream& operator<<(ostream& outs) const {
+			dump(outs);
+			return outs;
+		}
+
+	private:
+		mpi_hash hash_;
+	};
+
+	typedef map< m_hash, Matrix > cache_t;
+	typedef pair< m_hash, bool > find_ret_t;
+
+	cache_t cache_;
+	int mode_;
+	//falman_layer& l_;
+	//ulong ind;
+	//int mode, save_mode;
+
+	cache_prop() : mode_(no_cache)
+	{}
+
+	//copy constructor
+	cache_prop(const cache_prop& cp)
+		: cache_(cp.cache_), mode_(cp.mode_)
+	{}
+	//swaps 2 cache_props
+	void swap(cache_prop& cp) {
+		std::swap(cache_, cp.cache_);
+		std::swap(mode_, cp.mode_);
+	}
+
+	cache_prop& operator =(const cache_prop& cp) {
+		cache_prop(cp).swap(*this);
+		return *this;
+	}
+
+	// use input pattern for hashing
+	// this may not work properly for NN with feedbacks
+	find_ret_t cached_propagate(falman_layer& l) {
+		m_hash h(l.net_.get_input().out());
+		cache_t::const_iterator res = cache_.find(h);
+		if(res != cache_.end()) {
+			l.axons_ = res->second;
+			return find_ret_t(h, true);
+		}
+		else
+			return find_ret_t(h, false);
+	}
+
+	Matrix& ss(const m_hash& h) {
+		return cache_[h];
+	}
+
+	void save_axons(falman_layer& l) {
+		cache_[m_hash(l.net_.get_input().out())] = l.axons_;
+	}
+};
+
+falman_layer::falman_layer(objnet& net, ulong candidates_count)
+	:layer(net, candidates_count, 0), cp_(new cache_prop)
+{
+	if(candidates_count < MIN_CAND_COUNT)
+		init(MIN_CAND_COUNT);
+	_construct_aft();
+}
+
+falman_layer::falman_layer(objnet& net, const iMatrix& act_fun)
+	:layer(net, act_fun), cp_(new cache_prop)
+{}
+
+falman_layer::falman_layer(const layer& l)
+	: layer(l), cp_(new cache_prop)
+{}
+
+//copy constructor
+falman_layer::falman_layer(const falman_layer& l)
+	:layer(l), cp_(new cache_prop(*l.cp_)), winner_ind_(l.winner_ind_)
+{}
+
 void falman_layer::_construct_aft()
 {
 	vector<int> aft;
 	aft.push_back(logsig);
 	aft.push_back(tansig);
-	//aft.push_back(radbas);
-	aft.push_back(revradbas);
+	aft.push_back(radbas);
+	//aft.push_back(revradbas);
 	//aft.push_back(multiquad);
 	//aft.push_back(revmultiquad);
 	for(iMatrix::r_iterator p_aft(aft_.begin()); p_aft != aft_.end(); ++p_aft) {
@@ -42,48 +206,37 @@ void falman_layer::delete_losers(ulong survivals)
 	//winner_ind_ = 0;
 }
 
-void falman_layer::cache_mode_on(ulong trace_length)
+void falman_layer::cache_mode_on()
 {
-	//if it was paused or new run with equal trace lengths
-	if(cp_.cache.col_num() == trace_length && cp_.cache.row_num() == axons_.size())
-		cp_.mode = cp_.save_mode;
-	else {
-		cp_.cache.NewMatrix(axons_.size(), trace_length);
-		//start collecting
-		cp_.mode = collecting;
-	}
-	cp_.ind = 0;
+	cp_->mode_ = use_cache;
 }
 
 void falman_layer::cache_mode_off()
 {
-	cp_.cache.clear();
-	cp_.mode = no_cache;
-	cp_.ind = 0;
-	//start collecting if unpause
-	cp_.save_mode = collecting;
-}
-
-void falman_layer::cache_mode_pause()
-{
-	cp_.save_mode = cp_.mode;
-	cp_.mode = no_cache;
+	cp_->cache_.clear();
+	cp_->mode_ = no_cache;
 }
 
 void falman_layer::propagate()
 {
-	if(cp_.mode == use_cache) {
-		//using cache
-		//axons_[0] = cp_.val();
-		cp_.get_axons();
+	if(cp_->mode_ == use_cache) {
+		cache_prop::find_ret_t res = cp_->cached_propagate(*this);
+		// DEBUG
+		//cout << "For input " << endl;
+		//net_.get_input().out().Print(cout);
+		//cout << " hash = "; res.first.dump(cout);
+		if(!res.second) {
+			layer::propagate();
+			cp_->ss(res.first) = axons_;
+			//cout << " not found!" << endl;
+		}
+		//else {
+		//	cout << " found!" << endl;
+		//}
 	}
 	else {
-		//we need a standart propagation first
+		//standart propagation
 		layer::propagate();
-		//remember answer
-		if(cp_.mode == collecting)
-			cp_.save_axons();
-			//cp_.val() = axons_[0];
 	}
 }
 //-------------------------------Cascade correlation network implementation-------------------
@@ -481,23 +634,31 @@ bool ccn::delete_losers(const Matrix& inputs, const Matrix& targets)
 	return true;
 }
 
-int ccn::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLearnInformer pProc)
+int ccn::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLearnInformer pProc, 
+		smart_ptr< const Matrix > test_inp, smart_ptr< const Matrix > test_tar)
 {
 	int save_lsq_stat = opt_.use_lsq;
+	// save & reset test_validation bit
+	unsigned int save_test_valid = opt_.goal_checkFun & test_validation;
+	// TODO: remove this ugly thing after proper goal_checkFun reading
+	if(save_test_valid)
+		opt_.goal_checkFun = patience;
+	else
+		opt_.goal_checkFun ^= save_test_valid;
 
 	try {
 		//check if learning can start
 		if(layers_num() == 0 || layers_[0].size() == 0)
 			throw nn_except("An output layer must be created before learning can start");
-		if(mainState_.status == learning || mainState_.status == opt_.learnType)
-			throw nn_except(NN_Busy, "This network is already in learning state");
+		//if(mainState_.status == learning || mainState_.status == opt_.learnType)
+		//	throw nn_except(NN_Busy, "This network is already in learning state");
 
 		if(initialize) reset();
 
-		if(opt_.batch) {
+		if(opt_.learnFun != ccn_fully_bp) {
 			//turn on caching in prev falman layers
 			for(fl_iterator p_fl = flayers_.begin(); p_fl != flayers_.end(); ++p_fl)
-				p_fl->cache_mode_on(inputs.col_num());
+				p_fl->cache_mode_on();
 		}
 
 		bool learn_outl = true;
@@ -508,7 +669,11 @@ int ccn::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLe
 
 		//main learn cycle
 		mainState_.lastPerf = 0;
-		for(mainState_.cycle = 1; mainState_.cycle <= opt_.maxFL_; ++mainState_.cycle) {
+		mainState_.cycle = 0;
+		if(save_test_valid)
+			check_early_stop(mainState_, *test_inp, *test_tar);
+
+		for(++mainState_.cycle; mainState_.cycle <= opt_.maxFL_; ++mainState_.cycle) {
 			//learn last layer
 			if(learn_outl) {
 				//check if first falman layer is pre-creted
@@ -519,15 +684,18 @@ int ccn::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLe
 			//	else
 					mainState_.status = learning;
 				cur_fl_ = NULL;
-				if(mainState_.cycle == 1) layers_.begin()->init_weights(inputs);
+				if(mainState_.cycle == 0) {
+					layers_.begin()->init_weights(inputs);
+				}
 
 				//layers_.begin()->init_weights(inputs);
 				//init falman layers weights
 				//for(fl_iterator p_fl = flayers_.begin(); p_fl != flayers_.end(); ++p_fl)
 				//	p_fl->init_weights(inputs);
 
-				common_learn(inputs, targets, false, pProc);
+				common_learn(inputs, targets, false, pProc, test_inp, test_tar);
 				mainState_.perf = state_.perf;
+
 				// drop rbfl_ flag
 				rbfl_ = false;
 				if(state_.status == learned || state_.status == stop_breaked) {
@@ -537,9 +705,18 @@ int ccn::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLe
 
 				//lsq can become unstable. If performance isn't improving during last opt_.lsq_patience_cycles epochs
 				//then turn it off
-				_check_patience< anti_grad >(mainState_, opt_.patience, opt_.lsq_patience_cycles_);
-				if(mainState_.status == stop_patience)
-					opt_.use_lsq = false;
+
+				if(opt_.use_lsq) {
+					_check_patience< anti_grad >(mainState_, opt_.patience, opt_.lsq_patience_cycles_);
+					if(mainState_.status == stop_patience)
+						opt_.use_lsq = false;
+				}
+
+				if(save_test_valid) {
+					mainState_.patience_counter = check_early_stop(mainState_, *test_inp, *test_tar);
+					if(mainState_.status == stop_test_validation)
+						break;
+				}
 			}
 
 			//error still high - add new falman_layer
@@ -552,12 +729,12 @@ int ccn::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLe
 			}
 			//cur_fl_->Goal_ = 0;
 			cur_fl_->init_weights(inputs);
-			//layers_.begin()->init_weights(inputs);
-			if(!opt_.batch) {
-				//turn on caching in prev falman layers
-				for(fl_iterator p_fl = flayers_.begin(); &(*p_fl) != cur_fl_; ++p_fl)
-					p_fl->cache_mode_on(inputs.col_num());
-			}
+
+			//if(!opt_.batch) {
+			//	//turn on caching in prev falman layers
+			//	for(fl_iterator p_fl = flayers_.begin(); &(*p_fl) != cur_fl_; ++p_fl)
+			//		p_fl->cache_mode_on(inputs.col_num());
+			//}
 			common_learn(inputs, targets, false, pProc);
 
 			//select the most performing element, kill others
@@ -569,19 +746,26 @@ int ccn::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLe
 				}
 			}
 
+			// we should disable caching only in case of newly added layer only in case of
+			// fully_bp learning, because it's weights won't be fixed
+			if(opt_.learnType == ccn_fully_bp)
+				cur_fl_->cache_mode_off();
+			else
+				cur_fl_->cache_mode_off();
+
 			//connect output layer to this new layer
 			//layers_.begin()->add_links(create_ptr_mat(cur_fl_->neurons_));
 
-			if(opt_.batch) {
-				cur_fl_->cache_mode_on(inputs.col_num());
-			}
-			else {
-				//pause caching in prev falman layers
-				for(fl_iterator p_fl = flayers_.begin(); &(*p_fl) != cur_fl_; ++p_fl)
-					p_fl->cache_mode_pause();
-			}
+			//if(opt_.batch) {
+			//	cur_fl_->cache_mode_on(inputs.col_num());
+			//}
+			//else {
+			//	//pause caching in prev falman layers
+			//	for(fl_iterator p_fl = flayers_.begin(); &(*p_fl) != cur_fl_; ++p_fl)
+			//		p_fl->cache_mode_pause();
+			//}
 
-#ifdef _DEBUG
+#if 0
 			Matrix ol, fl, er;
 			ol.reserve(targets.col_num());
 			fl.reserve(targets.col_num());
@@ -600,14 +784,29 @@ int ccn::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLe
 #endif
 		}
 
-		if(mainState_.status != learned && state_.status != stop_breaked)
-			mainState_.status = stop_maxcycle;
-		//turn off caching everywhere
-		for(fl_iterator p_fl = flayers_.begin(); p_fl != flayers_.end(); ++p_fl)
-			p_fl->cache_mode_off();
+		//if(mainState_.status != learned && state_.status != stop_breaked)
+		//	mainState_.status = stop_maxcycle;
 
 		//call informer
 		if(pProc) pProc(mainState_.cycle, mainState_.perf, (void*)this);
+
+		if(mainState_.status == stop_test_validation) {
+			cout << "Remove Fahlman layers added during patience_counter cycles" << endl;
+			ulong reduced_sz = flayers_.size() - mainState_.patience_counter;
+			layer& outl = layers_[layers_.size() - 1];
+			for(ulong i = reduced_sz; i < flayers_.size(); ++i)
+				outl.rem_links(create_ptr_mat(flayers_[i].neurons()));
+			flayers_.DelRows(reduced_sz, mainState_.patience_counter);
+
+			cout << "Relearn last layer" << endl;
+			mainState_.status = learning;
+			common_learn(inputs, targets, false, pProc, test_inp, test_tar);
+			mainState_.perf = state_.perf;
+		}
+
+		//turn off caching everywhere
+		for(fl_iterator p_fl = flayers_.begin(); p_fl != flayers_.end(); ++p_fl)
+			p_fl->cache_mode_off();
 	}
 	//errors handling
 	catch(alg_except& ex) {
@@ -667,7 +866,7 @@ std::string ccn::status_info(int level) const {
 		// outpul layer learning status
 		if(state_.cycle == 1) {
 			if(rbfl_)
-				os << "Initial Radial-basis network learning started";
+				os << "Initial Radial-Basis Network learning started";
 			else
 				os << "Output layer learning started";
 			os << endl;
@@ -693,8 +892,11 @@ std::string ccn::status_info(int level) const {
 			else os << endl;
 		}
 		// Overall NN learning status
-		if(mainState_.status != opt_.learnType)
-			os << "We end up with " << flayers_num() << " falman layers" << endl << endl;
+		if(mainState_.status != opt_.learnType) {
+			os << "We end up with " << flayers_num() << " falman layers" << endl;
+			//stop_state = decode_nn_state(mainState_.status);
+			//os << "CCN leraning stopped: " << stop_state << endl << endl;
+		}
 	}
 	
 	// print resulting status of main CCN
