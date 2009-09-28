@@ -142,6 +142,8 @@ namespace NN {
 		friend class rbn;
 		friend class ccn;
 
+		class layer_impl;
+
 	protected:
 
 		neurMatrixSP neurons_;
@@ -513,8 +515,9 @@ namespace NN {
 	};
 
 	//--------------------------------------CCN declaration----------------------------------------------------
-	class _CLASS_DECLSPEC ccn : public objnet
-	{
+	class _CLASS_DECLSPEC ccn : public objnet {
+		class ccn_impl;
+
 	public:
 		ccn_opt& opt_;
 

@@ -61,9 +61,8 @@ struct int2type {
 };
 
 //smart pointer template
-template <class T>
-class smart_ptr
-{
+template < class T >
+class smart_ptr {
 public:
 	T* p;
 	long* count;
@@ -119,6 +118,10 @@ public:
     //T** operator&() const throw () {return (T**)&p; }
     T* operator->() const throw() {return p; }
 
+	operator bool() const {
+		return p != NULL;
+	}
+
 private:
 	void dispose() {
 		if(--(*count) == 0) {
@@ -129,9 +132,8 @@ private:
 };
 
 //realization for void* - no dereferencing operator
-template<>
-class smart_ptr<void>
-{
+template< >
+class smart_ptr< void > {
 public:
 	void* p;
 	long* count;
@@ -170,6 +172,10 @@ public:
 		return *this;
     }
 
+	operator bool() const {
+		return p != NULL;
+	}
+
 	void* get() const throw() { return p; }
     operator void*() const throw () {return p; }
 	operator const void*() const throw () {return p; }
@@ -183,6 +189,37 @@ private:
 		}
 	}
 };
+
+// comparison operators
+template< class T, class R >
+bool operator ==(const smart_ptr< T >& lhs, const smart_ptr< R >& rhs) {
+	return (void*)lhs.get() == (void*)rhs.get();
+}
+
+template< class T, class R >
+bool operator !=(const smart_ptr< T >& lhs, const smart_ptr< R >& rhs) {
+	return (void*)lhs.get() != (void*)rhs.get();
+}
+
+template< class T, class R >
+bool operator >(const smart_ptr< T >& lhs, const smart_ptr< R >& rhs) {
+	return (void*)lhs.get() > (void*)rhs.get();
+}
+
+template< class T, class R >
+bool operator <(const smart_ptr< T >& lhs, const smart_ptr< R >& rhs) {
+	return (void*)lhs.get() < (void*)rhs.get();
+}
+
+template< class T, class R >
+bool operator>=(const smart_ptr< T >& lhs, const smart_ptr< R >& rhs) {
+	return (void*)lhs.get() >= (void*)rhs.get();
+}
+
+template< class T, class R >
+bool operator<=(const smart_ptr< T >& lhs, const smart_ptr< R >& rhs) {
+	return (void*)lhs.get() <= (void*)rhs.get();
+}
 
 //common typedefs
 typedef unsigned long ulong;

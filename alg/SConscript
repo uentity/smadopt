@@ -12,21 +12,25 @@ Import('*');
 base_env = custom_env.Clone();
 base_env.Append(
 	CCFLAGS = ['-W', '-Wall', '-Wno-deprecated', '-pthread'], #'-fvisibility=hidden', '-fvisibility-inlines-hidden'],
-	CPPPATH = ['#utils', '#utils/src', 'src'],
+	CPPPATH = ['/home/uentity/lib/tbb/include', '#utils', '#utils/src', 'src'],
 	LIBS = ['ha_utils']
 );
 
 # construct debug and release env
 debug_env = base_env.Clone();
-debug_env.Append(
+debug_env.AppendUnique(
 		CPPDEFINES = ['_DEBUG'],
 		CCFLAGS = ['-O0', '-ggdb3'], 
-		LIBPATH = [os.path.join(exe_dir, dbg_dir)]);
+		LIBPATH = ['/home/uentity/lib/tbb/lib/debug', os.path.join(exe_dir, dbg_dir)],
+		LIBS = ['tbb_debug']
+		);
 
 release_env = base_env.Clone();
-release_env.Append(
+release_env.AppendUnique(
 		CCFLAGS = ['-O3'],
-		LIBPATH = [os.path.join(exe_dir, rel_dir)]);
+		LIBPATH = ['/home/uentity/lib/tbb/lib/release', os.path.join(exe_dir, rel_dir)],
+		LIBS = ['tbb']
+		);
 
 # make targets
 # debug

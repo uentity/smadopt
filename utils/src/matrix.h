@@ -18,6 +18,8 @@
 #endif
 */
 
+#include <tbb/parallel_for.h>
+
 #define INNER    0      //
 #define EXTERN   1
 #define DEF_WIDTH 14
@@ -97,7 +99,7 @@ private:
 	//data members
 	sp_buf data_;
 
-	int alloc_;
+	//int alloc_;
 	size_type size_;
 	size_type rows_;
 	size_type cols_;
@@ -127,9 +129,40 @@ public:
 		: public std::iterator< std::random_access_iterator_tag, typename it_type::value_type, typename it_type::difference_type,
 		  typename it_type::pointer, typename it_type::reference >
 	{
+	private:
 		it_type pos_;
-		sp_buf data_;
+		it_type beg_;
+		//sp_buf data_;
+		size_type rows_;
 		size_type cols_;
+		size_type size_;
+
+		template< class binary_op >
+		diff_type diff_bycol(const size_type row_pos, const binary_op& op) const {
+			// row diff
+			diff_type i = op((pos_ - beg_) / cols_, row_pos / cols_);
+			// column diff
+			diff_type j = op((pos_ - beg_) % cols_, row_pos % cols_);
+			return j * rows_ + i;
+		}
+
+		void append_bycol(const diff_type offset) {
+			// swap / and % for offset cause we're going by cols
+			diff_type i = (pos_ - beg_) / cols_ + offset % rows_;
+			diff_type j = (pos_ - beg_) % cols_ + offset / rows_;
+			if(i < 0) {
+				i += rows_;
+				--j;
+			}
+			else if(size_type(i) >= rows_) {
+				i -= rows_;
+				++j;
+			}
+			if(j >= 0 && size_type(j) < cols_)
+				pos_ = beg_ + i * cols_ + j;
+			else
+				pos_ = beg_ + size_;
+		}
 
 	public:
 		typedef typename it_type::pointer pointer;
@@ -140,7 +173,13 @@ public:
 		bool cycled_;
 
 		explicit column_iterator(matrix_t& m, bool cycled = false)
-			: pos_(m.begin()), data_(m.data_), cols_(m.cols_), cycled_(cycled)
+			: pos_(m.begin()), beg_(m.begin()), rows_(m.row_num()), cols_(m.col_num()), size_(m.size()), cycled_(cycled)
+			//: pos_(m.begin()), data_(m.data_), cols_(m.cols_), cycled_(cycled)
+		{}
+
+		column_iterator(matrix_t& m, const it_type& i, bool cycled = false)
+			: pos_(i), beg_(m.begin()), rows_(m.row_num()), cols_(m.col_num()), size_(m.size()), cycled_(cycled)
+			//: pos_(i), data_(m.data_), cols_(m.cols_), cycled_(cycled)
 		{}
 
 		reference operator *() const {
@@ -162,19 +201,23 @@ public:
 
 		//standard operator= is fine
 
-		operator it_type() {
+		operator it_type() const {
+			return pos_;
+		}
+
+		it_type backend() const {
 			return pos_;
 		}
 
 		column_iterator& operator ++() {
 			pos_ += cols_;
-			if(pos_ - data_->end() >= 0) {
-				pos_ -= data_->size();
+			if(pos_ - size_ >= beg_) {
+				pos_ -= size_;
 				if(!cycled_) {
 					++pos_;
-					if((size_type)(pos_ - data_->begin()) >= cols_)
-						pos_ = data_->end();
-					//if(pos_ - data_->buf_begin() >= cols_) pos_ -= cols_;
+					if(size_type(pos_ - beg_) >= cols_)
+						// pos_ = end
+						pos_ = beg_ + size_;
 				}
 			}
 			return *this;
@@ -187,39 +230,44 @@ public:
 		}
 
 		column_iterator& operator +=(size_type offset) {
+			append_bycol(offset);
 			//new version
-			pos_ += offset*cols_;
-			if(pos_ - data_->end() >= 0) {
-				if(cycled_)
-					pos_ = data_->begin() + (pos_ - data_->end()) % data_->size();
-				else {
-					pos_ += 1 - data_->size();
-					if((size_type)(pos_ - data_->begin()) >= cols_) pos_ = data_->end();
-				}
-			}
-
-			//for(size_type i=0; i<offset; ++i)
-			//	++tmp;
+			//pos_ += offset * cols_;
+			//if(pos_ - size_ >= beg_) {
+			//	if(cycled_)
+			//		pos_ = beg_ + (pos_ - beg_ - size_) % size_;
+			//	else {
+			//		pos_ += 1 - size_;
+			//		if(size_type(pos_ - beg_) >= cols_)
+			//			// pos_ = end
+			//			pos_ = beg_ + size_;
+			//	}
+			//}
 			return *this;
 		}
 
 		column_iterator operator +(size_type offset) const {
 			column_iterator tmp(*this);
-			//for(size_type i = 0; i < offset; ++i)
-			//	++tmp;
 			tmp.operator+=(offset);
 			return tmp;
-			//return (tmp + offset);
 		}
+
+		diff_type operator +(const it_type& it) const {
+			return diff_bycol(it - beg_, std::plus< diff_type >());
+		}
+		diff_type operator +(const column_iterator& it) const {
+			return diff_row2col(it.pos_ - it.beg_, std::plus< diff_type >());
+		}
+		
 
 		column_iterator& operator --() {
 			pos_ -= cols_;
-			if(data_->begin() - pos_ > 0) {
-				pos_ += data_->size();
+			if(beg_ - pos_ > 0) {
+				pos_ += size_;
 				if(!cycled_) {
 					--pos_;
-					if((size_type)(data_->end() - pos_) > cols_) pos_ = data_->begin();
-					//if(data_->buf_end() - pos_ > cols_) pos_ += cols_;
+					if(size_type(beg_ + size_ - pos_) > cols_)
+						pos_ = beg_;
 				}
 			}
 			return *this;
@@ -232,19 +280,18 @@ public:
 		}
 
 		column_iterator& operator -=(size_type offset) {
+			append_bycol(-offset);
 			//new version
-			pos_ -= offset*cols_;
-			if(data_->begin() - pos_ > 0) {
-				if(cycled_)
-					pos_ = data_->end() - (data_->begin() - pos_)%data_->size();
-				else {
-					pos_ += data_->size() - 1;
-					if((size_type)(data_->end() - pos_) > cols_) pos_ = data_->begin();
-				}
-			}
-
-			//for(size_type i=0; i<offset; ++i)
-			//	--tmp;
+			//pos_ -= offset*cols_;
+			//if(beg_ - pos_ > 0) {
+			//	if(cycled_)
+			//		pos_ = beg_ + size_ - (beg_ - pos_) % size_;
+			//	else {
+			//		pos_ += size_ - 1;
+			//		if(size_type(beg_ + size_ - pos_) > cols_)
+			//			pos_ = beg_;
+			//	}
+			//}
 			return *this;
 		}
 
@@ -254,11 +301,15 @@ public:
 		}
 
 		diff_type operator -(const it_type& it) const {
-			return (pos_ - it);
+			return diff_row2col(it - beg_, std::minus< diff_type >());
 		}
 		diff_type operator -(const column_iterator& it) const {
-			diff_type ret = (pos_ - it.pos_)/cols_;
-			return (pos_ - it.pos_)*data_->size()/cols_ - ret*(data_->size() - 1);
+			return diff_bycol(it.pos_ - it.beg_, std::minus< diff_type >());
+			//// row diff
+			//diff_type i = (pos_ - beg_) / cols_ - (it.pos_ - it.beg_) / it.cols_;
+			//// column diff
+			//diff_type j = (pos_ - beg_) % cols_ - (it.pos_ - it.beg_) % it.cols_;
+			//return j * cols_ + i;
 		}
 
 		bool operator !=(const column_iterator& it) const {
@@ -297,6 +348,8 @@ public:
 	typedef typename retMatrix::col_iterator retc_iterator;
 	//typedef typename retMatrix::ccol_iterator cretc_iterator;
 
+	// make all matrices love each other deeply
+	TEMPLATE_PARAM friend class TMatrix;
 	//--------------------------column iterator for matrix end
 
 	template<class X>
@@ -308,83 +361,60 @@ public:
 
 
 	//ctors
-	TMatrix() : data_(new buf_type)
+	TMatrix()
+		: data_(new buf_type)
 	{
 		rows_ = cols_ = size_ = 0;
-		alloc_ = INNER;
 	}
 
 	TMatrix(size_type rows, size_type cols, cbuf_pointer ptr = NULL)
 		: data_(new buf_type(size_ = rows*cols))
 	{
 		rows_ = cols_ = 0;
-		alloc_ = INNER;
 		if(size_ > 0) {
 			rows_ = rows; cols_ = cols;
 			SetBuffer(ptr);
 		}
 	}
 
-	//conversion constructor
-	TMatrix(const this_t& m) : data_(m.data_)
+	// copy constructor
+	// CREATES REFERENCE to existing buffer
+	TMatrix(const this_t& m)
+		: data_(m.data_)
 	{
 		rows_ = m.rows_; cols_ = m.cols_;
-		size_ = m.size_;
-		alloc_ = EXTERN;
+		size_ = rows_ * cols_;
+		if(data_->size() != size_)
+			data_->resize(size_);
+	}
+
+	void NewExtern(const this_t& m) {
+		rows_ = m.rows_; cols_ = m.cols_;
+		size_ = rows_ * cols_;
+		data_ = m.data_;
+		if(data_->size() != size_)
+			data_->resize(size_);
 	}
 
 	//empty destructor
 	~TMatrix() {};
 
 	//create matrix with internal buffer and optionally fill it
-	void NewMatrix(size_type rows, size_type cols, buf_value_type fill_val = 0)
-	{
+	void NewMatrix(size_type rows, size_type cols, buf_value_type fill_val = 0) {
 		size_ = rows*cols;
-		if(alloc_ == EXTERN) {
-			data_ = new buf_type(size_, fill_val);
-			alloc_ = INNER;
+		if(size_ > 0) {
+			rows_ = rows; cols_ = cols;
+			data_->resize(size_, fill_val);
 		}
 		else {
 			data_->clear();
-			if(size_ > 0) data_->resize(size_, fill_val);
-		}
-
-		if(size_ > 0) {
-			rows_ = rows; cols_ = cols;
-		}
-		else {
 			rows_ = cols_ = 0;
 		}
 	}
 
-	void NewMatrix(size_type rows, size_type cols, cbuf_pointer ptr)
-	{
+	void NewMatrix(size_type rows, size_type cols, cbuf_pointer ptr) {
 		NewMatrix(rows, cols);
 		SetBuffer(ptr);
-	}
-
-	//create matrix with external buffer (memory not freed on exit)
-	/*
-	void NewExtern(size_type rows, size_type cols, const_sp_buf& sp_buf)
-	{
-		size_ = rows*cols;
-		if(size_ != sp_buf->size()) {
-			size_ = size();
-			return;
-		}
-		rows_ = rows; cols_ = cols;
-		alloc_ = EXTERN;
-		data_ = sp_buf;
-	}
-	*/
-
-	void NewExtern(const this_t& m)	{
-		size_ = m.size_;
-		rows_ = m.rows_; cols_ = m.cols_;
-		alloc_ = EXTERN;
-		data_ = m.data_;
-
-		//NewExtern(m.rows_, m.cols_, m.data_);
 	}
 
 	//NewExtern operator for matrix
@@ -394,46 +424,38 @@ public:
 	}
 
 	//matrix element access in form m(i, j)
-	reference operator ()(size_type row, size_type col)
-	{
+	reference operator ()(size_type row, size_type col) {
 		return operator[](row*cols_ + col);
 	}
 
-	const_reference operator ()(size_type row, size_type col) const
-	{
+	const_reference operator ()(size_type row, size_type col) const {
 		return operator[](row*cols_ + col);
 	}
 
 	//matrix element access in form m[i] (all elements in one long vector, row by row)
-	reference operator [](size_type ind)
-	{
+	reference operator [](size_type ind) {
 		return buf_traits::val(data_, ind);
 	}
 
-	const_reference operator [](size_type ind) const
-	{
+	const_reference operator [](size_type ind) const {
 		return buf_traits::val(data_, ind);
 	}
 
 	//buffer elements access
-	buf_reference at_buf(size_type ind)
-	{
+	buf_reference at_buf(size_type ind) {
 		return data_->operator [](ind);
 	}
 
-	cbuf_reference at_buf(size_type ind) const
-	{
+	cbuf_reference at_buf(size_type ind) const {
 		return data_->operator [](ind);
 	}
 
 	//buffer element access in form m(i, j)
-	buf_reference at_buf(size_type row, size_type col)
-	{
+	buf_reference at_buf(size_type row, size_type col) {
 		return data_->operator [](row*cols_ + col);
 	}
 
-	cbuf_reference at_buf(size_type row, size_type col) const
-	{
+	cbuf_reference at_buf(size_type row, size_type col) const {
 		return data_->operator [](row*cols_ + col);
 	}
 
@@ -503,14 +525,14 @@ public:
 		else return NULL;
 	}
 
-	void SetBuffer(cbuf_pointer pBuf) {
-		if(!pBuf) return;
-		for(buf_iterator pos = buf_begin(); pos != buf_end(); ++pos) {
-			*pos = *pBuf;
-			++pBuf;
-		}
-//		if(size_ > 0)
-//			memcpy(GetBuffer(), pBuf, raw_size());
+	void SetBuffer(cbuf_pointer p_buf) {
+		if(p_buf)
+			std::copy(p_buf, p_buf + size_, buf_begin());
+
+		//for(buf_iterator pos = buf_begin(); pos != buf_end(); ++pos) {
+		//	*pos = *pBuf;
+		//	++pBuf;
+		//}
 	}
 
 	void reserve(size_type count) {
@@ -527,7 +549,7 @@ public:
 	TEMPLATE_PARAM
 	this_t& operator =(const PARAM_MATRIX& m) {
 		//return assign_mat::assign<T, Tr, buf_traits, r_buf_traits>(*this, m);
-		if((void*)this != (void*)&m) {
+		if(data_ != m.data_) {
 			rows_ = m.row_num(); cols_ = m.col_num();
 			if(size_ != m.size()) {
 				size_ = rows_ * cols_;
@@ -540,7 +562,7 @@ public:
 
 	//buffers assignment operator
 	this_t& operator ^=(const this_t& m) {
-		if((void*)this != (void*)&m) {
+		if(data_ != m.data_) {
 			rows_ = m.rows_; cols_ = m.cols_;
 			if(size_ != m.size_) {
 				size_ = rows_ * cols_;
@@ -553,20 +575,19 @@ public:
 
 	//assign fully same type
 	this_t& operator =(const this_t& m) {
-		return operator =<value_type, buf_traits_type>(m);
+		return operator=< value_type, buf_traits_type >(m);
 	}
 
 	//sets all elements = dT
-	this_t& operator =(value_type dT)
-	{
-		fill(begin(), end(), dT);
+	template< class operand_t >
+	this_t& operator =(operand_t dT) {
+		fill(begin(), end(), value_type(dT));
 		return *this;
 	}
 
 	//comparision operators
 	TEMPLATE_PARAM
-	bool operator ==(const PARAM_MATRIX& m) const
-	{
+	bool operator ==(const PARAM_MATRIX& m) const {
 		if(m.row_num() != rows_ || m.col_num() != cols_) return false;
 		else
 			return equal(begin(), end(), m.begin());
@@ -607,33 +628,30 @@ public:
 
 	//these operators are per-element for matrices with same size
 	TEMPLATE_PARAM
-	this_t& operator +=(const PARAM_MATRIX& m)
-	{
-		if(rows_==m.row_num() && cols_==m.col_num())
+	this_t& operator +=(const PARAM_MATRIX& m) {
+		if(rows_ == m.row_num() && cols_ == m.col_num())
 			std::transform(begin(), end(), m.begin(), begin(), std::plus<value_type>());
 		return *this;
 	}
 
 	TEMPLATE_PARAM
-	this_t& operator -=(const PARAM_MATRIX& m)
-	{
-		if(rows_==m.row_num() && cols_==m.col_num())
+	this_t& operator -=(const PARAM_MATRIX& m) {
+		if(rows_ == m.row_num() && cols_ == m.col_num())
 			std::transform(begin(), end(), m.begin(), begin(), std::minus<value_type>());
 		return *this;
 	}
 
+	// per-element multiplication!
 	TEMPLATE_PARAM
-	this_t& operator *=(const PARAM_MATRIX& m)
-	{
-		if(rows_==m.row_num() && cols_==m.col_num())
+	this_t& operator *=(const PARAM_MATRIX& m) {
+		if(rows_ == m.row_num() && cols_ == m.col_num())
 			std::transform(begin(), end(), m.begin(), begin(), std::multiplies<value_type>());
 		return *this;
 	}
 
 	TEMPLATE_PARAM
-	this_t& operator /=(const PARAM_MATRIX& m)
-	{
-		if(rows_==m.row_num() && cols_==m.col_num())
+	this_t& operator /=(const PARAM_MATRIX& m) {
+		if(rows_ == m.row_num() && cols_ == m.col_num())
 			std::transform(begin(), end(), m.begin(), begin(), std::divides<value_type>());
 		return *this;
 	}
@@ -658,33 +676,72 @@ public:
 		return *this;
 	}
 
-	const retMatrix operator +(value_type d) const
-	{
+	const retMatrix operator +(value_type d) const {
 		retMatrix r(rows_, cols_);
 		std::transform(begin(), end(), r.begin(), bind2nd(std::plus<value_type>(), d));
 		return r;
 	}
 
-	const retMatrix operator -(value_type d) const
-	{
+	const retMatrix operator -(value_type d) const {
 		retMatrix r(rows_, cols_);
 		std::transform(begin(), end(), r.begin(), bind2nd(std::minus<value_type>(), d));
 		return r;
 	}
 	//per-element multiplication
-	const retMatrix operator *(value_type dMul) const
-	{
+	const retMatrix operator *(value_type dMul) const {
 		retMatrix r(rows_, cols_);
 		std::transform(begin(), end(), r.begin(), bind2nd(std::multiplies<value_type>(), dMul));
 		return r;
 	}
 	//division
-	const retMatrix operator /(value_type dMul) const
-	{
+	const retMatrix operator /(value_type dMul) const {
 		retMatrix r(rows_, cols_);
 		std::transform(begin(), end(), r.begin(), bind2nd(std::divides<value_type>(), dMul));
 		return r;
 	}
+
+	TEMPLATE_PARAM
+	struct mt_mat_mul {
+		//cr_iterator r_it;
+		//retc_iterator res_it;
+		//typename PARAM_MATRIX::ccol_iterator l_it;
+
+		retMatrix& res_;
+		const this_t& lhs_;
+		const PARAM_MATRIX& rhs_;
+
+		//mt_mat_mul(const retc_iterator& res, const cr_iterator& lhs, const typename PARAM_MATRIX::ccol_iterator& rhs)
+		//	: r_it(res), r_it(lhs), l_it(rhs)
+		//{}
+
+		mt_mat_mul(retMatrix& res, const this_t& lhs, const PARAM_MATRIX& rhs)
+			: res_(res), lhs_(lhs), rhs_(rhs)
+		{}
+
+		void operator()(const tbb::blocked_range< size_type >& r) const {
+			typename PARAM_MATRIX::ccol_iterator l_it(rhs_, true);
+			cr_iterator r_it;
+			retc_iterator res_it(res_, res_.begin() + r.begin());
+			//res_it = res_it.backend() + r.begin();
+
+			for(size_type i = r.begin(); i != r.end(); ++i) {
+				l_it = rhs_.begin() + i;
+				r_it = lhs_.begin();
+				while(r_it != lhs_.end()) {
+					value_type sum = 0;
+					for(size_type j = 0; j < lhs_.col_num(); ++j) {
+						sum += (*r_it) * (*l_it);
+						++r_it; ++l_it;
+					}
+					*res_it = sum;
+					++res_it;
+				}
+			}
+		}
+
+	//private:
+	//	mt_mat_mul(const mt_mat_mul&);
+	};
 
 	//standard multiplication of two matrices
 	TEMPLATE_PARAM
@@ -694,23 +751,26 @@ public:
 		retMatrix r;
 		if(cols_ == m.row_num()) {
 			r.NewMatrix(rows_, m.col_num());
-			//new version
-			cr_iterator r_it;
-			retc_iterator res_it(r);
-			typename PARAM_MATRIX::ccol_iterator l_it(m, true);
-			for(size_type i=0; i<m.col_num(); ++i) {
-				l_it = m.begin() + i;
-				r_it = begin();
-				while(r_it != end()) {
-					dSum = 0;
-					for(size_type j=0; j<cols_; ++j) {
-						dSum += (*r_it) * (*l_it);
-						++r_it; ++l_it;
-					}
-					*res_it = dSum;
-					++res_it;
-				}
-			}
+			// mt version
+			tbb::parallel_for(tbb::blocked_range< size_type >(0, m.col_num()), mt_mat_mul< Tr, r_buf_traits >(r, *this, m));
+			
+			//cr_iterator r_it;
+			//retc_iterator res_it(r);
+			//typename PARAM_MATRIX::ccol_iterator l_it(m, true);
+	
+			//for(size_type i=0; i<m.col_num(); ++i) {
+			//	l_it = m.begin() + i;
+			//	r_it = begin();
+			//	while(r_it != end()) {
+			//		dSum = 0;
+			//		for(size_type j=0; j<cols_; ++j) {
+			//			dSum += (*r_it) * (*l_it);
+			//			++r_it; ++l_it;
+			//		}
+			//		*res_it = dSum;
+			//		++res_it;
+			//	}
+			//}
 		}
 		else r = *this;
 		return r;
@@ -1670,21 +1730,53 @@ public:
 
 //----------------------------------- TMatrix partial specializations for bool -----------------------------------------
 //template< >
-//TMatrix< bool, val_buffer >::cbuf_pointer TMatrix< bool, val_buffer >::GetBuffer() const
+//TMatrix< bool >::TMatrix(size_type rows, size_type cols, cbuf_pointer ptr) :
+//	data_(new buf_type(size_ = rows*cols))
+//{
+//	rows_ = cols_ = 0;
+//	if(size_ > 0) {
+//		rows_ = rows; cols_ = cols;
+//		alloc_ = INNER;
+//		if(ptr != NULL) {
+//			//copy - element by element for vector<bool>
+//			//std::copy(ptr, ptr + size_, buf_begin());
+//			for(buf_iterator pos = buf_begin(); pos != buf_end(); ++pos) {
+//				*pos = *ptr;
+//				++ptr;
+//			}
+//		}
+//	}
+//}
+//
+//template<>
+//void TMatrix<bool>::NewMatrix(size_type rows, size_type cols, cbuf_pointer ptr)
+//{
+//	NewMatrix(rows, cols);
+//	if(ptr != NULL) {
+//		//copy - element by element for vector<bool>
+//		for(buf_iterator pos = buf_begin(); pos != buf_end(); ++pos) {
+//			*pos = *ptr;
+//			++ptr;
+//		}
+//	}
+//}
+//
+//template<>
+//TMatrix<bool>::cbuf_pointer TMatrix<bool>::GetBuffer() const
 //{
 //	//always return NULL for vector<bool>
 //	return NULL;
 //}
 //
-//template< >
-//TMatrix< bool, val_buffer >::buf_pointer TMatrix< bool, val_buffer >::GetBuffer()
+//template<>
+//TMatrix<bool>::buf_pointer TMatrix<bool>::GetBuffer()
 //{
 //	//always return NULL for vector<bool>
 //	return NULL;
 //}
 //
-//template< >
-//void TMatrix< bool, val_buffer >::SetBuffer(cbuf_pointer pBuf)
+//template<>
+//void TMatrix<bool>::SetBuffer(cbuf_pointer pBuf)
 //{
 //	//copy - element by element for vector<bool>
 //	for(buf_iterator pos = buf_begin(); pos != buf_end(); ++pos) {
@@ -1813,16 +1905,9 @@ typedef TMatrix<ulong, val_ptr_buffer> ulMatrixPtr;
 typedef TMatrix<bool, val_ptr_buffer> bitMatrixPtr;
 //-------------------------------------------------------------------
 
-/*
-#undef INNER
-#undef EXTERN
-#undef TMATRIX
-#undef TEMPLATE_PARAM
-#undef PARAM_MATRIX
-*/
-
 #ifdef _WIN32
 #pragma warning(pop)
 #endif
 
 #endif	//_MATRIX_H
+

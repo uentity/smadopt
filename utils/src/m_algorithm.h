@@ -77,3 +77,4 @@ struct _CLASS_DECLSPEC norm_tools {
 };
 
 #endif
+

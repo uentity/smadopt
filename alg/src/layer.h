@@ -1,11 +1,218 @@
 #include "prg.h"
 #include "objnet.h"
+
 #include <cmath>
+#include "tbb/tbb.h"
 
 using namespace std;
 //using namespace NN;
+using namespace tbb;
 
 namespace NN {
+
+class layer::layer_impl {
+public:
+
+	struct mt_propagate {
+		layer *const l_;
+
+		mt_propagate(layer* l) : l_(l) {}
+
+		void operator()(const tbb::blocked_range< ulong >& r) const {
+			layer& l = *l_;
+			r_iterator p_b = l.B_.begin() + r.begin();
+			iMatrix::r_iterator p_aft = l.aft_.begin() + r.begin();
+			mp_iterator p_axon = l.axons_.begin() + r.begin(), p_state = l.states_.begin() + r.begin();
+			n_iterator p_n = l.neurons_.begin() + r.begin();
+			for(ulong i = r.begin(); i != r.end(); ++i) {
+				switch(*p_aft)
+				{
+					case tansig:
+						p_n->weighted_sum_sf();
+						*p_axon = l.net_.opt_.tansig_a*tanh(l.net_.opt_.tansig_b*(*p_state + *p_b));
+						if(l.net_.opt_.saturate) {
+							*p_axon = min(*p_axon, l.net_.opt_.tansig_a - l.net_.opt_.tansig_e);
+							*p_axon = max(*p_axon, l.net_.opt_.tansig_e - l.net_.opt_.tansig_a);
+						}
+						break;
+					case logsig:
+						p_n->weighted_sum_sf();
+						*p_axon = 1/(1 + exp(-l.net_.opt_.logsig_a*(*p_state + *p_b)));
+						if(l.net_.opt_.saturate) {
+							*p_axon = min(*p_axon, 1 - l.net_.opt_.tansig_e);
+							*p_axon = max(*p_axon, l.net_.opt_.tansig_e - 1);
+						}
+						break;
+					default:
+					case purelin:
+						p_n->weighted_sum_sf();
+						*p_axon = *p_state + *p_b;
+						break;
+					case poslin:
+						p_n->weighted_sum_sf();
+						*p_axon = std::max<double>(*p_state + *p_b, 0);
+						break;
+					case radbas:
+						p_n->eucl_dist_sf();
+						//bias contains sigma^-1
+						*p_axon = exp(-(*p_state)*(*p_b)*(*p_b));
+						break;
+					case revradbas:
+						p_n->eucl_dist_sf();
+						//bias contains sigma^-1
+						*p_axon = 1 - exp(-(*p_state)*(*p_b)*(*p_b));
+						break;
+					case expws:
+						p_n->weighted_sum_sf();
+						*p_axon = exp(*p_state + *p_b);
+						break;
+					case multiquad:
+						p_n->eucl_dist_sf();
+						*p_axon = sqrt(*p_state + (*p_b)*(*p_b));
+						break;
+					case revmultiquad:
+						p_n->eucl_dist_sf();
+						*p_axon = 1./sqrt(*p_state + (*p_b)*(*p_b));
+						break;
+				}
+
+				++p_aft; ++p_b;
+				++p_state; ++p_axon;
+				++p_n;
+			}
+		}
+	};
+
+	struct mt_deriv_af {
+		layer& l_;
+
+		mt_deriv_af(layer& l) :l_(l) {}
+
+		void operator()(const tbb::blocked_range< ulong >& r) const {
+			iMatrix::r_iterator p_aft = l_.aft_.begin() + r.begin();
+			mp_iterator p_state = l_.states_.begin() + r.begin();
+			r_iterator p_b = l_.B_.begin() + r.begin();
+			mp_iterator p_axon = l_.axons_.begin() + r.begin();
+
+			for(ulong i = r.begin(); i != r.end(); ++i) {
+				switch(*p_aft)
+				{
+					case tansig:
+						*p_axon = l_.net_.opt_.tansig_b*(l_.net_.opt_.tansig_a - *p_axon)*(l_.net_.opt_.tansig_a + *p_axon)/l_.net_.opt_.tansig_a;
+						break;
+					case logsig:
+						*p_axon *= l_.net_.opt_.logsig_a*(1 - *p_axon);
+						break;
+					case poslin:
+						if(*p_axon < 0) *p_axon = 0;
+						else *p_axon = 1;
+						break;
+					case purelin:
+						*p_axon = 1;
+						break;
+					case radbas:
+						//exp(-x)' = - exp(-x)
+						*p_axon = - *p_axon;
+						break;
+					case revradbas:
+						//(1 - exp(-x))' = exp(-x)
+						*p_axon = 1 - *p_axon;
+						break;
+					case expws:
+						*p_axon *= (*p_state + *p_b);
+						break;
+					case multiquad:
+						if(*p_axon != 0) *p_axon = 1. / (*p_axon * 2);
+						break;
+					case revmultiquad:
+						if(*p_axon != 0) {
+							double r = *p_state + (*p_b)*(*p_b);
+							*p_axon = - 1. / (sqrt(r*r*r) * 2);
+						}
+						break;
+				}
+				++p_aft; ++p_state;
+				++p_b;
+				++p_axon;
+			}
+		}
+	};
+
+	struct mt_calc_grad {
+		bool palsy_;
+		layer& l_;
+
+		mt_calc_grad(layer& l) : palsy_(true), l_(l) {}
+		// splitting ctor
+		mt_calc_grad(const mt_calc_grad& lhs, tbb::split)
+			: palsy_(true), l_(lhs.l_)
+		{}
+
+		void join(const mt_calc_grad& lhs) {
+			palsy_ &= lhs.palsy_;
+		}
+
+		void operator()(const tbb::blocked_range< ulong >& r) {
+			bool palsy = true;
+			//calc error
+			l_.deriv_af();
+			l_.Goal_ *= l_.axons_;
+
+			//calc weights gradient
+			r_iterator p_g, p_w;
+			double g;
+			mp_iterator p_er = l_.Goal_.begin() + r.begin(), p_state = l_.states_.begin() + r.begin();
+			r_iterator p_b = l_.B_.begin() + r.begin(), p_bg = l_.BG_.begin() + r.begin();
+			iMatrix::r_iterator p_aft = l_.aft_.begin() + r.begin();
+			n_iterator p_n = l_.neurons_.begin() + r.begin();
+
+			for(ulong i = r.begin(); i != r.end(); ++i) {
+				if(l_.net_.opt_.use_biases_) {
+					if(*p_aft == radbas || *p_aft == revradbas)
+						*p_bg -= *p_er * 2 * (*p_b) * (*p_state);
+					else if(*p_aft == multiquad || *p_aft == revmultiquad)
+						*p_bg -= *p_er * 2 * (*p_b);
+					else
+						*p_bg -= *p_er;
+					//palsy check
+					if(palsy && abs(*p_bg) > l_.net_.opt_.epsilon)
+						palsy = false;
+				}
+
+				if(*p_aft == radbas || *p_aft == revradbas)
+					g = 2*(*p_b)*(*p_b) * (*p_er);
+				else if(*p_aft == multiquad || *p_aft == revmultiquad)
+					g = 2 * (*p_er);
+				p_g = p_n->grad_.begin(); p_w = p_n->weights_.begin();
+				for(np_iterator p_in = p_n->inputs_.begin(); p_in != p_n->inputs_.end(); ++p_in) {
+					//calc grad element
+					if(*p_aft == radbas || *p_aft == revradbas || *p_aft == multiquad || *p_aft == revmultiquad)
+						*p_g -= (*p_w - p_in->axon_)*g;
+					else
+						*p_g -= p_in->axon_*(*p_er);
+
+					//palsy check
+					if(palsy && abs(*p_g) > l_.net_.opt_.epsilon)
+						palsy = false;
+
+					//calc local gradient in prev layer
+					//local gradient is opposite to weight gradient - so using "+="
+					if(l_.backprop_lg_)
+						p_in->error_ += *p_w * (*p_er);
+
+					++p_g; ++p_w;
+				}
+
+				++p_n; ++p_er;
+				++p_b; ++p_bg; ++p_aft;
+				++p_state;
+			}
+
+			palsy_ = palsy;
+		}
+	};
+};
+
 //--------------------------------layer  class implementation---------------------------------
 
 layer::layer(objnet& net, ulong neurons_count, int af_type) :
@@ -262,114 +469,122 @@ Matrix layer::active_af_region()
 	return ret;
 }
 
+struct test_tbb {
+};
+
 void layer::propagate()
 {
-	r_iterator p_b = B_.begin();
-	iMatrix::r_iterator p_aft = aft_.begin();
-	mp_iterator p_axon = axons_.begin(), p_state = states_.begin();
-	for(n_iterator p_n(neurons_.begin()); p_n != neurons_.end(); ++p_n) {
-		switch(*p_aft)
-		{
-		case tansig:
-			p_n->weighted_sum_sf();
-			*p_axon = net_.opt_.tansig_a*tanh(net_.opt_.tansig_b*(*p_state + *p_b));
-			if(net_.opt_.saturate) {
-				*p_axon = min(*p_axon, net_.opt_.tansig_a - net_.opt_.tansig_e);
-				*p_axon = max(*p_axon, net_.opt_.tansig_e - net_.opt_.tansig_a);
-			}
-			break;
-		case logsig:
-			p_n->weighted_sum_sf();
-			*p_axon = 1/(1 + exp(-net_.opt_.logsig_a*(*p_state + *p_b)));
-			if(net_.opt_.saturate) {
-				*p_axon = min(*p_axon, 1 - net_.opt_.tansig_e);
-				*p_axon = max(*p_axon, net_.opt_.tansig_e - 1);
-			}
-			break;
-		default:
-		case purelin:
-			p_n->weighted_sum_sf();
-			*p_axon = *p_state + *p_b;
-			break;
-		case poslin:
-			p_n->weighted_sum_sf();
-			*p_axon = std::max<double>(*p_state + *p_b, 0);
-			break;
-		case radbas:
-			p_n->eucl_dist_sf();
-			//bias contains sigma^-1
-			*p_axon = exp(-(*p_state)*(*p_b)*(*p_b));
-			break;
-		case revradbas:
-			p_n->eucl_dist_sf();
-			//bias contains sigma^-1
-			*p_axon = 1 - exp(-(*p_state)*(*p_b)*(*p_b));
-			break;
-		case expws:
-			p_n->weighted_sum_sf();
-			*p_axon = exp(*p_state + *p_b);
-			break;
-		case multiquad:
-			p_n->eucl_dist_sf();
-			*p_axon = sqrt(*p_state + (*p_b)*(*p_b));
-			break;
-		case revmultiquad:
-			p_n->eucl_dist_sf();
-			*p_axon = 1./sqrt(*p_state + (*p_b)*(*p_b));
-			break;
-		}
+	tbb::parallel_for(blocked_range< ulong >(0, neurons_.size()), layer_impl::mt_propagate(this));
 
-		++p_aft; ++p_b;
-		++p_state; ++p_axon;
-	}
+	//r_iterator p_b = B_.begin();
+	//iMatrix::r_iterator p_aft = aft_.begin();
+	//mp_iterator p_axon = axons_.begin(), p_state = states_.begin();
+	//for(n_iterator p_n(neurons_.begin()); p_n != neurons_.end(); ++p_n) {
+	//	switch(*p_aft)
+	//	{
+	//	case tansig:
+	//		p_n->weighted_sum_sf();
+	//		*p_axon = net_.opt_.tansig_a*tanh(net_.opt_.tansig_b*(*p_state + *p_b));
+	//		if(net_.opt_.saturate) {
+	//			*p_axon = min(*p_axon, net_.opt_.tansig_a - net_.opt_.tansig_e);
+	//			*p_axon = max(*p_axon, net_.opt_.tansig_e - net_.opt_.tansig_a);
+	//		}
+	//		break;
+	//	case logsig:
+	//		p_n->weighted_sum_sf();
+	//		*p_axon = 1/(1 + exp(-net_.opt_.logsig_a*(*p_state + *p_b)));
+	//		if(net_.opt_.saturate) {
+	//			*p_axon = min(*p_axon, 1 - net_.opt_.tansig_e);
+	//			*p_axon = max(*p_axon, net_.opt_.tansig_e - 1);
+	//		}
+	//		break;
+	//	default:
+	//	case purelin:
+	//		p_n->weighted_sum_sf();
+	//		*p_axon = *p_state + *p_b;
+	//		break;
+	//	case poslin:
+	//		p_n->weighted_sum_sf();
+	//		*p_axon = std::max<double>(*p_state + *p_b, 0);
+	//		break;
+	//	case radbas:
+	//		p_n->eucl_dist_sf();
+	//		//bias contains sigma^-1
+	//		*p_axon = exp(-(*p_state)*(*p_b)*(*p_b));
+	//		break;
+	//	case revradbas:
+	//		p_n->eucl_dist_sf();
+	//		//bias contains sigma^-1
+	//		*p_axon = 1 - exp(-(*p_state)*(*p_b)*(*p_b));
+	//		break;
+	//	case expws:
+	//		p_n->weighted_sum_sf();
+	//		*p_axon = exp(*p_state + *p_b);
+	//		break;
+	//	case multiquad:
+	//		p_n->eucl_dist_sf();
+	//		*p_axon = sqrt(*p_state + (*p_b)*(*p_b));
+	//		break;
+	//	case revmultiquad:
+	//		p_n->eucl_dist_sf();
+	//		*p_axon = 1./sqrt(*p_state + (*p_b)*(*p_b));
+	//		break;
+	//	}
+
+	//	++p_aft; ++p_b;
+	//	++p_state; ++p_axon;
+	//}
+
 	//activate();
 }
 
 void layer::deriv_af()
 {
-	iMatrix::r_iterator p_aft = aft_.begin();
-	mp_iterator p_state = states_.begin();
-	r_iterator p_b = B_.begin();
-	for(mp_iterator p_axon = axons_.begin(); p_axon != axons_.end(); ++p_axon) {
-		switch(*p_aft)
-		{
-		case tansig:
-			*p_axon = net_.opt_.tansig_b*(net_.opt_.tansig_a - *p_axon)*(net_.opt_.tansig_a + *p_axon)/net_.opt_.tansig_a;
-			break;
-		case logsig:
-			*p_axon *= net_.opt_.logsig_a*(1 - *p_axon);
-			break;
-		case poslin:
-			if(*p_axon < 0) *p_axon = 0;
-			else *p_axon = 1;
-			break;
-		case purelin:
-			*p_axon = 1;
-			break;
-		case radbas:
-			//exp(-x)' = - exp(-x)
-			*p_axon = - *p_axon;
-			break;
-		case revradbas:
-			//(1 - exp(-x))' = exp(-x)
-			*p_axon = 1 - *p_axon;
-			break;
-		case expws:
-			*p_axon *= (*p_state + *p_b);
-			break;
-		case multiquad:
-			if(*p_axon != 0) *p_axon = 1. / (*p_axon * 2);
-			break;
-		case revmultiquad:
-			if(*p_axon != 0) {
-				double r = *p_state + (*p_b)*(*p_b);
-				*p_axon = - 1. / (sqrt(r*r*r) * 2);
-			}
-			break;
-		}
-		++p_aft; ++p_state;
-		++p_b;
-	}
+	tbb::parallel_for(blocked_range< ulong >(0, axons_.size()), layer_impl::mt_deriv_af(*this));
+
+	//iMatrix::r_iterator p_aft = aft_.begin();
+	//mp_iterator p_state = states_.begin();
+	//r_iterator p_b = B_.begin();
+	//for(mp_iterator p_axon = axons_.begin(); p_axon != axons_.end(); ++p_axon) {
+	//	switch(*p_aft)
+	//	{
+	//	case tansig:
+	//		*p_axon = net_.opt_.tansig_b*(net_.opt_.tansig_a - *p_axon)*(net_.opt_.tansig_a + *p_axon)/net_.opt_.tansig_a;
+	//		break;
+	//	case logsig:
+	//		*p_axon *= net_.opt_.logsig_a*(1 - *p_axon);
+	//		break;
+	//	case poslin:
+	//		if(*p_axon < 0) *p_axon = 0;
+	//		else *p_axon = 1;
+	//		break;
+	//	case purelin:
+	//		*p_axon = 1;
+	//		break;
+	//	case radbas:
+	//		//exp(-x)' = - exp(-x)
+	//		*p_axon = - *p_axon;
+	//		break;
+	//	case revradbas:
+	//		//(1 - exp(-x))' = exp(-x)
+	//		*p_axon = 1 - *p_axon;
+	//		break;
+	//	case expws:
+	//		*p_axon *= (*p_state + *p_b);
+	//		break;
+	//	case multiquad:
+	//		if(*p_axon != 0) *p_axon = 1. / (*p_axon * 2);
+	//		break;
+	//	case revmultiquad:
+	//		if(*p_axon != 0) {
+	//			double r = *p_state + (*p_b)*(*p_b);
+	//			*p_axon = - 1. / (sqrt(r*r*r) * 2);
+	//		}
+	//		break;
+	//	}
+	//	++p_aft; ++p_state;
+	//	++p_b;
+	//}
 }
 
 void layer::init_weights_random()
@@ -516,75 +731,79 @@ void layer::_prepare2learn()
 
 bool layer::calc_grad()
 {
-	//pure weight gradient = -(local gradiend)*(dv/dw)
-	//thats why using "-=" in gradient calculation
-	bool palsy = true;
-	//calc error
-	deriv_af();
-	Goal_ *= axons_;
+	layer_impl::mt_calc_grad cg(*this);
+	tbb::parallel_reduce(blocked_range< ulong >(0, neurons_.size()), cg);
+	return cg.palsy_;
 
-	//process biases
-	/*
-	if(net_.opt_.use_biases_) {
-		BG_ -= Goal_;
-		for(r_iterator p_bg(BG_.begin()); p_bg != BG_.end(); ++p_bg) {
-			if(abs(*p_bg) > net_.opt_.epsilon) {
-				palsy = false;
-				break;
-			}
-		}
-	}
-	*/
+	////pure weight gradient = -(local gradiend)*(dv/dw)
+	////thats why using "-=" in gradient calculation
+	//bool palsy = true;
+	////calc error
+	//deriv_af();
+	//Goal_ *= axons_;
 
-	//calc weights gradient
-	mp_iterator p_er = Goal_.begin(), p_state = states_.begin();
-	r_iterator p_b = B_.begin(), p_bg = BG_.begin();
-	iMatrix::r_iterator p_aft = aft_.begin();
-	r_iterator p_g, p_w;
-	double g;
-	for(n_iterator p_n = neurons_.begin(); p_n != neurons_.end(); ++p_n) {
-		if(net_.opt_.use_biases_) {
-			if(*p_aft == radbas || *p_aft == revradbas)
-				*p_bg -= *p_er * 2 * (*p_b) * (*p_state);
-			else if(*p_aft == multiquad || *p_aft == revmultiquad)
-				*p_bg -= *p_er * 2 * (*p_b);
-			else
-				*p_bg -= *p_er;
-			//palsy check
-			if(palsy && abs(*p_bg) > net_.opt_.epsilon)
-				palsy = false;
-		}
+	////process biases
+	///*
+	//if(net_.opt_.use_biases_) {
+	//	BG_ -= Goal_;
+	//	for(r_iterator p_bg(BG_.begin()); p_bg != BG_.end(); ++p_bg) {
+	//		if(abs(*p_bg) > net_.opt_.epsilon) {
+	//			palsy = false;
+	//			break;
+	//		}
+	//	}
+	//}
+	//*/
 
-		if(*p_aft == radbas || *p_aft == revradbas)
-			g = 2*(*p_b)*(*p_b) * (*p_er);
-		else if(*p_aft == multiquad || *p_aft == revmultiquad)
-			g = 2 * (*p_er);
-		p_g = p_n->grad_.begin(); p_w = p_n->weights_.begin();
-		for(np_iterator p_in = p_n->inputs_.begin(); p_in != p_n->inputs_.end(); ++p_in) {
-			//calc grad element
-			if(*p_aft == radbas || *p_aft == revradbas || *p_aft == multiquad || *p_aft == revmultiquad)
-				*p_g -= (*p_w - p_in->axon_)*g;
-			else
-				*p_g -= p_in->axon_*(*p_er);
+	////calc weights gradient
+	//mp_iterator p_er = Goal_.begin(), p_state = states_.begin();
+	//r_iterator p_b = B_.begin(), p_bg = BG_.begin();
+	//iMatrix::r_iterator p_aft = aft_.begin();
+	//r_iterator p_g, p_w;
+	//double g;
+	//for(n_iterator p_n = neurons_.begin(); p_n != neurons_.end(); ++p_n) {
+	//	if(net_.opt_.use_biases_) {
+	//		if(*p_aft == radbas || *p_aft == revradbas)
+	//			*p_bg -= *p_er * 2 * (*p_b) * (*p_state);
+	//		else if(*p_aft == multiquad || *p_aft == revmultiquad)
+	//			*p_bg -= *p_er * 2 * (*p_b);
+	//		else
+	//			*p_bg -= *p_er;
+	//		//palsy check
+	//		if(palsy && abs(*p_bg) > net_.opt_.epsilon)
+	//			palsy = false;
+	//	}
 
-			//palsy check
-			if(palsy && abs(*p_g) > net_.opt_.epsilon)
-				palsy = false;
+	//	if(*p_aft == radbas || *p_aft == revradbas)
+	//		g = 2*(*p_b)*(*p_b) * (*p_er);
+	//	else if(*p_aft == multiquad || *p_aft == revmultiquad)
+	//		g = 2 * (*p_er);
+	//	p_g = p_n->grad_.begin(); p_w = p_n->weights_.begin();
+	//	for(np_iterator p_in = p_n->inputs_.begin(); p_in != p_n->inputs_.end(); ++p_in) {
+	//		//calc grad element
+	//		if(*p_aft == radbas || *p_aft == revradbas || *p_aft == multiquad || *p_aft == revmultiquad)
+	//			*p_g -= (*p_w - p_in->axon_)*g;
+	//		else
+	//			*p_g -= p_in->axon_*(*p_er);
 
-			//calc local gradient in prev layer
-			//local gradient is opposite to weight gradient - so using "+="
-			if(backprop_lg_)
-				p_in->error_ += *p_w * (*p_er);
+	//		//palsy check
+	//		if(palsy && abs(*p_g) > net_.opt_.epsilon)
+	//			palsy = false;
 
-			++p_g; ++p_w;
-		}
+	//		//calc local gradient in prev layer
+	//		//local gradient is opposite to weight gradient - so using "+="
+	//		if(backprop_lg_)
+	//			p_in->error_ += *p_w * (*p_er);
 
-		++p_er;
-		++p_b; ++p_bg; ++p_aft;
-		++p_state;
-	}
+	//		++p_g; ++p_w;
+	//	}
 
-	return palsy;
+	//	++p_er;
+	//	++p_b; ++p_bg; ++p_aft;
+	//	++p_state;
+	//}
+
+	//return palsy;
 }
 
 template<class goal_action>

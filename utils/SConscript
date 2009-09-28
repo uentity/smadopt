@@ -12,7 +12,7 @@ Import('*');
 base_env = custom_env.Clone();
 base_env.Append(
 	CCFLAGS = ['-W', '-Wall', '-Wno-deprecated', '-pthread'], #'-fvisibility=hidden', '-fvisibility-inlines-hidden'],
-	CPPPATH = ['#utils', 'src'],
+	CPPPATH = ['/home/uentity/lib/tbb/include', '#utils', 'src'],
 	CPPINCLUDE = ['#utils']
 #	LIBS = ['utils']
 );
@@ -22,12 +22,16 @@ debug_env = base_env.Clone();
 debug_env.Append(
 		CPPDEFINES = ['_DEBUG'],
 		CCFLAGS = ['-O0', '-ggdb3'],
-		LIBPATH = [os.path.join(exe_dir, dbg_dir)]);
+		LIBPATH = ['/home/uentity/lib/tbb/lib/debug', os.path.join(exe_dir, dbg_dir)],
+		LIBS = ['tbb_debug', 'tbbmalloc_proxy_debug']
+		);
 
 release_env = base_env.Clone();
 release_env.Append(
 		CCFLAGS = ['-O3'],
-		LIBPATH = [os.path.join(exe_dir, rel_dir)]);
+		LIBPATH = ['/home/uentity/lib/tbb/lib/release', os.path.join(exe_dir, rel_dir)],
+		LIBS = ['tbb', 'tbbmalloc_proxy']
+		);
 
 # make targets
 # debug

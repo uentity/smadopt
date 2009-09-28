@@ -1,14 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <CodeBlocks_workspace_file>
-	<Workspace title="Workspace">
-		<Project filename="../../../../mnt/D/my_projects/hybrid_adapt.git/alg/ha_alg.cbp">
-			<Depends filename="../../../../mnt/D/my_projects/hybrid_adapt.git/utils/ha_utils.cbp" />
-		</Project>
-		<Project filename="../../../../mnt/D/my_projects/hybrid_adapt.git/utils/ha_utils.cbp" />
-		<Project filename="../../../../mnt/D/my_projects/hybrid_adapt.git/ga_client/ga_client.cbp">
-			<Depends filename="../../../../mnt/D/my_projects/hybrid_adapt.git/alg/ha_alg.cbp" />
-			<Depends filename="../../../../mnt/D/my_projects/hybrid_adapt.git/utils/ha_utils.cbp" />
-		</Project>
-		<Project filename="../../../../mnt/D/my_projects/hybrid_adapt.git/gis_neuro/gis_neuro.cbp" active="1" />
+	<Workspace title="hybrid_adapt">
+		<Project filename="../../../../mnt/D/uentity/my_projects/hybrid_adapt.git/utils/ha_utils.cbp" />
+		<Project filename="../../../../mnt/D/uentity/my_projects/hybrid_adapt.git/alg/ha_alg.cbp" />
+		<Project filename="../../../../mnt/D/uentity/my_projects/hybrid_adapt.git/ga_client/ga_client.cbp" />
+		<Project filename="../../../../mnt/D/uentity/my_projects/hybrid_adapt.git/gis_neuro/gis_neuro.cbp" active="1" />
 	</Workspace>
 </CodeBlocks_workspace_file>

@@ -3,6 +3,7 @@
 #include "polarssl/bignum.h"
 #include <map>
 #include <string.h>
+#include <tbb/tbb.h>
 
 #define HASH_SIZE 20
 const unsigned int hash_buf_size = HASH_SIZE / sizeof(t_int);
@@ -240,6 +241,91 @@ void falman_layer::propagate()
 	}
 }
 //-------------------------------Cascade correlation network implementation-------------------
+class ccn::ccn_impl {
+public:
+	struct mt_calc_grad {
+		falman_layer& fl;
+		bool palsy_;
+		const Matrix& V;
+		const Matrix& S;
+
+		mt_calc_grad(falman_layer& l, const Matrix& Vv, const Matrix& Ss)
+			: fl(l), palsy_(true), V(Vv), S(Ss)
+		{
+			//V = Vv;
+			//S = Ss;
+		}
+		// split ctor
+		mt_calc_grad(const mt_calc_grad& lhs, tbb::split)
+			: fl(lhs.fl), palsy_(true), V(lhs.V), S(lhs.S)
+		{
+			//V = lhs.V;
+			//S = lhs.S;
+		}
+
+		void join(const mt_calc_grad& lhs) {
+			palsy_ &= lhs.palsy_;
+		}
+
+		void operator()(const tbb::blocked_range< ulong >& r) {
+			//now calc gradient for each fl's weight
+			const double epsilon = fl.net_.opt_.epsilon;
+			bool palsy = true;
+			double g;
+
+			//ulong j = 0;
+			r_iterator p_b = fl.B_.begin() + r.begin();
+			r_iterator p_bg = fl.BG_.begin() + r.begin();
+			iMatrix::cr_iterator p_aft = fl.aft_.begin() + r.begin();
+			MatrixPtr::r_iterator p_state = fl.states_.begin() + r.begin();
+			n_iterator p_n = fl.neurons_.begin() + r.begin();
+
+			for(ulong i = r.begin(); i != r.end(); ++i) {
+				g = V.Mul(S.GetColumns(i).sign()).Sum() * p_n->axon_;
+
+				//process biases
+				if(fl.net_.opt_.use_biases_) {
+					if(*p_aft == radbas || *p_aft == revradbas)
+						*p_bg += g * 2 * (*p_b) * (*p_state);
+					else if(*p_aft == multiquad || *p_aft == revmultiquad)
+						*p_bg += g * 2 * (*p_b);
+					else *p_bg += g;
+
+					if(palsy && *p_bg > epsilon) palsy = false;
+					++p_bg;
+				}
+
+				//process weights
+				if(*p_aft == radbas || *p_aft == revradbas)
+					g *= 2 * (*p_b) * (*p_b);
+				else if(*p_aft == multiquad || *p_aft == revmultiquad)
+					g *= 2;
+
+				np_iterator p_in = p_n->inputs_.begin();
+				r_iterator p_w = p_n->weights_.begin();
+				for(r_iterator p_g = p_n->grad_.begin(); p_g != p_n->grad_.end(); ++p_g) {
+					if(*p_aft == radbas || *p_aft == multiquad || *p_aft == revradbas || *p_aft == revmultiquad)
+						*p_g += (*p_w - p_in->axon_)*g;
+					else
+						*p_g += g * p_in->axon_;
+					//palsy check
+					if(palsy && abs(*p_g) > epsilon) palsy = false;
+
+					++p_in; ++p_w;
+				}
+
+				++p_n;
+				++p_aft; ++p_b; ++p_state;
+			}
+			// save palsy state
+			palsy_ = palsy;
+		}
+	};
+};
+
+//const Matrix* NN::ccn::ccn_impl::mt_calc_grad::V = NULL;
+//const Matrix* NN::ccn::ccn_impl::mt_calc_grad::S = NULL;
+
 ccn::ccn() :
 	objnet(new ccn_opt), opt_((ccn_opt&)*opt_holder_), rbfl_(false)
 {
@@ -342,8 +428,9 @@ void ccn::falman_epoch(const Matrix& inputs, const Matrix& targets)
 	//fl.winner_ind_ = fl.Goal_.ElementInd(state_.perf);
 
 	//now calc gradient for each fl's weight
-	bool palsy = true;
 	double g;
+	Matrix E_col;
+	bool palsy = true;
 	r_iterator p_b, p_w;
 	iMatrix::r_iterator p_aft;
 	mp_iterator p_state;
@@ -353,45 +440,51 @@ void ccn::falman_epoch(const Matrix& inputs, const Matrix& targets)
 		propagate();
 		fl.deriv_af();
 
-		ulong j = 0;
-		V <<= E.GetColumns(p);
-		p_aft = fl.aft_.begin(); p_b = fl.B_.begin(); p_state = fl.states_.begin();
-		for(n_iterator p_n = fl.neurons_.begin(); p_n != fl.neurons_.end(); ++p_n) {
-			g = V.Mul(S.GetColumns(j).sign()).Sum() * p_n->axon_;
+		E_col = E.GetColumns(p);
+		ccn_impl::mt_calc_grad cg(fl, E_col, S);
+		//cg.V = &E_col;
+		tbb::parallel_reduce(tbb::blocked_range< ulong >(0, fl.neurons_.size()), cg);
+		palsy &= cg.palsy_;
 
-			//process biases
-			if(opt_.use_biases_) {
-				if(*p_aft == radbas || *p_aft == revradbas)
-					fl.BG_[j] += g * 2 * (*p_b) * (*p_state);
-				else if(*p_aft == multiquad || *p_aft == revmultiquad)
-					fl.BG_[j] += g * 2 * (*p_b);
-				else fl.BG_[j] += g;
+		//ulong j = 0;
+		//V <<= E.GetColumns(p);
+		//p_aft = fl.aft_.begin(); p_b = fl.B_.begin(); p_state = fl.states_.begin();
+		//for(n_iterator p_n = fl.neurons_.begin(); p_n != fl.neurons_.end(); ++p_n) {
+		//	g = V.Mul(S.GetColumns(j).sign()).Sum() * p_n->axon_;
 
-				if(palsy && fl.BG_[j] > opt_.epsilon) palsy = false;
-			}
+		//	//process biases
+		//	if(opt_.use_biases_) {
+		//		if(*p_aft == radbas || *p_aft == revradbas)
+		//			fl.BG_[j] += g * 2 * (*p_b) * (*p_state);
+		//		else if(*p_aft == multiquad || *p_aft == revmultiquad)
+		//			fl.BG_[j] += g * 2 * (*p_b);
+		//		else fl.BG_[j] += g;
 
-			//process weights
-			if(*p_aft == radbas || *p_aft == revradbas)
-				g *= 2 * (*p_b) * (*p_b);
-			else if(*p_aft == multiquad || *p_aft == revmultiquad)
-				g *= 2;
+		//		if(palsy && fl.BG_[j] > opt_.epsilon) palsy = false;
+		//	}
 
-			p_in = p_n->inputs_.begin();
-			p_w = p_n->weights_.begin();
-			for(r_iterator p_g = p_n->grad_.begin(); p_g != p_n->grad_.end(); ++p_g) {
-				if(*p_aft == radbas || *p_aft == multiquad || *p_aft == revradbas || *p_aft == revmultiquad)
-					*p_g += (*p_w - p_in->axon_)*g;
-				else
-					*p_g += g * p_in->axon_;
-				//palsy check
-				if(palsy && abs(*p_g) > opt_.epsilon) palsy = false;
+		//	//process weights
+		//	if(*p_aft == radbas || *p_aft == revradbas)
+		//		g *= 2 * (*p_b) * (*p_b);
+		//	else if(*p_aft == multiquad || *p_aft == revmultiquad)
+		//		g *= 2;
 
-				++p_in; ++p_w;
-			}
+		//	p_in = p_n->inputs_.begin();
+		//	p_w = p_n->weights_.begin();
+		//	for(r_iterator p_g = p_n->grad_.begin(); p_g != p_n->grad_.end(); ++p_g) {
+		//		if(*p_aft == radbas || *p_aft == multiquad || *p_aft == revradbas || *p_aft == revmultiquad)
+		//			*p_g += (*p_w - p_in->axon_)*g;
+		//		else
+		//			*p_g += g * p_in->axon_;
+		//		//palsy check
+		//		if(palsy && abs(*p_g) > opt_.epsilon) palsy = false;
 
-			++j;
-			++p_aft; ++p_b; ++p_state;
-		}
+		//		++p_in; ++p_w;
+		//	}
+
+		//	++j;
+		//	++p_aft; ++p_b; ++p_state;
+		//}
 	}
 
 	if(state_.cycle == 0 && opt_.learnFun == R_BP) {

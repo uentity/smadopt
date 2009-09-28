@@ -290,3 +290,4 @@ public:
 };
 
 #endif //_MBUF_TRAITS
+

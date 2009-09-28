@@ -12,7 +12,7 @@ Import('*');
 base_env = custom_env.Clone();
 base_env.Append(
 	CCFLAGS = ['-W', '-Wall', '-Wno-deprecated', '-pthread'], #, '-fvisibility=hidden', '-fvisibility-inlines-hidden'],
-	CPPPATH = ['#utils', '#utils/src', '#alg/src', 'src'],
+	CPPPATH = ['/home/uentity/lib/tbb/include', '#utils', '#utils/src', '#alg/src', 'src'],
 	LIBS = ['ha_utils', 'ha_alg']
 );
 
@@ -20,7 +20,7 @@ base_env.Append(
 debug_env = base_env.Clone();
 debug_env.Append(
 		CPPDEFINES = ['_DEBUG'],
-		CCFLAGS = ['-O0', '-ggdb3'], 
+		CCFLAGS = ['-O0', '-ggdb3'],
 		LIBPATH = [os.path.join(exe_dir, dbg_dir)]);
 
 release_env = base_env.Clone();
