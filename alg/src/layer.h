@@ -211,6 +211,398 @@ public:
 			palsy_ = palsy;
 		}
 	};
+
+	template< class goal_action >
+	struct mt_qp_original {
+		layer& l_;
+		Matrix& grad_;
+		Matrix& prevg_;
+		Matrix& deltas_;
+		Matrix& weights_;
+
+		mt_qp_original(layer& l, Matrix& grad, Matrix& old_grad, Matrix& deltas, Matrix& weights)
+			: l_(l), grad_(grad),prevg_(old_grad), deltas_(deltas), weights_(weights)
+		{}
+
+		void operator()(const tbb::blocked_range< ulong >& r) const {
+			double beta;
+			r_iterator p_d = deltas_.begin() + r.begin(),
+					   p_g = grad_.begin() + r.begin(),
+					   p_og = prevg_.begin() + r.begin();
+			r_iterator p_w = weights_.begin() + r.begin();
+			for(ulong i = r.begin(); i != r.end(); ++i) {
+				if(*p_d != 0) {
+					beta = *p_g / (*p_og - *p_g);
+					//add moment
+					if(beta > l_.net_.opt_.qp_alfamax)
+						beta = l_.net_.opt_.qp_alfamax;
+					beta *= *p_d;
+				}
+				else beta = 0;
+
+				if(beta == 0 || *p_d * beta < 0)
+					goal_action::update(beta, *p_g * l_.net_.opt_.nu);
+				//*p_d = beta*(1 - net_.opt_.qp_lambda);
+				*p_og = *p_g;
+				//update weight
+				*p_w += *p_d;
+				//update iterators
+				++p_w;
+				++p_d; ++p_g; ++p_og;
+			}
+		}
+	};
+
+	template<class goal_action>
+	struct mt_qp_simple {
+		layer& l_;
+		Matrix& grad_;
+		Matrix& prevg_;
+		Matrix& deltas_;
+		Matrix& weights_;
+
+		mt_qp_simple(layer& l, Matrix& grad, Matrix& old_grad, Matrix& deltas, Matrix& weights)
+			: l_(l), grad_(grad),prevg_(old_grad), deltas_(deltas), weights_(weights)
+		{}
+
+		void operator()(const tbb::blocked_range< ulong >& r) const {
+			//double beta;
+			r_iterator p_d = deltas_.begin() + r.begin(),
+					   p_g = grad_.begin() + r.begin(),
+					   p_og = prevg_.begin() + r.begin();
+			r_iterator p_w = weights_.begin() + r.begin();
+			for(ulong i = r.begin(); i != r.end(); ++i) {
+				if(*p_d != 0)
+					*p_d *= min(*p_g / (*p_og - *p_g), l_.net_.opt_.qp_alfamax);
+				else
+					goal_action::update(*p_d, *p_g * l_.net_.opt_.nu);
+				//*p_d *= (1 - net_.opt_.qp_lambda);
+				*p_og = *p_g;
+				//update weight
+				*p_w += *p_d;
+				//update iterators
+				++p_w;
+				++p_d; ++p_g; ++p_og;
+			}
+		}
+	};
+
+	template<class goal_action>
+	struct mt_qp_modified {
+		layer& l_;
+		Matrix& grad_;
+		Matrix& prevg_;
+		Matrix& deltas_;
+		Matrix& weights_;
+
+		mt_qp_modified(layer& l, Matrix& grad, Matrix& old_grad, Matrix& deltas, Matrix& weights)
+			: l_(l), grad_(grad),prevg_(old_grad), deltas_(deltas), weights_(weights)
+		{}
+
+		void operator()(const tbb::blocked_range< ulong >& r) const {
+			double beta;
+			r_iterator p_d = deltas_.begin() + r.begin(),
+					   p_g = grad_.begin() + r.begin(),
+					   p_og = prevg_.begin() + r.begin();
+			r_iterator p_w = weights_.begin() + r.begin();
+			for(ulong i = r.begin(); i != r.end(); ++i) {
+				if(*p_d != 0) {
+					beta = abs(*p_og - *p_g)/abs(*p_d);
+				}
+				else beta = 0;
+				*p_d = 0;
+				if(beta != 0)
+					goal_action::update(*p_d, *p_g * (1/beta) * l_.net_.opt_.nu);
+				else
+					goal_action::update(*p_d, *p_g * l_.net_.opt_.nu);
+				*p_og = *p_g;
+				//update weight
+				*p_w += *p_d;
+				//update iterators
+				++p_w;
+				++p_d; ++p_g; ++p_og;
+			}
+		}
+	};
+
+	template< class goal_action >
+	struct mt_rp_original {
+		layer& l_;
+		Matrix& grad_;
+		Matrix& prevg_;
+		Matrix& deltas_;
+		Matrix& weights_;
+
+		mt_rp_original(layer& l, Matrix& grad, Matrix& old_grad, Matrix& deltas, Matrix& weights)
+			: l_(l), grad_(grad),prevg_(old_grad), deltas_(deltas), weights_(weights)
+		{}
+		
+		void operator()(const tbb::blocked_range< ulong >& r) const {
+			r_iterator p_d = deltas_.begin() + r.begin(),
+					   p_g = grad_.begin() + r.begin(),
+					   pold_g = prevg_.begin() + r.begin();
+			r_iterator p_w = weights_.begin() + r.begin();
+			double dT;
+			for(ulong i = r.begin(); i != r.end(); ++i) {
+				dT = (*p_g)*(*pold_g);
+				if(dT >= 0) {
+					if(dT > 0)
+						*p_d = min(*p_d * l_.net_.opt_.rp_delt_inc, l_.net_.opt_.rp_deltamax);
+					if(*p_g > 0) dT = *p_d;
+					else if(*p_g < 0) dT = - *p_d;
+					else dT = 0;
+				}
+				else {
+					if(*pold_g > 0) dT = - *p_d;
+					else dT = *p_d;
+					*p_d *= l_.net_.opt_.rp_delt_dec;
+					*p_g = 0;
+				}
+
+				//*p_w += dT;
+				*pold_g = *p_g;
+				goal_action::update(*p_w, dT);
+
+				++p_g; ++pold_g;
+				++p_w; ++p_d;
+			}
+		}
+	};
+
+	template< class goal_action >
+	struct mt_rp_simple {
+		layer& l_;
+		Matrix& grad_;
+		Matrix& prevg_;
+		Matrix& deltas_;
+		Matrix& weights_;
+
+		mt_rp_simple(layer& l, Matrix& grad, Matrix& old_grad, Matrix& deltas, Matrix& weights)
+			: l_(l), grad_(grad),prevg_(old_grad), deltas_(deltas), weights_(weights)
+		{}
+
+		void operator()(const tbb::blocked_range< ulong >& r) const {
+			r_iterator p_d = deltas_.begin() + r.begin(),
+					   p_g = grad_.begin() + r.begin(),
+					   pold_g = prevg_.begin() + r.begin();
+			r_iterator p_w = weights_.begin() + r.begin();
+			double dT;
+
+			for(ulong i = r.begin(); i != r.end(); ++i) {
+				dT = (*p_g)*(*pold_g);
+				if(dT > 0)
+					*p_d = min(*p_d * l_.net_.opt_.rp_delt_inc, l_.net_.opt_.rp_deltamax);
+				else if(dT < 0)
+					*p_d *= l_.net_.opt_.rp_delt_dec;
+				if(*p_g > 0) dT = *p_d;
+				else if(*p_g < 0) dT = - *p_d;
+				else dT = 0;
+
+				//*p_w += dT;
+				*pold_g = *p_g;
+				goal_action::update(*p_w, dT);
+				++p_g; ++pold_g;
+				++p_w; ++p_d;
+			}
+		}
+	};
+
+	template< class goal_action >
+	struct mt_rp_plus {
+		layer& l_;
+		Matrix& grad_;
+		Matrix& prevg_;
+		Matrix& deltas_;
+		Matrix& weights_;
+
+		mt_rp_plus(layer& l, Matrix& grad, Matrix& old_grad, Matrix& deltas, Matrix& weights)
+			: l_(l), grad_(grad),prevg_(old_grad), deltas_(deltas), weights_(weights)
+		{}
+
+		void operator()(const tbb::blocked_range< ulong >& r) const {
+			r_iterator p_d = deltas_.begin() + r.begin(),
+					   p_g = grad_.begin() + r.begin(),
+					   pold_g = prevg_.begin() + r.begin();
+			r_iterator p_w = weights_.begin() + r.begin();
+			double dT;
+			bool fin_rp_step;
+
+			for(ulong i = r.begin(); i != r.end(); ++i) {
+				fin_rp_step = true;
+				//if(*p_g != 0) {
+				if(*p_g - *pold_g != 0)
+					//calc slope
+					if(*p_d == 0) {
+						//initial case - best we can do is a little step following gradient
+						*p_d = l_.net_.opt_.rp_delta0;
+					}
+					else {
+						dT = (*p_d) / (*p_g - *pold_g);
+						if(dT < 0) {
+							//main update rule
+							//we need negative slope - in other case using rp boost rule
+							goal_action::assign(dT, dT);
+							goal_action::assign(*p_d, -(*p_g) * dT);
+							fin_rp_step = false;
+						}
+						else
+							*p_d = min(*p_d * l_.net_.opt_.rp_delt_inc, l_.net_.opt_.rp_deltamax);
+					}
+				else	//gradient hasn't changed - just boost current step
+					*p_d = min(*p_d * l_.net_.opt_.rp_delt_inc, l_.net_.opt_.rp_deltamax);
+				//dT = *p_d;
+				//}
+				//else dT = 0;
+
+				if(fin_rp_step) {
+					if(*p_g == 0) *p_d = 0;
+					else if(*p_g < 0) *p_d = -(*p_d);
+				}
+
+				*pold_g = *p_g;
+				goal_action::update(*p_w, *p_d);
+
+				++p_g; ++pold_g;
+				++p_w; ++p_d;
+			}
+		}
+	};
+
+	template< class goal_action >
+	struct mt_bp_gradless_update {
+		layer& l_;
+		bool palsy_;
+		bool backprop_lg_;
+
+		mt_bp_gradless_update(layer& l, bool backprop_lg)
+			: l_(l), backprop_lg_(backprop_lg)
+		{}
+
+		void operator()(const tbb::blocked_range< ulong >& r) const {
+			bool palsy = true;
+
+			//calc weights gradient
+			mp_iterator p_er = l_.Goal_.begin() + r.begin();
+			n_iterator p_n = l_.neurons_.begin() + r.begin();
+			for(ulong i = r.begin(); i != r.end(); ++i) {
+				r_iterator p_d = p_n->deltas_.begin(), p_w = p_n->weights_.begin();
+				for(np_iterator p_in = p_n->inputs_.begin(); p_in != p_n->inputs_.end(); ++p_in) {
+					//add moment
+					*p_d *= net_.opt_.mu;
+					//backprop update rule
+					goal_action::update(*p_d, p_in->axon_*(*p_er) * net_.opt_.nu);
+					//palsy check
+					if(palsy && *p_d > net_.opt_.epsilon)
+						palsy = false;
+					//update weight
+					if(!palsy) *p_w += *p_d;
+
+					//calc error element in prev layer
+					if(backprop_lg_)
+						p_in->error_ += *p_w * (*p_er);
+
+					++p_d; ++p_w;
+				}
+				++p_n; ++p_er;
+			}
+			palsy_ = palsy;
+		}
+	};
+
+	template<class goal_action>
+	struct mt_bp_update {
+		layer& l_;
+		bool zero_grad_;
+
+		mt_bp_update(layer& l, bool zero_grad)
+			: l_(l), zero_grad_(zero_grad)
+		{}
+
+		void operator()(const tbb::blocked_range< ulong >& r) const {
+			n_iterator p_n = l_.neurons_.begin() + r.begin();
+			for(ulong i = r.begin(); i != r.end(); ++i) {
+				//add moment
+				p_n->deltas_ *= l_.net_.opt_.mu;
+				//backprop update rule
+				goal_action::update(p_n->deltas_, p_n->grad_ * l_.net_.opt_.nu);
+				//update weights
+				p_n->weights_ += p_n->deltas_;
+				if(zero_grad_) p_n->grad_ = 0;
+				++p_n;
+			}
+		}
+	};
+
+	template< class goal_action >
+	struct mt_qp_update {
+		layer& l_;
+		bool zero_grad_;
+
+		mt_qp_update(layer& l, bool zero_grad)
+			: l_(l), zero_grad_(zero_grad)
+		{}
+
+		void operator()(const tbb::blocked_range< ulong >& r) const {
+			n_iterator p_n = l_.neurons_.begin() + r.begin();
+			for(ulong i = r.begin(); i != r.end(); ++i) {
+				if(l_.net_.opt_.useSimpleQP)
+					tbb::parallel_for(tbb::blocked_range< ulong >(0, p_n->grad_.size()),
+							mt_qp_modified< goal_action >(l_, p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_));
+				else
+					tbb::parallel_for(tbb::blocked_range< ulong >(0, p_n->grad_.size()),
+							mt_qp_original< goal_action >(l_, p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_));
+				if(zero_grad_) p_n->grad_ = 0;
+				++p_n;
+			}
+		}
+	};
+	
+	template<class goal_action>
+	struct mt_rbp_update {
+		layer& l_;
+		bool zero_grad_;
+
+		mt_rbp_update(layer& l, bool zero_grad)
+			: l_(l), zero_grad_(zero_grad)
+		{}
+
+		void operator()(const tbb::blocked_range< ulong >& r) const {
+			n_iterator p_n = l_.neurons_.begin() + r.begin();
+			for(ulong i = r.begin(); i != r.end(); ++i) {
+				if(l_.net_.opt_.useSimpleRP)
+					//l_._rp_simple< goal_action >(p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_);
+					tbb::parallel_for(tbb::blocked_range< ulong >(0, p_n->grad_.size()),
+							mt_rp_simple< goal_action >(l_, p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_));
+				else
+					//l_._rp_original< goal_action >(p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_);
+					tbb::parallel_for(tbb::blocked_range< ulong >(0, p_n->grad_.size()),
+							mt_rp_original< goal_action >(l_, p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_));
+				//p_n->prevg_ = p_n->grad_;
+				if(zero_grad_) p_n->grad_ = 0;
+				++p_n;
+			}
+		}
+	};
+
+	template< class goal_action >
+	struct mt_rp_plus_update {
+		layer& l_;
+		bool zero_grad_;
+
+		mt_rp_plus_update(layer& l, bool zero_grad)
+			: l_(l), zero_grad_(zero_grad)
+		{}
+
+		void operator()(const tbb::blocked_range< ulong >& r) const {
+			n_iterator p_n = l_.neurons_.begin() + r.begin();
+			for(ulong i = r.begin(); i != r.end(); ++i) {
+				tbb::parallel_for(tbb::blocked_range< ulong >(0, p_n->grad_.size()),
+						mt_rp_plus< goal_action >(l_, p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_));
+				if(zero_grad_) p_n->grad_ = 0;
+				++p_n;
+			}
+		}
+	};
 };
 
 //--------------------------------layer  class implementation---------------------------------
@@ -242,6 +634,7 @@ layer::layer(const layer& l) :
 	_construct_axons();
 }
 
+// asiignment operator - copy semantics
 layer& layer::operator =(const layer& l)
 {
 	//memcpy((void*)&opt_, &l.opt_, sizeof(nnOptions));
@@ -253,8 +646,7 @@ layer& layer::operator =(const layer& l)
 		neurons_.clear();
 		smart_ptr<neuron> sp_dst;
 		for(cn_iterator sp_src = l.neurons_.begin(); sp_src != l.neurons_.end(); ++sp_src) {
-			sp_dst = new neuron;
-			*sp_dst = *sp_src;
+			sp_dst = new neuron(*sp_src);
 			neurons_.push_back(sp_dst);
 		}
 		_construct_axons();
@@ -651,7 +1043,7 @@ void layer::init_weights(const Matrix& inputs)
 	//init_weights_radbas(inputs);
 }
 
-template<class goal_action>
+template< class goal_action >
 void layer::_prepare2learn()
 {
 	ulong flags = 0;
@@ -807,58 +1199,6 @@ bool layer::calc_grad()
 }
 
 template<class goal_action>
-bool layer::_bp_gradless_update(bool backprop_er)
-{
-	bool palsy = true;
-	//calc error
-	deriv_af();
-	Goal_ *= axons_;
-
-	//process biases
-	if(net_.opt_.use_biases_) {
-		//add moment
-		BD_ *= net_.opt_.mu;
-		//backprop update rule
-		goal_action::update(BD_, Goal_ * net_.opt_.nu);
-		//palsy check
-		for(r_iterator p_bd(BD_.begin()); p_bd != BD_.end(); ++p_bd) {
-			if(*p_bd > net_.opt_.epsilon) {
-				palsy = false;
-				break;
-			}
-		}
-		//update biases
-		if(!palsy) B_ += BD_;
-	}
-
-	//calc weights gradient
-	mp_iterator p_er = Goal_.begin();
-	for(n_iterator p_n = neurons_.begin(); p_n != neurons_.end(); ++p_n) {
-		r_iterator p_d = p_n->deltas_.begin(), p_w = p_n->weights_.begin();
-		for(np_iterator p_in = p_n->inputs_.begin(); p_in != p_n->inputs_.end(); ++p_in) {
-			//add moment
-			*p_d *= net_.opt_.mu;
-			//backprop update rule
-			goal_action::update(*p_d, p_in->axon_*(*p_er) * net_.opt_.nu);
-			//palsy check
-			if(palsy && *p_d > net_.opt_.epsilon)
-				palsy = false;
-			//update weight
-			if(!palsy) *p_w += *p_d;
-
-			//calc error element in prev layer
-			if(backprop_er)
-				p_in->error_ += *p_w * (*p_er);
-
-			++p_d; ++p_w;
-		}
-		++p_er;
-	}
-
-	return palsy;
-}
-
-template<class goal_action>
 void layer::_qp_original(Matrix& W, Matrix& D, Matrix& G, Matrix& OG)
 {
 	double beta;
@@ -923,54 +1263,6 @@ void layer::_qp_modified(Matrix& W, Matrix& D, Matrix& G, Matrix& OG)
 		*p_w += *p_d;
 		//update iterators
 		++p_d; ++p_g; ++p_og;
-	}
-}
-
-template<class goal_action>
-void layer::_qp_update(bool zero_grad)
-{
-	//biases
-	if(net_.opt_.use_biases_) {
-		if(net_.opt_.useSimpleQP)
-			_qp_modified<goal_action>(B_, BD_, BG_, OBG_);
-		else
-			_qp_original<goal_action>(B_, BD_, BG_, OBG_);
-		if(zero_grad) BG_ = 0;
-	}
-
-	//neurons
-	for(n_iterator p_n = neurons_.begin(); p_n != neurons_.end(); ++p_n) {
-		if(net_.opt_.useSimpleQP)
-			_qp_modified<goal_action>(p_n->weights_, p_n->deltas_, p_n->grad_, p_n->prevg_);
-		else
-			_qp_original<goal_action>(p_n->weights_, p_n->deltas_, p_n->grad_, p_n->prevg_);
-		if(zero_grad) p_n->grad_ = 0;
-	}
-}
-
-template<class goal_action>
-void layer::_bp_update(bool zero_grad)
-{
-	//process biases
-	if(net_.opt_.use_biases_) {
-		//add moment
-		BD_ *= net_.opt_.mu;
-		//backprop update rule
-		goal_action::update(BD_, BG_ * net_.opt_.nu);
-		//update biases
-		B_ += BD_;
-		if(zero_grad) BG_ = 0;
-	}
-
-	//process weights
-	for(n_iterator p_n = neurons_.begin(); p_n != neurons_.end(); ++p_n) {
-		//add moment
-		p_n->deltas_ *= net_.opt_.mu;
-		//backprop update rule
-		goal_action::update(p_n->deltas_, p_n->grad_ * net_.opt_.nu);
-		//update weights
-		p_n->weights_ += p_n->deltas_;
-		if(zero_grad) p_n->grad_ = 0;
 	}
 }
 
@@ -1063,29 +1355,6 @@ void layer::_rp_simple(Matrix& grad, Matrix& old_grad, Matrix& deltas, Matrix& w
 	}
 }
 
-template<class goal_action>
-void layer::_rbp_update(bool zero_grad)
-{
-	//process biases
-	if(net_.opt_.use_biases_) {
-		if(net_.opt_.useSimpleRP)
-			_rp_simple<goal_action>(BG_, OBG_, BD_, B_);
-		else
-			_rp_original<goal_action>(BG_, OBG_, BD_, B_);
-		//OBG_ = BG_;
-		if(zero_grad) BG_ = 0;
-	}
-	//process weights
-	for(n_iterator p_n = neurons_.begin(); p_n != neurons_.end(); ++p_n) {
-		if(net_.opt_.useSimpleRP)
-			_rp_simple<goal_action>(p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_);
-		else
-			_rp_original<goal_action>(p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_);
-		//p_n->prevg_ = p_n->grad_;
-		if(zero_grad) p_n->grad_ = 0;
-	}
-}
-
 //struct rp_plus_rule {
 //	template< class _goal_action >
 //	static bool calc_delta(const double& slope, double& delta);
@@ -1149,6 +1418,141 @@ void layer::_rp_plus(Matrix& grad, Matrix& old_grad, Matrix& deltas, Matrix& wei
 	}
 }
 
+template< class goal_action >
+bool layer::_bp_gradless_update(bool backprop_er)
+{
+	bool palsy = true;
+	//calc error
+	deriv_af();
+	Goal_ *= axons_;
+
+	//process biases
+	if(net_.opt_.use_biases_) {
+		//add moment
+		BD_ *= net_.opt_.mu;
+		//backprop update rule
+		goal_action::update(BD_, Goal_ * net_.opt_.nu);
+		//palsy check
+		for(r_iterator p_bd(BD_.begin()); p_bd != BD_.end(); ++p_bd) {
+			if(*p_bd > net_.opt_.epsilon) {
+				palsy = false;
+				break;
+			}
+		}
+		//update biases
+		if(!palsy) B_ += BD_;
+	}
+
+	// mt-version
+	tbb::parallel_for(tbb::blocked_range< ulong >(0, neurons_.size()), layer_impl::mt_bp_gradless_update< goal_action >(*this, backprop_er));
+
+	////calc weights gradient
+	//mp_iterator p_er = Goal_.begin();
+	//for(n_iterator p_n = neurons_.begin(); p_n != neurons_.end(); ++p_n) {
+	//	r_iterator p_d = p_n->deltas_.begin(), p_w = p_n->weights_.begin();
+	//	for(np_iterator p_in = p_n->inputs_.begin(); p_in != p_n->inputs_.end(); ++p_in) {
+	//		//add moment
+	//		*p_d *= net_.opt_.mu;
+	//		//backprop update rule
+	//		goal_action::update(*p_d, p_in->axon_*(*p_er) * net_.opt_.nu);
+	//		//palsy check
+	//		if(palsy && *p_d > net_.opt_.epsilon)
+	//			palsy = false;
+	//		//update weight
+	//		if(!palsy) *p_w += *p_d;
+
+	//		//calc error element in prev layer
+	//		if(backprop_er)
+	//			p_in->error_ += *p_w * (*p_er);
+
+	//		++p_d; ++p_w;
+	//	}
+	//	++p_er;
+	//}
+
+	return palsy;
+}
+
+template<class goal_action>
+void layer::_qp_update(bool zero_grad)
+{
+	//biases
+	if(net_.opt_.use_biases_) {
+		if(net_.opt_.useSimpleQP)
+			_qp_modified<goal_action>(B_, BD_, BG_, OBG_);
+		else
+			_qp_original<goal_action>(B_, BD_, BG_, OBG_);
+		if(zero_grad) BG_ = 0;
+	}
+
+	// mt-version
+	tbb::parallel_for(tbb::blocked_range< ulong >(0, neurons_.size()), layer_impl::mt_qp_update< goal_action >(*this, zero_grad));
+
+	////neurons
+	//for(n_iterator p_n = neurons_.begin(); p_n != neurons_.end(); ++p_n) {
+	//	if(net_.opt_.useSimpleQP)
+	//		_qp_modified<goal_action>(p_n->weights_, p_n->deltas_, p_n->grad_, p_n->prevg_);
+	//	else
+	//		_qp_original<goal_action>(p_n->weights_, p_n->deltas_, p_n->grad_, p_n->prevg_);
+	//	if(zero_grad) p_n->grad_ = 0;
+	//}
+}
+
+template<class goal_action>
+void layer::_bp_update(bool zero_grad)
+{
+	//process biases
+	if(net_.opt_.use_biases_) {
+		//add moment
+		BD_ *= net_.opt_.mu;
+		//backprop update rule
+		goal_action::update(BD_, BG_ * net_.opt_.nu);
+		//update biases
+		B_ += BD_;
+		if(zero_grad) BG_ = 0;
+	}
+
+	// mt-version
+	tbb::parallel_for(tbb::blocked_range< ulong >(0, neurons_.size()), layer_impl::mt_bp_update< goal_action >(*this, zero_grad));
+
+	////process weights
+	//for(n_iterator p_n = neurons_.begin(); p_n != neurons_.end(); ++p_n) {
+	//	//add moment
+	//	p_n->deltas_ *= net_.opt_.mu;
+	//	//backprop update rule
+	//	goal_action::update(p_n->deltas_, p_n->grad_ * net_.opt_.nu);
+	//	//update weights
+	//	p_n->weights_ += p_n->deltas_;
+	//	if(zero_grad) p_n->grad_ = 0;
+	//}
+}
+
+template<class goal_action>
+void layer::_rbp_update(bool zero_grad)
+{
+	//process biases
+	if(net_.opt_.use_biases_) {
+		if(net_.opt_.useSimpleRP)
+			_rp_simple<goal_action>(BG_, OBG_, BD_, B_);
+		else
+			_rp_original<goal_action>(BG_, OBG_, BD_, B_);
+		//OBG_ = BG_;
+		if(zero_grad) BG_ = 0;
+	}
+
+	tbb::parallel_for(tbb::blocked_range< ulong >(0, neurons_.size()), layer_impl::mt_rbp_update< goal_action >(*this, zero_grad));
+
+	////process weights
+	//for(n_iterator p_n = neurons_.begin(); p_n != neurons_.end(); ++p_n) {
+	//	if(net_.opt_.useSimpleRP)
+	//		_rp_simple<goal_action>(p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_);
+	//	else
+	//		_rp_original<goal_action>(p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_);
+	//	//p_n->prevg_ = p_n->grad_;
+	//	if(zero_grad) p_n->grad_ = 0;
+	//}
+}
+
 template<class goal_action>
 void layer::_rp_plus_update(bool zero_grad)
 {
@@ -1157,11 +1561,14 @@ void layer::_rp_plus_update(bool zero_grad)
 		_rp_plus< goal_action >(BG_, OBG_, BD_, B_);
 		if(zero_grad) BG_ = 0;
 	}
-	//process weights
-	for(n_iterator p_n = neurons_.begin(); p_n != neurons_.end(); ++p_n) {
-		_rp_plus< goal_action >(p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_);
-		if(zero_grad) p_n->grad_ = 0;
-	}
+
+	tbb::parallel_for(tbb::blocked_range< ulong >(0, neurons_.size()), layer_impl::mt_rp_plus_update< goal_action >(*this, zero_grad));
+
+	////process weights
+	//for(n_iterator p_n = neurons_.begin(); p_n != neurons_.end(); ++p_n) {
+	//	_rp_plus< goal_action >(p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_);
+	//	if(zero_grad) p_n->grad_ = 0;
+	//}
 }
 
 void layer::empty_update(bool zero_grad)
