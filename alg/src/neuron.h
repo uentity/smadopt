@@ -245,47 +245,47 @@ void neuron::act_logsig(const new_nnOptions& opt)
 	}
 }
 
-void neuron::act_purelin(const new_nnOptions& opt)
+void neuron::act_purelin(const new_nnOptions&)
 {
 	calc_state();
 	axon_ = state_ + bias_;
 }
 
-void neuron::act_poslin(const new_nnOptions& opt)
+void neuron::act_poslin(const new_nnOptions&)
 {
 	calc_state();
 	axon_ = std::max<double>(state_ + bias_, 0);
 }
 
-void neuron::act_gauss(const new_nnOptions& opt)
+void neuron::act_gauss(const new_nnOptions&)
 {
 	calc_state();
 	//bias contains sigma^-1
 	axon_ = exp(-(state_)*(bias_)*(bias_));
 }
 
-void neuron::act_revgauss(const new_nnOptions& opt)
+void neuron::act_revgauss(const new_nnOptions&)
 {
 	calc_state();
 	//bias contains sigma^-1
 	axon_ = 1 - exp(-(state_)*(bias_)*(bias_));
 }
 
-void neuron::act_expws(const new_nnOptions& opt)
+void neuron::act_expws(const new_nnOptions&)
 {
 	calc_state();
 	//bias contains sigma^-1
 	axon_ = exp(state_ + bias_);
 }
 
-void neuron::act_multiquad(const new_nnOptions& opt)
+void neuron::act_multiquad(const new_nnOptions&)
 {
 	calc_state();
 	//bias contains sigma^-1
 	axon_ = sqrt(state_ + (bias_)*(bias_));
 }
 
-void neuron::act_revmultiquad(const new_nnOptions& opt)
+void neuron::act_revmultiquad(const new_nnOptions&)
 {
 	calc_state();
 	//bias contains sigma^-1
@@ -303,38 +303,38 @@ void neuron::d_logsig(const new_nnOptions& opt)
 	axon_ *= opt.logsig_a*(1 - axon_);
 }
 
-void neuron::d_poslin(const new_nnOptions& opt)
+void neuron::d_poslin(const new_nnOptions&)
 {
 	if(axon_ < 0) axon_ = 0;
 	else axon_ = 1;
 }
 
-void neuron::d_purelin(const new_nnOptions& opt)
+void neuron::d_purelin(const new_nnOptions&)
 {
 	axon_ = 1;
 }
 
-void neuron::d_gauss(const new_nnOptions& opt)
+void neuron::d_gauss(const new_nnOptions&)
 {
 	axon_ = - axon_;
 }
 
-void neuron::d_revgauss(const new_nnOptions& opt)
+void neuron::d_revgauss(const new_nnOptions&)
 {
 	axon_ = 1 - axon_;
 }
 
-void neuron::d_expws(const new_nnOptions& opt)
+void neuron::d_expws(const new_nnOptions&)
 {
 	axon_ *= (state_ + bias_);
 }
 
-void neuron::d_multiquad(const new_nnOptions& opt)
+void neuron::d_multiquad(const new_nnOptions&)
 {
 	if(axon_ != 0) axon_ = 1. / (axon_ * 2);
 }
 
-void neuron::d_revmultiquad(const new_nnOptions& opt)
+void neuron::d_revmultiquad(const new_nnOptions&)
 {
 	if(axon_ != 0) {
 		double r = state_ + (bias_)*(bias_);

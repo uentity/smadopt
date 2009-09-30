@@ -574,9 +574,9 @@ public:
 					tbb::parallel_for(tbb::blocked_range< ulong >(0, p_n->grad_.size()),
 							mt_rp_simple< goal_action >(l_, p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_));
 				else
-					//l_._rp_original< goal_action >(p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_);
-					tbb::parallel_for(tbb::blocked_range< ulong >(0, p_n->grad_.size()),
-							mt_rp_original< goal_action >(l_, p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_));
+					l_._rp_original< goal_action >(p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_);
+					//tbb::parallel_for(tbb::blocked_range< ulong >(0, p_n->grad_.size()),
+					//		mt_rp_original< goal_action >(l_, p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_));
 				//p_n->prevg_ = p_n->grad_;
 				if(zero_grad_) p_n->grad_ = 0;
 				++p_n;
@@ -864,9 +864,14 @@ Matrix layer::active_af_region()
 struct test_tbb {
 };
 
-void layer::propagate()
-{
-	tbb::parallel_for(blocked_range< ulong >(0, neurons_.size()), layer_impl::mt_propagate(this));
+void layer::propagate() {
+	layer_impl::mt_propagate p(this);
+	blocked_range< ulong > r(0, neurons_.size());
+	// do parallel processing only if we have > 9 neurons
+	if(neurons_.size() > 9)
+		tbb::parallel_for(r, p);
+	else
+		p(r);
 
 	//r_iterator p_b = B_.begin();
 	//iMatrix::r_iterator p_aft = aft_.begin();
@@ -926,8 +931,6 @@ void layer::propagate()
 	//	++p_aft; ++p_b;
 	//	++p_state; ++p_axon;
 	//}
-
-	//activate();
 }
 
 void layer::deriv_af()
@@ -1474,31 +1477,6 @@ bool layer::_bp_gradless_update(bool backprop_er)
 }
 
 template<class goal_action>
-void layer::_qp_update(bool zero_grad)
-{
-	//biases
-	if(net_.opt_.use_biases_) {
-		if(net_.opt_.useSimpleQP)
-			_qp_modified<goal_action>(B_, BD_, BG_, OBG_);
-		else
-			_qp_original<goal_action>(B_, BD_, BG_, OBG_);
-		if(zero_grad) BG_ = 0;
-	}
-
-	// mt-version
-	tbb::parallel_for(tbb::blocked_range< ulong >(0, neurons_.size()), layer_impl::mt_qp_update< goal_action >(*this, zero_grad));
-
-	////neurons
-	//for(n_iterator p_n = neurons_.begin(); p_n != neurons_.end(); ++p_n) {
-	//	if(net_.opt_.useSimpleQP)
-	//		_qp_modified<goal_action>(p_n->weights_, p_n->deltas_, p_n->grad_, p_n->prevg_);
-	//	else
-	//		_qp_original<goal_action>(p_n->weights_, p_n->deltas_, p_n->grad_, p_n->prevg_);
-	//	if(zero_grad) p_n->grad_ = 0;
-	//}
-}
-
-template<class goal_action>
 void layer::_bp_update(bool zero_grad)
 {
 	//process biases
@@ -1528,29 +1506,74 @@ void layer::_bp_update(bool zero_grad)
 }
 
 template<class goal_action>
+void layer::_qp_update(bool zero_grad)
+{
+	//biases
+	if(net_.opt_.use_biases_) {
+		if(net_.opt_.useSimpleQP)
+			// mt-version
+			tbb::parallel_for(tbb::blocked_range< ulong >(0, B_.size()), layer_impl::mt_qp_modified< goal_action >(*this, BG_, OBG_, BD_, B_));
+			//_qp_modified<goal_action>(B_, BD_, BG_, OBG_);
+		else
+			// mt-version
+			tbb::parallel_for(tbb::blocked_range< ulong >(0, B_.size()), layer_impl::mt_qp_original< goal_action >(*this, BG_, OBG_, BD_, B_));
+			//_qp_original<goal_action>(B_, BD_, BG_, OBG_);
+		if(zero_grad) BG_ = 0;
+	}
+
+	// mt-version
+	tbb::parallel_for(tbb::blocked_range< ulong >(0, neurons_.size()), layer_impl::layer_impl::mt_qp_update< goal_action >(*this, zero_grad));
+
+	//neurons
+	for(n_iterator p_n = neurons_.begin(); p_n != neurons_.end(); ++p_n) {
+		if(net_.opt_.useSimpleQP)
+			// mt-version
+			tbb::parallel_for(tbb::blocked_range< ulong >(0, p_n->grad_.size()),
+					layer_impl::mt_qp_modified< goal_action >(*this, p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_));
+			//_qp_modified<goal_action>(p_n->weights_, p_n->deltas_, p_n->grad_, p_n->prevg_);
+		else
+			// mt-version
+			tbb::parallel_for(tbb::blocked_range< ulong >(0, p_n->grad_.size()),
+					layer_impl::mt_qp_original< goal_action >(*this, p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_));
+			//_qp_original<goal_action>(p_n->weights_, p_n->deltas_, p_n->grad_, p_n->prevg_);
+		if(zero_grad) p_n->grad_ = 0;
+	}
+}
+
+template<class goal_action>
 void layer::_rbp_update(bool zero_grad)
 {
 	//process biases
 	if(net_.opt_.use_biases_) {
 		if(net_.opt_.useSimpleRP)
-			_rp_simple<goal_action>(BG_, OBG_, BD_, B_);
+			// mt-version
+			tbb::parallel_for(tbb::blocked_range< ulong >(0, B_.size()), layer_impl::mt_rp_simple< goal_action >(*this, BG_, OBG_, BD_, B_));
+			//_rp_simple<goal_action>(BG_, OBG_, BD_, B_);
 		else
-			_rp_original<goal_action>(BG_, OBG_, BD_, B_);
+			// mt-version
+			tbb::parallel_for(tbb::blocked_range< ulong >(0, B_.size()), layer_impl::mt_rp_original< goal_action >(*this, BG_, OBG_, BD_, B_));
+			//_rp_original<goal_action>(BG_, OBG_, BD_, B_);
 		//OBG_ = BG_;
 		if(zero_grad) BG_ = 0;
 	}
 
-	tbb::parallel_for(tbb::blocked_range< ulong >(0, neurons_.size()), layer_impl::mt_rbp_update< goal_action >(*this, zero_grad));
+	//tbb::parallel_for(tbb::blocked_range< ulong >(0, neurons_.size()), layer_impl::mt_rbp_update< goal_action >(*this, zero_grad));
 
-	////process weights
-	//for(n_iterator p_n = neurons_.begin(); p_n != neurons_.end(); ++p_n) {
-	//	if(net_.opt_.useSimpleRP)
-	//		_rp_simple<goal_action>(p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_);
-	//	else
-	//		_rp_original<goal_action>(p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_);
-	//	//p_n->prevg_ = p_n->grad_;
-	//	if(zero_grad) p_n->grad_ = 0;
-	//}
+	//process weights
+	for(n_iterator p_n = neurons_.begin(); p_n != neurons_.end(); ++p_n) {
+		if(net_.opt_.useSimpleRP)
+			// mt-version
+			tbb::parallel_for(tbb::blocked_range< ulong >(0, p_n->grad_.size()),
+					layer_impl::mt_rp_simple< goal_action >(*this, p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_));
+			//_rp_simple<goal_action>(p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_);
+		else
+			// mt-version
+			tbb::parallel_for(tbb::blocked_range< ulong >(0, p_n->grad_.size()),
+					layer_impl::mt_rp_original< goal_action >(*this, p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_));
+			//_rp_original<goal_action>(p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_);
+		//p_n->prevg_ = p_n->grad_;
+		if(zero_grad) p_n->grad_ = 0;
+	}
 }
 
 template<class goal_action>
@@ -1558,17 +1581,22 @@ void layer::_rp_plus_update(bool zero_grad)
 {
 	//process biases
 	if(net_.opt_.use_biases_) {
-		_rp_plus< goal_action >(BG_, OBG_, BD_, B_);
+		// mt-version
+		tbb::parallel_for(tbb::blocked_range< ulong >(0, B_.size()), layer_impl::mt_rp_plus< goal_action >(*this, BG_, OBG_, BD_, B_));
+		//_rp_plus< goal_action >(BG_, OBG_, BD_, B_);
 		if(zero_grad) BG_ = 0;
 	}
 
-	tbb::parallel_for(tbb::blocked_range< ulong >(0, neurons_.size()), layer_impl::mt_rp_plus_update< goal_action >(*this, zero_grad));
+	//tbb::parallel_for(tbb::blocked_range< ulong >(0, neurons_.size()), layer_impl::mt_rp_plus_update< goal_action >(*this, zero_grad));
 
-	////process weights
-	//for(n_iterator p_n = neurons_.begin(); p_n != neurons_.end(); ++p_n) {
-	//	_rp_plus< goal_action >(p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_);
-	//	if(zero_grad) p_n->grad_ = 0;
-	//}
+	//process weights
+	for(n_iterator p_n = neurons_.begin(); p_n != neurons_.end(); ++p_n) {
+		// mt-version
+		tbb::parallel_for(tbb::blocked_range< ulong >(0, p_n->grad_.size()),
+				layer_impl::mt_rp_plus< goal_action >(*this, p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_));
+		//_rp_plus< goal_action >(p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_);
+		if(zero_grad) p_n->grad_ = 0;
+	}
 }
 
 void layer::empty_update(bool zero_grad)
