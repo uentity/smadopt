@@ -36,10 +36,14 @@ std::string decode_layer_type(int type) {
 	switch(type) {
 		case common_nnl:
 			return "Std layer";
+		case bp_nnl:
+			return "Backprop layer";
 		case rb_nnl:
 			return "RBN layer";
 		case falman_nnl:
 			return "Fahlman layer";
+		case jump_nnl:
+			return "Std layer with jump AF";
 		default:
 			return "Unknown layer";
 	}
@@ -110,6 +114,7 @@ std::string decode_nn_state(int status) {
 			return "";
 	}
 }
+
 //-------------------------------objnet implementation-------------------------------------------
 void objnet::_print_err(const char* pErr)
 {
@@ -163,57 +168,74 @@ void objnet::set_input(const Matrix& input)
 	input_.axons_ = input;
 }
 
-template<class layer_type>
-layer_type& objnet::add_layer(ulong neurons_count, int af_type, ulong where_ind)
-{
+//template<class layer_type>
+sp_layer objnet::add_layer(ulong neurons_count, int af_type, int layer_type, ulong where_ind) {
 	//check if no input size specified
 	if(layers_num() == 0 && inp_size() == 0) {
 		_print_err(nn_except::explain_error(NoInputSize));
 		throw nn_except(NoInputSize);
 	}
-	smart_ptr<layer> p_l(new layer_type(*this, neurons_count, af_type));
+	// create given layer
+	sp_layer p_l;
+	switch(layer_type) {
+		default:
+		case common_nnl:
+			p_l = new layer(*this, neurons_count, af_type);
+			break;
+		case bp_nnl:
+			p_l = new bp_layer(*this, neurons_count, af_type);
+			break;
+		case jump_nnl:
+			p_l = new layer_jump(*this, neurons_count);
+			break;
+		case rb_nnl:
+			p_l = new rb_layer(*this, neurons_count);
+			break;
+		case falman_nnl:
+			p_l = new falman_layer(*this, neurons_count);
+			break;
+	}
+	// add layer to network
 	if(where_ind < layers_.size())
 		layers_.insert(p_l, where_ind, false);
 	else
 		layers_.push_back(p_l, false);
-	return (layer_type&)*p_l;
+
+	return p_l;
+	//return (layer_type&)*p_l;
 }
 
-/*
-template<>
-layer& objnet::add_layer<falman_layer>(ulong neurons_count, int af_type, ulong where_ind)
-{
+//template< class layer_type >
+sp_layer objnet::add_layer(ulong neurons_count, const iMatrix& af_mat, int layer_type, ulong where_ind) {
 	//check if no input size specified
 	if(layers_num() == 0 && inp_size() == 0) {
 		_print_err(nn_except::explain_error(NoInputSize));
 		throw nn_except(NoInputSize);
 	}
-	falman_layer l(*this, neurons_count);
-	if(where_ind < layers_.size()) {
-		layers_.insert(l, where_ind, false);
-		return layers_[where_ind];
+	// create given layer
+	sp_layer p_l;
+	switch(layer_type) {
+		case common_nnl:
+			p_l = new layer(*this, af_mat);
+			break;
+		case bp_nnl:
+			p_l = new bp_layer(*this, af_mat);
+			break;
+		case falman_nnl:
+			p_l = new falman_layer(*this, neurons_count);
+			break;
+		default:
+			throw nn_except(string(string("Layer of type '") + decode_layer_type(layer_type) +
+					"' doesn't support AF matrix").c_str());
 	}
-	else {
-		layers_.push_back(l, false);
-		return layers_[layers_.size() - 1];
-	}
-}
-*/
-
-template<class layer_type>
-layer_type& objnet::add_layer(ulong neurons_count, const iMatrix& af_mat, ulong where_ind)
-{
-	//check if no input size specified
-	if(layers_num() == 0 && inp_size() == 0) {
-		_print_err(nn_except::explain_error(NoInputSize));
-		throw nn_except(NoInputSize);
-	}
-	smart_ptr<layer> p_l(new layer_type(*this, af_mat));
+	// add layer to network
 	if(where_ind < layers_.size())
 		layers_.insert(p_l, where_ind, false);
 	else
 		layers_.push_back(p_l, false);
-	return (layer_type&)*p_l;
+
+	return p_l;
+	//return (layer_type&)*p_l;
 }
 
 void objnet::propagate()
@@ -401,7 +423,7 @@ void objnet::std_update_epoch()
 	}
 }
 
-int objnet::common_learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLearnInformer pProc, 
+int objnet::common_learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLearnInformer pProc,
 		smart_ptr< const Matrix > test_inp, smart_ptr< const Matrix > test_tar)
 {
 	try {
@@ -461,6 +483,7 @@ int objnet::common_learn(const Matrix& inputs, const Matrix& targets, bool initi
 		if(initialize) init_weights(real_inputs);
 
 		//main learn cycle
+		bool can_use_informer = pProc && (opt_.showPeriod != 0);
 		while(state_.status == learning) {
 			if(state_.cycle > 0) state_.lastPerf = state_.perf;
 
@@ -492,8 +515,8 @@ int objnet::common_learn(const Matrix& inputs, const Matrix& targets, bool initi
 			//	state_.status = stop_maxcycle;
 
 			//call informer
-			if(opt_.showPeriod != 0 && (state_.cycle % opt_.showPeriod == 1 || state_.status != learning) &&
-				pProc && !pProc(state_.cycle, state_.perf, (void*)this))
+			if(can_use_informer && (state_.status != learning || (state_.cycle % opt_.showPeriod == 1)) &&
+				!pProc(state_.cycle, state_.perf, (void*)this))
 			{
 				state_.status = stop_breaked;
 				//break;
@@ -652,6 +675,8 @@ text_table objnet::detailed_info(int level) const {
 std::string objnet::status_info(int level) const {
 	ostringstream os;
 	os << "cycle " << state_.cycle << ", error " << state_.perf << ", goal " << opt_.goal << endl;
+	if(state_.status != learning)
+		os << decode_nn_state(state_.status) << endl;
 	return os.str();
 }
 

@@ -22,6 +22,7 @@ namespace NN {
 	class _CLASS_DECLSPEC neuron
 	{
 		friend class layer;
+		friend class layer_jump;
 		friend class falman_layer;
 		friend class rb_layer;
 		friend class objnet;
@@ -97,7 +98,6 @@ namespace NN {
 		double state_;
 		double axon_;
 
-	public:
 		//API here
 		neuron(ulong inp_count = 0, int aft = tansig, bool backprop_lg = true);
 		neuron(const neurMatrixPtr& synapses, int aft = tansig, bool backprop_lg = true);
@@ -180,7 +180,7 @@ namespace NN {
 		void _prepare2learn();
 		//default is to minimize error - go in anti-grad direction
 		virtual void prepare2learn() {
-			_prepare2learn<anti_grad>();
+			_prepare2learn< anti_grad >();
 		}
 
 		virtual bool calc_grad();
@@ -278,6 +278,31 @@ namespace NN {
 		}
 	};
 
+	typedef smart_ptr< layer > sp_layer;
+
+	// layer with jump AF
+	class layer_jump : public layer {
+		class layer_jump_impl;
+
+		bool calc_grad();
+		//void deriv_af();
+		void update_epoch();
+		void prepare2learn();
+
+	public:
+		layer_jump(objnet& net, ulong neurons_count = 0)
+			: layer(net, neurons_count, jump)
+		{}
+
+		//void propagate();
+		void init_weights(const Matrix& inputs);
+
+		// get layer type
+		layer_types layer_type() const {
+			return jump_nnl;
+		}
+	};
+
 	//typedef TMatrix<layer> layerMatrix;
 	//typedef layerMatrix::r_iterator l_iterator;
 	typedef TMatrix<layer, val_sp_buffer> layerMatrixSP;
@@ -305,11 +330,6 @@ namespace NN {
 		inline void _print_err(const char* pErr);
 		//void _construct_biases();
 		//void _construct_grad(bool prev_also = false);
-
-		template<class layer_type>
-		layer_type& add_layer(ulong neurons_count, int af_type = logsig, ulong where_ind = -1);
-		template<class layer_type>
-		layer_type& add_layer(ulong neurons_count, const iMatrix& af_mat, ulong where_ind = -1);
 
 		// default prepare is to minimize error - go in anti-grad direction
 		virtual void prepare2learn();
@@ -401,6 +421,11 @@ namespace NN {
 		void set_input_size(ulong inp_size, bitMatrix *const pConMat = NULL);
 		void set_input(const Matrix& input);
 
+		//template< class layer_type >
+		sp_layer add_layer(ulong neurons_count, int af_type = logsig, int layer_type = bp_nnl, ulong where_ind = -1);
+		//template< class layer_type >
+		sp_layer add_layer(ulong neurons_count, const iMatrix& af_mat, int layer_type = bp_nnl, ulong where_ind = -1);
+		
 		virtual void propagate();
 		virtual void init_weights(const Matrix& inputs);
 
@@ -446,6 +471,8 @@ namespace NN {
 		~mlp() {};
 
 		bp_layer& add_layer(ulong neurons_count, int af_type = logsig);
+		sp_layer add_layer_ex(ulong neurons_count, int af_type, int layer_type);
+
 		bool set_layer(ulong layer_ind, ulong neurons_count, int af_type);
 		bool set_layer_type(ulong layer_ind, int af_type);
 		int learn(const Matrix& input, const Matrix& targets, bool initialize = true, pLearnInformer pProc = NULL, 
@@ -460,7 +487,7 @@ namespace NN {
 //--------------------------------Falman cascade correlation network---------------------------------------------
 
 	//----------------------------Falman layer declaration-------------------------------------------------------
-	class _CLASS_DECLSPEC falman_layer : private layer
+	class _CLASS_DECLSPEC falman_layer : public layer
 	{
 		friend class ccn;
 
@@ -547,7 +574,7 @@ namespace NN {
 		//modified propagation function
 		void propagate();
 		//construct output layer
-		void set_output_layer(ulong neurons_count, int af_type = logsig);
+		void set_output_layer(ulong neurons_count, int af_type = logsig, int layer_type = bp_nnl);
 		//resets network t only one output layer
 		void reset();
 		//complex learning function - implies network constructing

@@ -1466,11 +1466,11 @@ public:
 	}
 
 	value_type Max(void) const {
-		return *max_element(begin(), end());
+		return *std::max_element(begin(), end());
 	}
 
 	size_type max_ind() const {
-		return max_element(begin(), end()) - begin();
+		return std::max_element(begin(), end()) - begin();
 	}
 
 	retMatrix vMin(bool by_rows = false) const
@@ -1514,7 +1514,7 @@ public:
 			r.NewMatrix(rows_, 1);
 			dst = r.begin();
 			for(cr_iterator src(begin()); src != end(); src += cols_) {
-				*dst = *max_element(src, src + cols_);
+				*dst = *std::max_element(src, src + cols_);
 				++dst;
 			}
 		}

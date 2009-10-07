@@ -25,12 +25,30 @@ bp_layer& mlp::add_layer(ulong neurons_count, int af_type)
 {
 	try {
 		if(layers_num() == 0 && inp_size() == 0) throw nn_except(NoInputSize);
-		bp_layer& l = objnet::add_layer<bp_layer>(neurons_count, af_type);
+		sp_layer l = objnet::add_layer(neurons_count, af_type, bp_nnl);
 		//fully connect to previous layer
 		if(layers_num() > 1)
-			l.set_links(create_ptr_mat(layers_[layers_num() - 2].neurons()));
+			l->set_links(create_ptr_mat(layers_[layers_num() - 2].neurons()));
 		else
-			l.set_links(create_ptr_mat(input_.neurons()));
+			l->set_links(create_ptr_mat(input_.neurons()));
+		return *(bp_layer*)l.get();
+	}
+	catch(alg_except& ex) {
+		_print_err(ex.what());
+		throw;
+	}
+}
+
+sp_layer mlp::add_layer_ex(ulong neurons_count, int af_type, int layer_type)
+{
+	try {
+		if(layers_num() == 0 && inp_size() == 0) throw nn_except(NoInputSize);
+		sp_layer l = objnet::add_layer(neurons_count, af_type, layer_type);
+		//fully connect to previous layer
+		if(layers_num() > 1)
+			l->set_links(create_ptr_mat(layers_[layers_num() - 2].neurons()));
+		else
+			l->set_links(create_ptr_mat(input_.neurons()));
 		return l;
 	}
 	catch(alg_except& ex) {

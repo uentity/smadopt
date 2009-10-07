@@ -74,6 +74,13 @@ public:
 						p_n->eucl_dist_sf();
 						*p_axon = 1./sqrt(*p_state + (*p_b)*(*p_b));
 						break;
+					case jump:
+						p_n->weighted_sum_sf();
+						if(*p_state + *p_b > 0)
+							*p_axon = 1;
+						else
+							*p_axon = 0;
+						break;
 				}
 
 				++p_aft; ++p_b;
@@ -103,6 +110,8 @@ public:
 					case logsig:
 						*p_axon *= l_.net_.opt_.logsig_a*(1 - *p_axon);
 						break;
+					// fake gradient for jump AF
+					case jump:
 					case poslin:
 						if(*p_axon < 0) *p_axon = 0;
 						else *p_axon = 1;
@@ -153,16 +162,15 @@ public:
 		}
 
 		void operator()(const tbb::blocked_range< ulong >& r) {
-			bool palsy = true;
-			//calc error
-			l_.deriv_af();
-			l_.Goal_ *= l_.axons_;
+			bool palsy = palsy_;
 
 			//calc weights gradient
 			r_iterator p_g, p_w;
 			double g;
-			mp_iterator p_er = l_.Goal_.begin() + r.begin(), p_state = l_.states_.begin() + r.begin();
-			r_iterator p_b = l_.B_.begin() + r.begin(), p_bg = l_.BG_.begin() + r.begin();
+			mp_iterator p_er = l_.Goal_.begin() + r.begin(),
+						p_state = l_.states_.begin() + r.begin();
+			r_iterator p_b = l_.B_.begin() + r.begin(),
+					   p_bg = l_.BG_.begin() + r.begin();
 			iMatrix::r_iterator p_aft = l_.aft_.begin() + r.begin();
 			n_iterator p_n = l_.neurons_.begin() + r.begin();
 
@@ -208,7 +216,7 @@ public:
 				++p_state;
 			}
 
-			palsy_ = palsy;
+			palsy_ &= palsy;
 		}
 	};
 
@@ -1126,79 +1134,81 @@ void layer::_prepare2learn()
 
 bool layer::calc_grad()
 {
+	//calc error
+	deriv_af();
+	Goal_ *= axons_;
+	
 	layer_impl::mt_calc_grad cg(*this);
 	tbb::parallel_reduce(blocked_range< ulong >(0, neurons_.size()), cg);
 	return cg.palsy_;
+#if 0
+	//pure weight gradient = -(local gradiend)*(dv/dw)
+	//thats why using "-=" in gradient calculation
+	bool palsy = true;
 
-	////pure weight gradient = -(local gradiend)*(dv/dw)
-	////thats why using "-=" in gradient calculation
-	//bool palsy = true;
-	////calc error
-	//deriv_af();
-	//Goal_ *= axons_;
+	//process biases
+	/*
+	if(net_.opt_.use_biases_) {
+		BG_ -= Goal_;
+		for(r_iterator p_bg(BG_.begin()); p_bg != BG_.end(); ++p_bg) {
+			if(abs(*p_bg) > net_.opt_.epsilon) {
+				palsy = false;
+				break;
+			}
+		}
+	}
+	*/
 
-	////process biases
-	///*
-	//if(net_.opt_.use_biases_) {
-	//	BG_ -= Goal_;
-	//	for(r_iterator p_bg(BG_.begin()); p_bg != BG_.end(); ++p_bg) {
-	//		if(abs(*p_bg) > net_.opt_.epsilon) {
-	//			palsy = false;
-	//			break;
-	//		}
-	//	}
-	//}
-	//*/
+	//calc weights gradient
+	mp_iterator p_er = Goal_.begin(), p_state = states_.begin();
+	r_iterator p_b = B_.begin(), p_bg = BG_.begin();
+	iMatrix::r_iterator p_aft = aft_.begin();
+	r_iterator p_g, p_w;
+	double g;
+	for(n_iterator p_n = neurons_.begin(); p_n != neurons_.end(); ++p_n) {
+		if(net_.opt_.use_biases_) {
+			if(*p_aft == radbas || *p_aft == revradbas)
+				*p_bg -= *p_er * 2 * (*p_b) * (*p_state);
+			else if(*p_aft == multiquad || *p_aft == revmultiquad)
+				*p_bg -= *p_er * 2 * (*p_b);
+			else
+				*p_bg -= *p_er;
+			//palsy check
+			if(palsy && abs(*p_bg) > net_.opt_.epsilon)
+				palsy = false;
+		}
 
-	////calc weights gradient
-	//mp_iterator p_er = Goal_.begin(), p_state = states_.begin();
-	//r_iterator p_b = B_.begin(), p_bg = BG_.begin();
-	//iMatrix::r_iterator p_aft = aft_.begin();
-	//r_iterator p_g, p_w;
-	//double g;
-	//for(n_iterator p_n = neurons_.begin(); p_n != neurons_.end(); ++p_n) {
-	//	if(net_.opt_.use_biases_) {
-	//		if(*p_aft == radbas || *p_aft == revradbas)
-	//			*p_bg -= *p_er * 2 * (*p_b) * (*p_state);
-	//		else if(*p_aft == multiquad || *p_aft == revmultiquad)
-	//			*p_bg -= *p_er * 2 * (*p_b);
-	//		else
-	//			*p_bg -= *p_er;
-	//		//palsy check
-	//		if(palsy && abs(*p_bg) > net_.opt_.epsilon)
-	//			palsy = false;
-	//	}
+		if(*p_aft == radbas || *p_aft == revradbas)
+			g = 2*(*p_b)*(*p_b) * (*p_er);
+		else if(*p_aft == multiquad || *p_aft == revmultiquad)
+			g = 2 * (*p_er);
+		p_g = p_n->grad_.begin(); p_w = p_n->weights_.begin();
+		for(np_iterator p_in = p_n->inputs_.begin(); p_in != p_n->inputs_.end(); ++p_in) {
+			//calc grad element
+			if(*p_aft == radbas || *p_aft == revradbas || *p_aft == multiquad || *p_aft == revmultiquad)
+				*p_g -= (*p_w - p_in->axon_)*g;
+			else
+				*p_g -= p_in->axon_*(*p_er);
 
-	//	if(*p_aft == radbas || *p_aft == revradbas)
-	//		g = 2*(*p_b)*(*p_b) * (*p_er);
-	//	else if(*p_aft == multiquad || *p_aft == revmultiquad)
-	//		g = 2 * (*p_er);
-	//	p_g = p_n->grad_.begin(); p_w = p_n->weights_.begin();
-	//	for(np_iterator p_in = p_n->inputs_.begin(); p_in != p_n->inputs_.end(); ++p_in) {
-	//		//calc grad element
-	//		if(*p_aft == radbas || *p_aft == revradbas || *p_aft == multiquad || *p_aft == revmultiquad)
-	//			*p_g -= (*p_w - p_in->axon_)*g;
-	//		else
-	//			*p_g -= p_in->axon_*(*p_er);
+			//palsy check
+			if(palsy && abs(*p_g) > net_.opt_.epsilon)
+				palsy = false;
 
-	//		//palsy check
-	//		if(palsy && abs(*p_g) > net_.opt_.epsilon)
-	//			palsy = false;
+			//calc local gradient in prev layer
+			//local gradient is opposite to weight gradient - so using "+="
+			if(backprop_lg_)
+				p_in->error_ += *p_w * (*p_er);
 
-	//		//calc local gradient in prev layer
-	//		//local gradient is opposite to weight gradient - so using "+="
-	//		if(backprop_lg_)
-	//			p_in->error_ += *p_w * (*p_er);
+			++p_g; ++p_w;
+		}
 
-	//		++p_g; ++p_w;
-	//	}
+		++p_er;
+		++p_b; ++p_bg; ++p_aft;
+		++p_state;
+	}
 
-	//	++p_er;
-	//	++p_b; ++p_bg; ++p_aft;
-	//	++p_state;
-	//}
-
-	//return palsy;
+	return palsy;
+#endif
 }
 
 template<class goal_action>
@@ -1548,11 +1558,11 @@ void layer::_rbp_update(bool zero_grad)
 		if(net_.opt_.useSimpleRP)
 			// mt-version
 			tbb::parallel_for(tbb::blocked_range< ulong >(0, B_.size()), layer_impl::mt_rp_simple< goal_action >(*this, BG_, OBG_, BD_, B_));
-			//_rp_simple<goal_action>(BG_, OBG_, BD_, B_);
+			//_rp_simple< goal_action >(BG_, OBG_, BD_, B_);
 		else
 			// mt-version
 			tbb::parallel_for(tbb::blocked_range< ulong >(0, B_.size()), layer_impl::mt_rp_original< goal_action >(*this, BG_, OBG_, BD_, B_));
-			//_rp_original<goal_action>(BG_, OBG_, BD_, B_);
+			//_rp_original< goal_action >(BG_, OBG_, BD_, B_);
 		//OBG_ = BG_;
 		if(zero_grad) BG_ = 0;
 	}
@@ -1565,12 +1575,12 @@ void layer::_rbp_update(bool zero_grad)
 			// mt-version
 			tbb::parallel_for(tbb::blocked_range< ulong >(0, p_n->grad_.size()),
 					layer_impl::mt_rp_simple< goal_action >(*this, p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_));
-			//_rp_simple<goal_action>(p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_);
+			//_rp_simple< goal_action >(p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_);
 		else
 			// mt-version
 			tbb::parallel_for(tbb::blocked_range< ulong >(0, p_n->grad_.size()),
 					layer_impl::mt_rp_original< goal_action >(*this, p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_));
-			//_rp_original<goal_action>(p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_);
+			//_rp_original< goal_action >(p_n->grad_, p_n->prevg_, p_n->deltas_, p_n->weights_);
 		//p_n->prevg_ = p_n->grad_;
 		if(zero_grad) p_n->grad_ = 0;
 	}

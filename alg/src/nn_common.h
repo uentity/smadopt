@@ -47,8 +47,10 @@ namespace NN {
 	// NN layer types
 	enum layer_types {
 		common_nnl,
+		bp_nnl,
 		rb_nnl,
-		falman_nnl
+		falman_nnl,
+		jump_nnl
 	};
 
 	enum nn_flags {
@@ -77,7 +79,8 @@ namespace NN {
 		expws = 5,
 		multiquad = 6,
 		revradbas = 7,
-		revmultiquad = 8
+		revmultiquad = 8,
+		jump = 9
 	};
 
 	enum InitFun {

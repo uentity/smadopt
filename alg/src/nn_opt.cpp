@@ -311,7 +311,7 @@ void mnn_opt::set_def_opt(bool create_defs)
 	rp_delt_dec = 0.5; rp_delt_inc = 1.2;
 	rp_delta0 = 0.07; rp_deltamax = 50;
 	learnFun = BP;
-	useSimpleRP = true;
+	useSimpleRP = false;
 
 	flags_ = MLP;
 	iniFname_ = "nn.ini";

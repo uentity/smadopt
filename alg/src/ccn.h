@@ -377,13 +377,12 @@ void ccn::add_rb_layer(const Matrix& inputs, const Matrix& targets, const Matrix
 	rbfl_ = true;
 }
 
-void ccn::set_output_layer(ulong neurons_count, int af_type)
-{
+void ccn::set_output_layer(ulong neurons_count, int af_type, int layer_type) {
 	layers_.clear(); flayers_.clear();
-	bp_layer& outl = add_layer<bp_layer>(neurons_count, af_type);
+	sp_layer outl = add_layer(neurons_count, af_type, layer_type);
 	//fully connect to input
 	if(!opt_.insert_between_)
-		outl.set_links(create_ptr_mat(input_.neurons()));
+		outl->set_links(create_ptr_mat(input_.neurons()));
 }
 
 void ccn::propagate()
@@ -839,7 +838,7 @@ int ccn::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLe
 				}
 			}
 
-			// we should disable caching only in case of newly added layer only in case of
+			// we should disable caching only in case of
 			// fully_bp learning, because it's weights won't be fixed
 			if(opt_.learnType == ccn_fully_bp)
 				cur_fl_->cache_mode_off();

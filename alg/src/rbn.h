@@ -314,11 +314,11 @@ void rbn::set_rb_layer_drops(const Matrix& inputs, const Matrix& targets, const 
 
 void rbn::set_output_layer(ulong neurons_count)
 {
-	layer& l = objnet::add_layer<bp_layer>(neurons_count, purelin);
+	sp_layer l = objnet::add_layer(neurons_count, purelin, bp_nnl);
 	if(opt_.io_linked_)
-		l.set_links(create_ptr_mat(input_.neurons()));
+		l->set_links(create_ptr_mat(input_.neurons()));
 	if(layers_num() > 1)
-		l.set_links(create_ptr_mat(layers_[layers_num() - 2].neurons()));
+		l->set_links(create_ptr_mat(layers_[layers_num() - 2].neurons()));
 }
 
 void rbn::prepare2learn() {

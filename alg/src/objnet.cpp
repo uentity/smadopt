@@ -4,6 +4,7 @@
 
 #include "neuron.h"
 #include "layer.h"
+#include "layer_jump.h"
 #include "objnet_impl.h"
 #include "mlp.h"
 #include "ccn.h"

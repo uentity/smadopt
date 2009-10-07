@@ -16,7 +16,7 @@ void pcan::set_output_layer(ulong prin_comp_num)
 	if(prin_comp_num == 0) prin_comp_num = inp_size();
 	layer* p_l;
 	if(layers_num() == 0)
-		p_l = &objnet::add_layer<bp_layer>(prin_comp_num, purelin);
+		p_l = objnet::add_layer(prin_comp_num, purelin, bp_nnl).get();
 	else {
 		p_l = &layers_[0];
 		p_l->init(prin_comp_num, purelin);
