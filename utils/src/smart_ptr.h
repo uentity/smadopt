@@ -85,6 +85,12 @@ public:
 		: p(lp), count(new long(1))
 	{}
 
+	// ctor from castable pointer
+	template< class P >
+	smart_ptr(P* lp)
+		: p(lp), count(new long(1))
+	{}
+
 	// copy ctor
 	smart_ptr(const smart_ptr< T >& lp) throw()
 		: p(lp.p), count(lp.count) 
