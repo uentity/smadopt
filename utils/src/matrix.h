@@ -10,20 +10,13 @@
 #include <cmath>
 #include <sstream>
 #include <iosfwd>
-//#include <ostream>
 #include <iomanip>
-/*
-#ifdef _DEBUG
-#include <iostream>
-#endif
-*/
 
 #include <tbb/parallel_for.h>
+//#include <boost/spirit/include/classic_core.hpp>
+//#include <boost/spirit/include/classic_lists.hpp>
 
-#define INNER    0      //
-#define EXTERN   1
 #define DEF_WIDTH 14
-//#define USE_ROWS_AR
 
 #define TMATRIX(T, buf_traits) TMatrix< T, buf_traits >
 #define TEMPLATE_PARAM template< class Tr, template< class > class r_buf_traits >
@@ -48,7 +41,6 @@ class TMatrix
 	friend struct assign_mat;
 
 public:
-
 	//----public typedefs section begin
 	typedef buf_traits_type<T> buf_traits;
 	//values typedefs
@@ -122,7 +114,6 @@ private:
 
 
 public:
-
 	//--------------------------column iterator for matrix begin
 	template< class it_type = r_iterator, class matrix_t = this_t >
 	class column_iterator
@@ -1549,8 +1540,7 @@ public:
 		return r;
 	}
 
-	static retMatrix Read(std::istream& is, size_type max_rows = 0)
-	{
+	static retMatrix Read(std::istream& is, size_type max_rows = 0) {
 		retMatrix r, row;
 		value_type val;
 		std::string s;
@@ -1578,6 +1568,30 @@ public:
 		}
 		return r;
 	}
+
+	//static retMatrix Read(std::istream& is, size_type max_rows = 0) {
+	//	using namespace BOOST_SPIRIT_CLASSIC_NS;
+
+	//	retMatrix r, row;
+	//	std::string s;
+
+	//	// create parser
+	//	rule< > row_p = list_p(real_p[push_back_a(row)], ' ');
+
+	//	// reserve some memory to reduce mem allocs
+	//	r.reserve(16);
+	//	bool first_row = true;
+	//	while(getline(is, s)) {
+	//		row.clear();
+	//		// parse line
+	//		parse_info< > pres = parse(s.c_str(), row_p);
+	//		if(pres.full)
+	//			r &= row;
+	//		else break;
+	//		if(max_rows > 0 && r.row_num() == max_rows) break;
+	//	}
+	//	return r;
+	//}
 
 	static retMatrix Read_unfmt(std::istream& is, size_type col_num, size_type max_rows = 0)
 	{
