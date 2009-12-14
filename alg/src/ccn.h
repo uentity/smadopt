@@ -730,6 +730,12 @@ int ccn::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLe
 		smart_ptr< const Matrix > test_inp, smart_ptr< const Matrix > test_tar)
 {
 	int save_lsq_stat = opt_.use_lsq;
+
+	// prepare learn & validation sets
+	Matrix real_inputs;
+	Matrix real_targets;
+	prep_learn_valid_sets(inputs, targets, test_inp, test_tar, real_inputs, real_targets);
+
 	// save & reset test_validation bit
 	unsigned int save_test_valid = opt_.goal_checkFun & test_validation;
 	// TODO: remove this ugly thing after proper goal_checkFun reading
@@ -747,15 +753,15 @@ int ccn::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLe
 
 		if(initialize) reset();
 
-		if(opt_.learnFun != ccn_fully_bp) {
-			//turn on caching in prev falman layers
-			for(fl_iterator p_fl = flayers_.begin(); p_fl != flayers_.end(); ++p_fl)
-				p_fl->cache_mode_on();
-		}
+		//if(opt_.learnFun != ccn_fully_bp) {
+		//	//turn on caching in prev falman layers
+		//	for(fl_iterator p_fl = flayers_.begin(); p_fl != flayers_.end(); ++p_fl)
+		//		p_fl->cache_mode_on();
+		//}
 
 		bool learn_outl = true;
 		if(opt_.insert_between_) {
-			layers_.begin()->init_weights(inputs);
+			layers_.begin()->init_weights(real_inputs);
 			if(flayers_num() == 0) learn_outl = false;
 		}
 
@@ -777,15 +783,15 @@ int ccn::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLe
 					mainState_.status = learning;
 				cur_fl_ = NULL;
 				if(mainState_.cycle == 0) {
-					layers_.begin()->init_weights(inputs);
+					layers_.begin()->init_weights(real_inputs);
 				}
 
-				//layers_.begin()->init_weights(inputs);
+				//layers_.begin()->init_weights(real_inputs);
 				//init falman layers weights
 				//for(fl_iterator p_fl = flayers_.begin(); p_fl != flayers_.end(); ++p_fl)
-				//	p_fl->init_weights(inputs);
+				//	p_fl->init_weights(real_inputs);
 
-				common_learn(inputs, targets, false, pProc, test_inp, test_tar);
+				common_learn(real_inputs, real_targets, false, pProc);
 				mainState_.perf = state_.perf;
 
 				// drop rbfl_ flag
@@ -806,6 +812,8 @@ int ccn::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLe
 
 				if(save_test_valid) {
 					mainState_.patience_counter = check_early_stop(mainState_, *test_inp, *test_tar);
+					// print xvalidation status
+					cout << xvalid_info() << endl;
 					if(mainState_.status == stop_test_validation)
 						break;
 				}
@@ -820,17 +828,17 @@ int ccn::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLe
 				layers_.begin()->add_links(create_ptr_mat(cur_fl_->neurons_));
 			}
 			//cur_fl_->Goal_ = 0;
-			cur_fl_->init_weights(inputs);
+			cur_fl_->init_weights(real_inputs);
 
 			//if(!opt_.batch) {
 			//	//turn on caching in prev falman layers
 			//	for(fl_iterator p_fl = flayers_.begin(); &(*p_fl) != cur_fl_; ++p_fl)
-			//		p_fl->cache_mode_on(inputs.col_num());
+			//		p_fl->cache_mode_on(real_inputs.col_num());
 			//}
-			common_learn(inputs, targets, false, pProc);
+			common_learn(real_inputs, real_targets, false, pProc);
 
 			//select the most performing element, kill others
-			if(!(learn_outl = delete_losers(inputs, targets))) {
+			if(!(learn_outl = delete_losers(real_inputs, real_targets))) {
 				mainState_.perf = state_.perf;
 				if(state_.status == learned || state_.status == stop_breaked) {
 					mainState_.status = state_.status;
@@ -849,7 +857,7 @@ int ccn::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLe
 			//layers_.begin()->add_links(create_ptr_mat(cur_fl_->neurons_));
 
 			//if(opt_.batch) {
-			//	cur_fl_->cache_mode_on(inputs.col_num());
+			//	cur_fl_->cache_mode_on(real_inputs.col_num());
 			//}
 			//else {
 			//	//pause caching in prev falman layers
@@ -859,16 +867,16 @@ int ccn::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLe
 
 #if 0
 			Matrix ol, fl, er;
-			ol.reserve(targets.col_num());
-			fl.reserve(targets.col_num());
-			er.reserve(targets.col_num());
+			ol.reserve(real_targets.col_num());
+			fl.reserve(real_targets.col_num());
+			er.reserve(real_targets.col_num());
 			MatrixPtr res = layers_.begin()->out();
-			for(ulong i=0; i<inputs.col_num(); ++i) {
-				set_input(inputs.GetColumns(i));
+			for(ulong i=0; i<real_inputs.col_num(); ++i) {
+				set_input(real_inputs.GetColumns(i));
 				propagate();
 				ol.push_back(res[0]);
 				fl.push_back(cur_fl_->out()[0]);
-				er.push_back(targets[i] - res[0]);
+				er.push_back(real_targets[i] - res[0]);
 			}
 			DumpMatrix(ol | fl | er, "corr.txt");
 			//DumpMatrix(fl, "fl.txt");
@@ -892,7 +900,7 @@ int ccn::learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLe
 
 			cout << "Relearn last layer" << endl;
 			mainState_.status = learning;
-			common_learn(inputs, targets, false, pProc, test_inp, test_tar);
+			common_learn(real_inputs, real_targets, false, pProc);
 			mainState_.perf = state_.perf;
 		}
 
@@ -971,7 +979,7 @@ std::string ccn::status_info(int level) const {
 		// Fahlman layer learning status
 		if(state_.status == learning) {
 			if(state_.cycle == 1)
-				os << "Error still high - new falman layer #" << flayers_num() << " added" << endl;
+				os << "Error still high - adding new falman layer #" << flayers_num() << endl;
 			os << "cycle " << state_.cycle << ", goal " << state_.perf << endl;
 		}
 		// Result of fahlman layer learning
@@ -990,7 +998,7 @@ std::string ccn::status_info(int level) const {
 			//os << "CCN leraning stopped: " << stop_state << endl << endl;
 		}
 	}
-	
+
 	// print resulting status of main CCN
 	if((stop_state = decode_nn_state(mainState_.status)) != "")
 		os << "CCN: " << decode_nn_state(mainState_.status) << endl << endl;
