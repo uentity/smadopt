@@ -1532,7 +1532,7 @@ void layer::_qp_update(bool zero_grad)
 	}
 
 	// mt-version
-	tbb::parallel_for(tbb::blocked_range< ulong >(0, neurons_.size()), layer_impl::layer_impl::mt_qp_update< goal_action >(*this, zero_grad));
+	tbb::parallel_for(tbb::blocked_range< ulong >(0, neurons_.size()), layer_impl::mt_qp_update< goal_action >(*this, zero_grad));
 
 	//neurons
 	for(n_iterator p_n = neurons_.begin(); p_n != neurons_.end(); ++p_n) {
