@@ -322,6 +322,7 @@ namespace NN {
 		layer input_;
 		MatrixPtr output_;
 		nnState state_;
+		nnState xvalid_state_;
 
 		virtual void set_def_opt(bool create_defs = true) {
 			opt_.set_def_opt(create_defs);
@@ -381,6 +382,9 @@ namespace NN {
 		//checks whether error on test samples rises
 		ulong check_early_stop(nnState& state, const Matrix& inputs, const Matrix& targets);
 
+		// function to prepare proper learning & validation sets
+		void prep_learn_valid_sets(const Matrix& input, const Matrix& targets, smart_ptr< const Matrix >& test_inp,
+				smart_ptr< const Matrix >& test_tar, Matrix& real_input, Matrix& real_targets);
 		//common learn function
 		int common_learn(const Matrix& inputs, const Matrix& targets, bool initialize = true, pLearnInformer pProc = NULL,
 				smart_ptr< const Matrix > test_inp = NULL, smart_ptr< const Matrix > test_tar = NULL);
@@ -435,10 +439,12 @@ namespace NN {
 		// return NN type
 		virtual nn_types nn_type() const = 0;
 
-		// return NN detailed info
+		// return NN detailed info (structure details)
 		virtual text_table detailed_info(int level = 1) const;
 		// return current network status desccription
 		virtual std::string status_info(int level = 1) const;
+		// return cross-validation status info
+		virtual std::string xvalid_info(int level = 1) const;
 
 		Matrix sim(const Matrix& inp);
 	};

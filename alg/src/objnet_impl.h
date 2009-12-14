@@ -423,6 +423,43 @@ void objnet::std_update_epoch()
 	}
 }
 
+void objnet::prep_learn_valid_sets(const Matrix& input, const Matrix& targets, smart_ptr< const Matrix >& test_inp,
+		smart_ptr< const Matrix >& test_tar, Matrix& real_input, Matrix& real_targets)
+{
+	if(opt_.goal_checkFun == test_validation) {
+		if(!test_inp) {
+			// copy learning set
+			real_input = input;
+			real_targets = targets;
+
+			// extract randomly validation set from learning set
+			ulong val_size = ha_round(input.col_num() * opt_.validation_fract);
+			Matrix* p_inp = new Matrix(input.row_num(), val_size);
+			Matrix* p_tar = new Matrix(targets.row_num(), val_size);
+			ulong val_ind;
+			for(ulong i = 0; i < val_size; ++i) {
+				val_ind = prg::randIntUB(real_input.col_num());
+				p_inp->SetColumns(real_input.GetColumns(val_ind), i);
+				real_input.DelColumns(val_ind);
+				p_tar->SetColumns(real_targets.GetColumns(val_ind), i);
+				real_targets.DelColumns(val_ind);
+			}
+			test_tar = p_tar;
+			test_inp = p_inp;
+		}
+		else {
+			real_input <<= input;
+			real_targets <<= targets;
+		}
+		// do some initialization
+		check_early_stop(state_, *test_inp, *test_tar);
+	}
+	else {
+		real_input <<= input;
+		real_targets <<= targets;
+	}
+}
+
 int objnet::common_learn(const Matrix& inputs, const Matrix& targets, bool initialize, pLearnInformer pProc,
 		smart_ptr< const Matrix > test_inp, smart_ptr< const Matrix > test_tar)
 {
@@ -445,39 +482,8 @@ int objnet::common_learn(const Matrix& inputs, const Matrix& targets, bool initi
 
 		Matrix real_inputs;
 		Matrix real_targets;
-		//if using early stopping - do initialization
-		if(opt_.goal_checkFun == test_validation) {
-			if(!test_inp) {
-				// copy learning set
-				real_inputs = inputs;
-				real_targets = targets;
-
-				// extract randomly validation set from learning set
-				ulong val_size = ha_round(inputs.col_num() * opt_.validation_fract);
-				Matrix* p_inp = new Matrix(inputs.row_num(), val_size);
-				Matrix* p_tar = new Matrix(targets.row_num(), val_size);
-				ulong val_ind;
-				for(ulong i = 0; i < val_size; ++i) {
-					val_ind = prg::randIntUB(real_inputs.col_num());
-					p_inp->SetColumns(real_inputs.GetColumns(val_ind), i);
-					real_inputs.DelColumns(val_ind);
-					p_tar->SetColumns(real_targets.GetColumns(val_ind), i);
-					real_targets.DelColumns(val_ind);
-				}
-				test_inp = p_inp;
-				test_tar = p_tar;
-			}
-			else {
-				real_inputs <<= inputs;
-				real_targets <<= targets;
-			}
-			// do some initialization
-			check_early_stop(state_, *test_inp, *test_tar);
-		}
-		else {
-			real_inputs <<= inputs;
-			real_targets <<= targets;
-		}
+		// prepare learn & validation sets
+		prep_learn_valid_sets(inputs, targets, test_inp, test_tar, real_inputs, real_targets);
 
 		//init weights if needed
 		if(initialize) init_weights(real_inputs);
@@ -585,10 +591,11 @@ int objnet::check_patience(nnState& state, double patience, ulong patience_cycle
 
 ulong objnet::check_early_stop(nnState& state, const Matrix& test_set, const Matrix& test_tar)
 {
-	static nnState test_state;
+	//static nnState test_state;
 
 	if(state.cycle == 0) {
-		test_state.status = learning;
+		xvalid_state_.status = learning;
+		xvalid_state_.perf = state_.perf;
 		return 0;
 	}
 
@@ -603,25 +610,25 @@ ulong objnet::check_early_stop(nnState& state, const Matrix& test_set, const Mat
 		val_err += cur_err.norm2();
 	}
 	// DEBUG
-	cout << "check_early_stop: last test set err = " << test_state.perfMean << "; current err = " << val_err << endl;
+	//cout << "check_early_stop: last test set err = " << xvalid_state_.perfMean << "; current err = " << val_err << endl;
 
 	//check stop conditions with patience
-	test_state.perf = val_err;
-	test_state.cycle = state.cycle;
-	check_patience(test_state, 0.001, 5, stop_test_validation);
-	cout << "check_early_stop: patience_counter = " << test_state.patience_counter << endl;
-	state.status = test_state.status;
-	return test_state.patience_counter;
-	//test_state.perfMean = val_err;
+	xvalid_state_.perf = val_err;
+	xvalid_state_.cycle = state.cycle;
+	check_patience(xvalid_state_, 0.001, 5, stop_test_validation);
+	//cout << "check_early_stop: patience_counter = " << xvalid_state_.patience_counter << endl;
+	if(xvalid_state_.status == stop_test_validation)
+		state.status = xvalid_state_.status;
+	return xvalid_state_.patience_counter;
 
 	//simple check
 //	if(state.cycle == 1)
-//		test_state.perfMean = val_err;
+//		xvalid_state_.perfMean = val_err;
 //	else {
 //		double delta;
-//		anti_grad::assign(delta, val_err - test_state.perfMean);
+//		anti_grad::assign(delta, val_err - xvalid_state_.perfMean);
 //		if(delta < 0) state.status = stop_test_validation;
-//		test_state.perfMean = val_err;
+//		xvalid_state_.perfMean = val_err;
 //	}
 }
 
@@ -674,10 +681,25 @@ text_table objnet::detailed_info(int level) const {
 
 std::string objnet::status_info(int level) const {
 	ostringstream os;
-	os << "cycle " << state_.cycle << ", error " << state_.perf << ", goal " << opt_.goal << endl;
+	// common status
+	os << "cycle " << state_.cycle << ", error " << state_.perf << ", goal " << opt_.goal;
+	// print cross-validation info
+	if(opt_.goal_checkFun & test_validation)
+		os << "; " << xvalid_info();
+	os << endl;
 	if(state_.status != learning)
 		os << decode_nn_state(state_.status) << endl;
 	return os.str();
 }
 
+std::string objnet::xvalid_info(int /*  level 1 */) const {
+	ostringstream os;
+	//if(opt_.goal_checkFun & test_validation) {
+		os << "xvalidation: last err = " << xvalid_state_.perfMean << ", current err = " << xvalid_state_.perf;
+		os << ", patience counter = " << xvalid_state_.patience_counter;
+	//}
+	return os.str();
+}
+
 }	//end of namespace NN
+
