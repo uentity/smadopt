@@ -12,6 +12,9 @@
 		<Platform
 			Name="Win32"
 		/>
+		<Platform
+			Name="x64"
+		/>
 	</Platforms>
 	<ToolFiles>
 	</ToolFiles>
@@ -73,6 +76,71 @@
 				DataExecutionPrevention="0"
 				ImportLibrary="$(TargetDir)/$(TargetName).lib"
 				TargetMachine="1"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
+		</Configuration>
+		<Configuration
+			Name="Debug|x64"
+			OutputDirectory="$(SolutionDir)$(PlatformName)\$(ConfigurationName)"
+			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
+			ConfigurationType="2"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalIncludeDirectories="&quot;$(ProjectDir)&quot;;X:\lib\tbb\include"
+				PreprocessorDefinitions="__EXPORTING"
+				RuntimeLibrary="3"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalDependencies="tbb_debug.lib"
+				OutputFile="$(SolutionDir)\exe\debug\ha_utils.dll"
+				AdditionalLibraryDirectories="X:\lib\tbb\lib\debug"
+				IgnoreDefaultLibraryNames="tbb.lib"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -176,6 +244,69 @@
 				Name="VCPostBuildEventTool"
 			/>
 		</Configuration>
+		<Configuration
+			Name="Release|x64"
+			OutputDirectory="$(SolutionDir)$(PlatformName)\$(ConfigurationName)"
+			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
+			ConfigurationType="2"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalIncludeDirectories="&quot;$(ProjectDir)&quot;;X:\lib\tbb\include"
+				PreprocessorDefinitions="__EXPORTING"
+				RuntimeLibrary="2"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				OutputFile="$(SolutionDir)\exe\release\ha_utils.dll"
+				AdditionalLibraryDirectories="X:\lib\tbb\lib\release"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
+		</Configuration>
 	</Configurations>
 	<References>
 	</References>
@@ -194,6 +325,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\bignum.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\src\common.cpp"
 				>
 			</File>
@@ -202,11 +337,19 @@
 				>
 			</File>
 			<File
-				RelativePath=".\src\matrix.cpp"
+				RelativePath=".\src\prg.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\src\prg.cpp"
+				RelativePath=".\src\sha1.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\src\sha2.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\src\sha4.cpp"
 				>
 			</File>
 			<File
@@ -236,6 +379,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\gray_code.h"
+				>
+			</File>
+			<File
 				RelativePath=".\src\m_algorithm.h"
 				>
 			</File>
@@ -256,110 +403,138 @@
 				>
 			</File>
 			<Filter
+				Name="polarssl"
+				>
+				<File
+					RelativePath=".\polarssl\bignum.h"
+					>
+				</File>
+				<File
+					RelativePath=".\polarssl\bn_mul.h"
+					>
+				</File>
+				<File
+					RelativePath=".\polarssl\config.h"
+					>
+				</File>
+				<File
+					RelativePath=".\polarssl\sha1.h"
+					>
+				</File>
+				<File
+					RelativePath=".\polarssl\sha2.h"
+					>
+				</File>
+				<File
+					RelativePath=".\polarssl\sha4.h"
+					>
+				</File>
+			</Filter>
+			<Filter
 				Name="jama"
 				>
 				<File
-					RelativePath=".\src\jama\jama_cholesky.h"
+					RelativePath=".\jama\jama_cholesky.h"
 					>
 				</File>
 				<File
-					RelativePath=".\src\jama\jama_eig.h"
+					RelativePath=".\jama\jama_eig.h"
 					>
 				</File>
 				<File
-					RelativePath=".\src\jama\jama_lu.h"
+					RelativePath=".\jama\jama_lu.h"
 					>
 				</File>
 				<File
-					RelativePath=".\src\jama\jama_qr.h"
+					RelativePath=".\jama\jama_qr.h"
 					>
 				</File>
 				<File
-					RelativePath=".\src\jama\jama_svd.h"
+					RelativePath=".\jama\jama_svd.h"
 					>
 				</File>
 				<File
-					RelativePath=".\src\jama\tnt.h"
+					RelativePath=".\jama\tnt.h"
 					>
 				</File>
 				<File
-					RelativePath=".\src\jama\tnt_array1d.h"
+					RelativePath=".\jama\tnt_array1d.h"
 					>
 				</File>
 				<File
-					RelativePath=".\src\jama\tnt_array1d_utils.h"
+					RelativePath=".\jama\tnt_array1d_utils.h"
 					>
 				</File>
 				<File
-					RelativePath=".\src\jama\tnt_array2d.h"
+					RelativePath=".\jama\tnt_array2d.h"
 					>
 				</File>
 				<File
-					RelativePath=".\src\jama\tnt_array2d_utils.h"
+					RelativePath=".\jama\tnt_array2d_utils.h"
 					>
 				</File>
 				<File
-					RelativePath=".\src\jama\tnt_array3d.h"
+					RelativePath=".\jama\tnt_array3d.h"
 					>
 				</File>
 				<File
-					RelativePath=".\src\jama\tnt_array3d_utils.h"
+					RelativePath=".\jama\tnt_array3d_utils.h"
 					>
 				</File>
 				<File
-					RelativePath=".\src\jama\tnt_cmat.h"
+					RelativePath=".\jama\tnt_cmat.h"
 					>
 				</File>
 				<File
-					RelativePath=".\src\jama\tnt_fortran_array1d.h"
+					RelativePath=".\jama\tnt_fortran_array1d.h"
 					>
 				</File>
 				<File
-					RelativePath=".\src\jama\tnt_fortran_array1d_utils.h"
+					RelativePath=".\jama\tnt_fortran_array1d_utils.h"
 					>
 				</File>
 				<File
-					RelativePath=".\src\jama\tnt_fortran_array2d.h"
+					RelativePath=".\jama\tnt_fortran_array2d.h"
 					>
 				</File>
 				<File
-					RelativePath=".\src\jama\tnt_fortran_array2d_utils.h"
+					RelativePath=".\jama\tnt_fortran_array2d_utils.h"
 					>
 				</File>
 				<File
-					RelativePath=".\src\jama\tnt_fortran_array3d.h"
+					RelativePath=".\jama\tnt_fortran_array3d.h"
 					>
 				</File>
 				<File
-					RelativePath=".\src\jama\tnt_fortran_array3d_utils.h"
+					RelativePath=".\jama\tnt_fortran_array3d_utils.h"
 					>
 				</File>
 				<File
-					RelativePath=".\src\jama\tnt_i_refvec.h"
+					RelativePath=".\jama\tnt_i_refvec.h"
 					>
 				</File>
 				<File
-					RelativePath=".\src\jama\tnt_math_utils.h"
+					RelativePath=".\jama\tnt_math_utils.h"
 					>
 				</File>
 				<File
-					RelativePath=".\src\jama\tnt_sparse_matrix_csr.h"
+					RelativePath=".\jama\tnt_sparse_matrix_csr.h"
 					>
 				</File>
 				<File
-					RelativePath=".\src\jama\tnt_stopwatch.h"
+					RelativePath=".\jama\tnt_stopwatch.h"
 					>
 				</File>
 				<File
-					RelativePath=".\src\jama\tnt_subscript.h"
+					RelativePath=".\jama\tnt_subscript.h"
 					>
 				</File>
 				<File
-					RelativePath=".\src\jama\tnt_vec.h"
+					RelativePath=".\jama\tnt_vec.h"
 					>
 				</File>
 				<File
-					RelativePath=".\src\jama\tnt_version.h"
+					RelativePath=".\jama\tnt_version.h"
 					>
 				</File>
 			</Filter>
