@@ -5,6 +5,7 @@
 #include <time.h>
 #include <cmath>
 #include <vector>
+#include <algorithm>
 
 #define MODMUL(a, b, c, m, s) q = s/a; s = b*(s - q*q) - c*q; if(s < 0) s += m;
 #define POLYNOMS_NUM 2
@@ -385,3 +386,12 @@ ulong prg::randIntUB(ulong upper_bound)
 {
 	return prgs->randIntUB(upper_bound);
 }
+
+std::vector< ulong > prg::rand_perm(ulong n) {
+	vector< ulong > res(n);
+	for(ulong i = 0; i < n; ++i)
+		res[i] = i;
+	random_shuffle(res.begin(), res.end(), prg::randIntUB);
+	return res;
+}
+

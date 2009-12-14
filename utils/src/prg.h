@@ -30,6 +30,9 @@ namespace prg
 	_LIBAPI long randInt(long a, long b);
 	_LIBAPI unsigned long randIntUB(unsigned long upper_bound);
 
+	// generate random permutation of sequence 0, 2, ..., n - 1
+	_LIBAPI std::vector< ulong > rand_perm(ulong n);
+	
 	//prg classes
 	class prg_store;
 	class randgen;
