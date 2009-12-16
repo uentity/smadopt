@@ -382,9 +382,6 @@ namespace NN {
 		//checks whether error on test samples rises
 		ulong check_early_stop(nnState& state, const Matrix& inputs, const Matrix& targets);
 
-		// function to prepare proper learning & validation sets
-		void prep_learn_valid_sets(const Matrix& input, const Matrix& targets, smart_ptr< const Matrix >& test_inp,
-				smart_ptr< const Matrix >& test_tar, Matrix& real_input, Matrix& real_targets);
 		//common learn function
 		int common_learn(const Matrix& inputs, const Matrix& targets, bool initialize = true, pLearnInformer pProc = NULL,
 				smart_ptr< const Matrix > test_inp = NULL, smart_ptr< const Matrix > test_tar = NULL);
@@ -432,6 +429,10 @@ namespace NN {
 		
 		virtual void propagate();
 		virtual void init_weights(const Matrix& inputs);
+
+		// function to prepare proper learning & validation sets
+		void prep_learn_valid_sets(const Matrix& input, const Matrix& targets, smart_ptr< const Matrix >& test_inp,
+				smart_ptr< const Matrix >& test_tar, Matrix& real_input, Matrix& real_targets);
 
 		virtual int learn(const Matrix& input, const Matrix& targets, bool initialize = true, pLearnInformer pProc = NULL,
 				smart_ptr< const Matrix > test_inp = NULL, smart_ptr< const Matrix > test_tar = 0) = 0;

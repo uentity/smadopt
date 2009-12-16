@@ -428,24 +428,28 @@ void objnet::prep_learn_valid_sets(const Matrix& input, const Matrix& targets, s
 {
 	if(opt_.goal_checkFun == test_validation) {
 		if(!test_inp) {
-			// copy learning set
-			real_input = input;
-			real_targets = targets;
-
 			// extract randomly validation set from learning set
 			ulong val_size = ha_round(input.col_num() * opt_.validation_fract);
-			Matrix* p_inp = new Matrix(input.row_num(), val_size);
-			Matrix* p_tar = new Matrix(targets.row_num(), val_size);
-			ulong val_ind;
-			for(ulong i = 0; i < val_size; ++i) {
-				val_ind = prg::randIntUB(real_input.col_num());
-				p_inp->SetColumns(real_input.GetColumns(val_ind), i);
-				real_input.DelColumns(val_ind);
-				p_tar->SetColumns(real_targets.GetColumns(val_ind), i);
-				real_targets.DelColumns(val_ind);
+			ulong ls_size = input.col_num() - val_size;
+			real_input.Resize(input.row_num(), ls_size);
+			real_targets.Resize(targets.row_num(), ls_size);
+			Matrix* xv_inp = new Matrix(input.row_num(), val_size);
+			Matrix* xv_tar = new Matrix(targets.row_num(), val_size);
+
+			// generate rand permutation
+			vector< ulong > rp = prg::rand_perm(input.col_num());
+			for(ulong i = 0; i < input.col_num(); ++i) {
+				if(i < val_size) {
+					xv_inp->SetColumns(input.GetColumns(rp[i]), i);
+					xv_tar->SetColumns(targets.GetColumns(rp[i]), i);
+				}
+				else {
+					real_input.SetColumns(input.GetColumns(rp[i]), i);
+					real_targets.SetColumns(targets.GetColumns(rp[i]), i);
+				}
 			}
-			test_tar = p_tar;
-			test_inp = p_inp;
+			test_tar = xv_tar;
+			test_inp = xv_inp;
 		}
 		else {
 			real_input <<= input;
