@@ -14,6 +14,12 @@ all_ss = [
 #cvars = Variables();
 #cvars.Add('my_super_option', 'Super custom option', 1);
 custom_env = Environment();
+custom_env.Append(
+	CCFLAGS = ['-W', '-Wall', '-Wno-deprecated', '-Werror=return-type', '-pthread'], #'-fvisibility=hidden', '-fvisibility-inlines-hidden'],
+	CPPPATH = ['/home/uentity/lib/tbb/include', '/home/uentity/lib/boost', '#utils', '#utils/src', '#alg/src', 'src'],
+	LIBPATH = ['/home/uentity/lib/boost/lib']
+);
+
 #Help(cvars.GenerateHelpText(custom_env));
 Export('custom_env');
 

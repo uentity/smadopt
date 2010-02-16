@@ -146,7 +146,7 @@ norm_tools::dist_stat calc_dist_matrix_impl(const Matrix& data, Matrix& dist, no
 	//mean distance^2
 	double meand2 = 0, meand2_nn = 0;
 	//current min distance (between nearest neighbours)
-	double cur_mind;
+	double cur_mind = 0;
 
 	for(ulong i = 0; i < points_num - 1; ++i) {
 		dv <<= data_cpy.GetRows(0);

@@ -21,11 +21,9 @@
 	<Configurations>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory="build/Debug"
-			IntermediateDirectory="build/Debug"
+			OutputDirectory="$(SolutionDir)exe\debug"
+			IntermediateDirectory="$(SolutionDir)build\debug\$(ProjectName)"
 			ConfigurationType="1"
-			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
-			CharacterSet="2"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -44,16 +42,8 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				Optimization="0"
-				AdditionalIncludeDirectories="&quot;$(SolutionDir)utils/src&quot;;&quot;$(SolutionDir)alg/src&quot;"
-				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
-				MinimalRebuild="true"
-				BasicRuntimeChecks="3"
+				AdditionalIncludeDirectories="x:\lib\tbb\include;&quot;$(SolutionDir)alg\src&quot;;&quot;$(SolutionDir)utils\src&quot;"
 				RuntimeLibrary="3"
-				UsePrecompiledHeader="0"
-				WarningLevel="3"
-				Detect64BitPortabilityProblems="true"
-				DebugInformationFormat="4"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -66,95 +56,10 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="ha_alg.lib"
-				OutputFile="$(SolutionDir)/exe/debug/ga_client_win.exe"
-				LinkIncremental="2"
-				AdditionalLibraryDirectories="$(SolutionDir)/exe/debug"
+				AdditionalDependencies="ha_utils.lib ha_alg.lib tbb_debug.lib"
+				AdditionalLibraryDirectories="&quot;$(SolutionDir)exe\debug&quot;;x:\lib\tbb\lib\debug\ia32"
+				IgnoreDefaultLibraryNames="tbb"
 				GenerateDebugInformation="true"
-				ProgramDatabaseFile="$(OutDir)/$(TargetName).pdb"
-				SubSystem="1"
-				RandomizedBaseAddress="1"
-				DataExecutionPrevention="0"
-				TargetMachine="1"
-			/>
-			<Tool
-				Name="VCALinkTool"
-			/>
-			<Tool
-				Name="VCManifestTool"
-			/>
-			<Tool
-				Name="VCXDCMakeTool"
-			/>
-			<Tool
-				Name="VCBscMakeTool"
-			/>
-			<Tool
-				Name="VCFxCopTool"
-			/>
-			<Tool
-				Name="VCAppVerifierTool"
-			/>
-			<Tool
-				Name="VCPostBuildEventTool"
-			/>
-		</Configuration>
-		<Configuration
-			Name="Release|Win32"
-			OutputDirectory="build/Release"
-			IntermediateDirectory="build/Release"
-			ConfigurationType="1"
-			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
-			CharacterSet="2"
-			>
-			<Tool
-				Name="VCPreBuildEventTool"
-			/>
-			<Tool
-				Name="VCCustomBuildTool"
-			/>
-			<Tool
-				Name="VCXMLDataGeneratorTool"
-			/>
-			<Tool
-				Name="VCWebServiceProxyGeneratorTool"
-			/>
-			<Tool
-				Name="VCMIDLTool"
-			/>
-			<Tool
-				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="&quot;$(SolutionDir)utils/src&quot;;&quot;$(SolutionDir)alg/src&quot;"
-				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
-				RuntimeLibrary="2"
-				UsePrecompiledHeader="0"
-				WarningLevel="3"
-				Detect64BitPortabilityProblems="true"
-				DebugInformationFormat="3"
-			/>
-			<Tool
-				Name="VCManagedResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCPreLinkEventTool"
-			/>
-			<Tool
-				Name="VCLinkerTool"
-				AdditionalDependencies="ha_alg.lib"
-				OutputFile="$(SolutionDir)/exe/release/ga_client_win.exe"
-				LinkIncremental="1"
-				AdditionalLibraryDirectories="$(SolutionDir)/exe/release"
-				GenerateDebugInformation="true"
-				ProgramDatabaseFile="$(OutDir)/$(TargetName).pdb"
-				SubSystem="1"
-				OptimizeReferences="2"
-				EnableCOMDATFolding="2"
-				RandomizedBaseAddress="1"
-				DataExecutionPrevention="0"
-				TargetMachine="1"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -180,6 +85,8 @@
 		</Configuration>
 		<Configuration
 			Name="Debug|x64"
+			OutputDirectory="$(SolutionDir)$(PlatformName)\$(ConfigurationName)"
+			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
 			ConfigurationType="1"
 			>
 			<Tool
@@ -199,6 +106,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				AdditionalIncludeDirectories="x:\lib\tbb\include;&quot;$(SolutionDir)alg\src&quot;;&quot;$(SolutionDir)utils\src&quot;"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -211,6 +119,71 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="ha_utils.lib ha_alg.lib tbb_debug.lib"
+				AdditionalLibraryDirectories="&quot;$(SolutionDir)exe\debug&quot;;x:\lib\tbb\lib\debug"
+				IgnoreDefaultLibraryNames="tbb"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
+		</Configuration>
+		<Configuration
+			Name="Release|Win32"
+			OutputDirectory="$(SolutionDir)exe\release"
+			IntermediateDirectory="$(SolutionDir)build\release\$(ProjectName)"
+			ConfigurationType="1"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalIncludeDirectories="x:\lib\tbb\include;&quot;$(SolutionDir)alg\src&quot;;&quot;$(SolutionDir)utils\src&quot;"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalOptions="/NODEFAULTLIB:libcmt"
+				AdditionalDependencies="ha_utils.lib ha_alg.lib"
+				AdditionalLibraryDirectories="$(SolutionDir)exe\release;x:\lib\tbb\lib\release\ia32"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -255,6 +228,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				AdditionalIncludeDirectories="x:\lib\tbb\include;&quot;$(SolutionDir)alg\src&quot;;&quot;$(SolutionDir)utils\src&quot;"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -267,6 +241,9 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalOptions="/NODEFAULTLIB:libcmt"
+				AdditionalDependencies="ha_utils.lib ha_alg.lib"
+				AdditionalLibraryDirectories="$(SolutionDir)exe\release;x:\lib\tbb\lib\release"
 			/>
 			<Tool
 				Name="VCALinkTool"

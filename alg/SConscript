@@ -11,8 +11,7 @@ lib_name = 'ha_alg';
 Import('*');
 base_env = custom_env.Clone();
 base_env.Append(
-	CCFLAGS = ['-W', '-Wall', '-Wno-deprecated', '-pthread'], #'-fvisibility=hidden', '-fvisibility-inlines-hidden'],
-	CPPPATH = ['/home/uentity/lib/tbb/include', '#utils', '#utils/src', 'src'],
+	#CPPPATH = ['/home/uentity/lib/tbb/include', '#utils', '#utils/src', 'src'],
 	LIBS = ['ha_utils']
 );
 

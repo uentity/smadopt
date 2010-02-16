@@ -331,6 +331,7 @@ struct hard_clusters_data {
 		vvul aff;
 		for(aff_map::const_iterator p_cv = aff_.begin(), end = aff_.end(); p_cv != end; ++p_cv)
 			aff.push_back(p_cv->second);
+		return aff;
 	}
 };
 

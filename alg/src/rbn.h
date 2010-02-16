@@ -128,8 +128,8 @@ void rb_layer::construct_kmeans(const Matrix& inputs, const Matrix& targets, dou
 	//clusterisation
 	km_.opt_.nu = 0.001;
 	km_.opt_.emptyc_pol = ((rbn&)net_).opt_.rbnec_policy_;
-	km_.find_clusters_f(!inputs, !targets, nn, 100, pCent, true);
-	//km_.find_clusters(!inputs, nn, 100, false, pCent, true);
+	//km_.find_clusters_f(!inputs, !targets, nn, 100, pCent, true);
+	km_.find_clusters(!inputs, nn, 100, false, pCent, true);
 	//km_.opt_.use_prev_cent = true;
 
 	//construct layer

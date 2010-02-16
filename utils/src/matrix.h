@@ -34,9 +34,9 @@
 
 template< class T, template < class > class buf_traits_type = val_buffer >
 class TMatrix
-#ifdef _WIN32
-	: public CHeapManage< TMatrix<T, buf_traits_type> >
-#endif
+//#ifdef _WIN32
+//	: public CHeapManage< TMatrix<T, buf_traits_type> >
+//#endif
 {
 	friend struct assign_mat;
 
@@ -1250,26 +1250,6 @@ public:
 
 		//use quicksort algotirhm with O(n*log(n)) complexity
 		quicksort_track_ind(begin(), end(), mInd.begin(), pr);
-
-//		value_type val_swap;
-//		size_type ind_swap;
-//		r_iterator pos1(begin()), pos2;
-//		for(size_type i = 0; i < size_ - 1; ++i) {
-//			pos2 = pos1 + 1;
-//			for(size_type j=i+1; j<size_; ++j) {
-//				if(pr(*pos2, *pos1)) {
-//					val_swap = *pos1;
-//					*pos1 = *pos2;
-//					*pos2 = val_swap;
-//
-//					ind_swap = mInd[i];
-//					mInd[i] = mInd[j];
-//					mInd[j] = ind_swap;
-//				}
-//				++pos2;
-//			}
-//			++pos1;
-//		}
 
 		return mInd;
 	}

@@ -89,7 +89,7 @@ namespace GA {
 		FinishError = -1
 	};
 
-	enum GAGybridScheme {
+	enum GAHybridScheme {
 		ClearGA = 1,
 		UseNN = 2
 	};

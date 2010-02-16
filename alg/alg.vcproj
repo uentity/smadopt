@@ -2,7 +2,7 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9,00"
-	Name="alg"
+	Name="ha_alg"
 	ProjectGUID="{FBBBB4F1-859A-4DA3-8DE1-F4FAFA6EA772}"
 	RootNamespace="alg"
 	Keyword="Win32Proj"
@@ -21,11 +21,9 @@
 	<Configurations>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory="build/Debug"
-			IntermediateDirectory="build/Debug"
+			OutputDirectory="$(SolutionDir)exe\debug"
+			IntermediateDirectory="$(SolutionDir)build\debug\$(ProjectName)"
 			ConfigurationType="2"
-			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
-			CharacterSet="2"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -44,16 +42,10 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				Optimization="0"
-				AdditionalIncludeDirectories="&quot;$(ProjectDir)/src&quot;;&quot;$(SolutionDir)utils/src&quot;"
-				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;__EXPORTING"
-				MinimalRebuild="true"
-				BasicRuntimeChecks="3"
+				AdditionalIncludeDirectories="$(SolutionDir)/utils;$(SolutionDir)/utils/src;X:\lib\tbb\include"
+				PreprocessorDefinitions="__EXPORTING"
 				RuntimeLibrary="3"
-				RuntimeTypeInfo="true"
-				UsePrecompiledHeader="0"
 				WarningLevel="3"
-				Detect64BitPortabilityProblems="false"
 				DebugInformationFormat="4"
 			/>
 			<Tool
@@ -67,17 +59,12 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="ha_utils.lib"
-				OutputFile="$(SolutionDir)exe/debug/ha_alg.dll"
-				LinkIncremental="2"
-				AdditionalLibraryDirectories="&quot;$(SolutionDir)/exe/debug&quot;"
+				AdditionalDependencies="ha_utils.lib tbb_debug.lib"
+				OutputFile="$(SolutionDir)\exe\debug\ha_alg.dll"
+				AdditionalLibraryDirectories="$(SolutionDir)\exe\debug;X:\lib\tbb\lib\debug\ia32"
+				IgnoreAllDefaultLibraries="false"
+				IgnoreDefaultLibraryNames="tbb.lib"
 				GenerateDebugInformation="true"
-				ProgramDatabaseFile="$(OutDir)$(TargetName).pdb"
-				SubSystem="2"
-				RandomizedBaseAddress="1"
-				DataExecutionPrevention="0"
-				ImportLibrary="$(TargetDir)/$(TargetName).lib"
-				TargetMachine="1"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -139,9 +126,11 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="tbb_debug.lib"
+				AdditionalOptions="/NODEFAULTLIB:libcmt"
+				AdditionalDependencies="ha_utils.lib tbb_debug.lib"
 				OutputFile="$(SolutionDir)\exe\debug\ha_alg.dll"
 				AdditionalLibraryDirectories="$(SolutionDir)\exe\debug;X:\lib\tbb\lib\debug"
+				IgnoreAllDefaultLibraries="false"
 				IgnoreDefaultLibraryNames="tbb.lib"
 			/>
 			<Tool
@@ -168,11 +157,9 @@
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory="build/Release"
-			IntermediateDirectory="build/Release"
+			OutputDirectory="$(SolutionDir)exe\release"
+			IntermediateDirectory="$(SolutionDir)build\release\$(ProjectName)"
 			ConfigurationType="2"
-			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
-			CharacterSet="2"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -191,13 +178,10 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="&quot;$(ProjectDir)/src&quot;;&quot;$(SolutionDir)utils/src&quot;"
-				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;__EXPORTING"
+				AdditionalIncludeDirectories="$(SolutionDir)/utils;$(SolutionDir)/utils/src;X:\lib\tbb\include"
+				PreprocessorDefinitions="__EXPORTING"
 				RuntimeLibrary="2"
-				RuntimeTypeInfo="true"
-				UsePrecompiledHeader="0"
 				WarningLevel="3"
-				Detect64BitPortabilityProblems="false"
 				DebugInformationFormat="3"
 			/>
 			<Tool
@@ -212,18 +196,8 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="ha_utils.lib"
-				OutputFile="$(SolutionDir)exe/release/ha_alg.dll"
-				LinkIncremental="1"
-				AdditionalLibraryDirectories="&quot;$(SolutionDir)/exe/release&quot;"
-				GenerateDebugInformation="true"
-				ProgramDatabaseFile="$(OutDir)$(TargetName).pdb"
-				SubSystem="2"
-				OptimizeReferences="2"
-				EnableCOMDATFolding="2"
-				RandomizedBaseAddress="1"
-				DataExecutionPrevention="0"
-				ImportLibrary="$(TargetDir)/$(TargetName).lib"
-				TargetMachine="1"
+				OutputFile="$(SolutionDir)\exe\release\ha_alg.dll"
+				AdditionalLibraryDirectories="$(SolutionDir)\exe\release;X:\lib\tbb\lib\release\ia32"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -285,6 +259,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalOptions="/NODEFAULTLIB:libcmt"
 				AdditionalDependencies="ha_utils.lib"
 				OutputFile="$(SolutionDir)\exe\release\ha_alg.dll"
 				AdditionalLibraryDirectories="$(SolutionDir)\exe\release;X:\lib\tbb\lib\release"
