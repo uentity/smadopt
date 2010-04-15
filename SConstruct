@@ -1,3 +1,4 @@
+import os;
 # list of all sconscript files
 # ORDER-SENSITIVE!
 # add your sconscript only AFTER all dependent
@@ -9,11 +10,10 @@ all_ss = [
 		]
 
 # process custom settings
-#SConscript('scons_env.custom');
-#Import('*');
-#cvars = Variables();
-#cvars.Add('my_super_option', 'Super custom option', 1);
-custom_env = Environment();
+custom_env = Environment(ENV = os.environ);
+# use distributed compilation
+#custom_env['CC'] = ['distcc'];
+#custom_env['CXX'] = ['distcc'];
 custom_env.Append(
 	CCFLAGS = ['-W', '-Wall', '-Wno-deprecated', '-Werror=return-type', '-pthread'], #'-fvisibility=hidden', '-fvisibility-inlines-hidden'],
 	CPPPATH = ['/home/uentity/lib/tbb/include', '/home/uentity/lib/boost', '#utils', '#utils/src', '#alg/src', 'src'],

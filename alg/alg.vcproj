@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="windows-1251"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9,00"
+	Version="8,00"
 	Name="ha_alg"
 	ProjectGUID="{FBBBB4F1-859A-4DA3-8DE1-F4FAFA6EA772}"
 	RootNamespace="alg"
 	Keyword="Win32Proj"
-	TargetFrameworkVersion="131072"
 	>
 	<Platforms>
 		<Platform
@@ -42,7 +41,8 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="$(SolutionDir)/utils;$(SolutionDir)/utils/src;X:\lib\tbb\include"
+				Optimization="0"
+				AdditionalIncludeDirectories="&quot;$(SolutionDir)/utils&quot;;&quot;$(SolutionDir)/utils/src&quot;;&quot;$(TBB_PATH)/include&quot;"
 				PreprocessorDefinitions="__EXPORTING"
 				RuntimeLibrary="3"
 				WarningLevel="3"
@@ -60,8 +60,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="ha_utils.lib tbb_debug.lib"
-				OutputFile="$(SolutionDir)\exe\debug\ha_alg.dll"
-				AdditionalLibraryDirectories="$(SolutionDir)\exe\debug;X:\lib\tbb\lib\debug\ia32"
+				AdditionalLibraryDirectories="$(SolutionDir)\exe\debug;$(TBB_PATH)\lib\debug\ia32"
 				IgnoreAllDefaultLibraries="false"
 				IgnoreDefaultLibraryNames="tbb.lib"
 				GenerateDebugInformation="true"
@@ -83,6 +82,9 @@
 			/>
 			<Tool
 				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -152,6 +154,9 @@
 				Name="VCAppVerifierTool"
 			/>
 			<Tool
+				Name="VCWebDeploymentTool"
+			/>
+			<Tool
 				Name="VCPostBuildEventTool"
 			/>
 		</Configuration>
@@ -178,7 +183,10 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="$(SolutionDir)/utils;$(SolutionDir)/utils/src;X:\lib\tbb\include"
+				EnableIntrinsicFunctions="true"
+				FavorSizeOrSpeed="1"
+				WholeProgramOptimization="true"
+				AdditionalIncludeDirectories="&quot;$(SolutionDir)/utils&quot;;&quot;$(SolutionDir)/utils/src&quot;;&quot;$(TBB_PATH)/include&quot;"
 				PreprocessorDefinitions="__EXPORTING"
 				RuntimeLibrary="2"
 				WarningLevel="3"
@@ -196,8 +204,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="ha_utils.lib"
-				OutputFile="$(SolutionDir)\exe\release\ha_alg.dll"
-				AdditionalLibraryDirectories="$(SolutionDir)\exe\release;X:\lib\tbb\lib\release\ia32"
+				AdditionalLibraryDirectories="$(SolutionDir)\exe\release;$(TBB_PATH)\lib\release\ia32"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -216,6 +223,9 @@
 			/>
 			<Tool
 				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -281,6 +291,9 @@
 			/>
 			<Tool
 				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"

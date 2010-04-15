@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="windows-1251"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9,00"
+	Version="8,00"
 	Name="ha_utils"
 	ProjectGUID="{7D5E91A2-91B1-4841-B3FD-D990C508AC59}"
 	RootNamespace="ha_utils"
 	Keyword="Win32Proj"
-	TargetFrameworkVersion="131072"
 	>
 	<Platforms>
 		<Platform
@@ -42,7 +41,8 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="&quot;$(ProjectDir)&quot;;X:\lib\tbb\include"
+				Optimization="0"
+				AdditionalIncludeDirectories="&quot;$(ProjectDir)&quot;;$(TBB_PATH)\include"
 				PreprocessorDefinitions="__EXPORTING"
 				RuntimeLibrary="3"
 				WarningLevel="3"
@@ -60,8 +60,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="tbb_debug.lib"
-				OutputFile="$(SolutionDir)\exe\debug\ha_utils.dll"
-				AdditionalLibraryDirectories="X:\lib\tbb\lib\debug\ia32"
+				AdditionalLibraryDirectories="$(TBB_PATH)\lib\debug\ia32"
 				IgnoreDefaultLibraryNames="tbb.lib"
 				GenerateDebugInformation="true"
 			/>
@@ -82,6 +81,9 @@
 			/>
 			<Tool
 				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -150,6 +152,9 @@
 				Name="VCAppVerifierTool"
 			/>
 			<Tool
+				Name="VCWebDeploymentTool"
+			/>
+			<Tool
 				Name="VCPostBuildEventTool"
 			/>
 		</Configuration>
@@ -176,7 +181,10 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="&quot;$(ProjectDir)&quot;;X:\lib\tbb\include"
+				EnableIntrinsicFunctions="true"
+				FavorSizeOrSpeed="1"
+				WholeProgramOptimization="true"
+				AdditionalIncludeDirectories="&quot;$(ProjectDir)&quot;;$(TBB_PATH)\include"
 				PreprocessorDefinitions="__EXPORTING"
 				RuntimeLibrary="2"
 				WarningLevel="3"
@@ -193,8 +201,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				OutputFile="$(SolutionDir)\exe\release\ha_utils.dll"
-				AdditionalLibraryDirectories="X:\lib\tbb\lib\release\ia32"
+				AdditionalLibraryDirectories="$(TBB_PATH)\lib\release\ia32"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -213,6 +220,9 @@
 			/>
 			<Tool
 				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -277,6 +287,9 @@
 			/>
 			<Tool
 				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
