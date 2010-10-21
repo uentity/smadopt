@@ -6,7 +6,6 @@
 	ProjectGUID="{10F9E9E3-92E5-4779-9CF0-8258151157F7}"
 	RootNamespace="ga_client"
 	Keyword="Win32Proj"
-	TargetFrameworkVersion="131072"
 	>
 	<Platforms>
 		<Platform
@@ -42,7 +41,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="x:\lib\tbb\include;&quot;$(SolutionDir)alg\src&quot;;&quot;$(SolutionDir)utils\src&quot;"
+				AdditionalIncludeDirectories="x:\lib\tbb\include;&quot;$(SolutionDir)alg\src&quot;;&quot;$(SolutionDir)utils\src&quot;;$(BOOST_PATH)"
 				RuntimeLibrary="3"
 			/>
 			<Tool
@@ -78,6 +77,9 @@
 			/>
 			<Tool
 				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -142,6 +144,9 @@
 				Name="VCAppVerifierTool"
 			/>
 			<Tool
+				Name="VCWebDeploymentTool"
+			/>
+			<Tool
 				Name="VCPostBuildEventTool"
 			/>
 		</Configuration>
@@ -168,7 +173,8 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="x:\lib\tbb\include;&quot;$(SolutionDir)alg\src&quot;;&quot;$(SolutionDir)utils\src&quot;"
+				AdditionalIncludeDirectories="x:\lib\tbb\include;&quot;$(SolutionDir)alg\src&quot;;&quot;$(SolutionDir)utils\src&quot;;$(BOOST_PATH)"
+				RuntimeLibrary="2"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -204,11 +210,15 @@
 				Name="VCAppVerifierTool"
 			/>
 			<Tool
+				Name="VCWebDeploymentTool"
+			/>
+			<Tool
 				Name="VCPostBuildEventTool"
 			/>
 		</Configuration>
 		<Configuration
 			Name="Release|x64"
+			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
 			ConfigurationType="1"
 			>
 			<Tool
@@ -264,6 +274,9 @@
 				Name="VCAppVerifierTool"
 			/>
 			<Tool
+				Name="VCWebDeploymentTool"
+			/>
+			<Tool
 				Name="VCPostBuildEventTool"
 			/>
 		</Configuration>
@@ -284,6 +297,10 @@
 				RelativePath=".\src\kar2words.cpp"
 				>
 			</File>
+			<File
+				RelativePath=".\src\test_fcn.cpp"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -296,6 +313,10 @@
 			</File>
 			<File
 				RelativePath=".\src\kar2words.h"
+				>
+			</File>
+			<File
+				RelativePath=".\src\test_fcn.h"
 				>
 			</File>
 		</Filter>

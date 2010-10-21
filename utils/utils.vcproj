@@ -42,7 +42,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="&quot;$(ProjectDir)&quot;;$(TBB_PATH)\include"
+				AdditionalIncludeDirectories="&quot;$(ProjectDir)&quot;;$(TBB_PATH)\include;$(BOOST_PATH)"
 				PreprocessorDefinitions="__EXPORTING"
 				RuntimeLibrary="3"
 				WarningLevel="3"
@@ -184,7 +184,7 @@
 				EnableIntrinsicFunctions="true"
 				FavorSizeOrSpeed="1"
 				WholeProgramOptimization="true"
-				AdditionalIncludeDirectories="&quot;$(ProjectDir)&quot;;$(TBB_PATH)\include"
+				AdditionalIncludeDirectories="&quot;$(ProjectDir)&quot;;$(TBB_PATH)\include;$(BOOST_PATH)"
 				PreprocessorDefinitions="__EXPORTING"
 				RuntimeLibrary="2"
 				WarningLevel="3"
