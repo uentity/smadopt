@@ -85,8 +85,8 @@ private:
 	//commonly used matrices
 	typedef TMatrix< double, val_buffer > Matrix;
 	typedef std::auto_ptr< Matrix > dMPtr;
-	typedef typename std::vector< double >::iterator dr_iterator;
-	typedef typename std::vector< double >::const_iterator cdr_iterator;
+	typedef typename val_buffer< double >::r_iterator dr_iterator;
+	typedef typename val_buffer< double >::cr_iterator cdr_iterator;
 
 	//data members
 	sp_buf data_;
@@ -1122,7 +1122,7 @@ public:
 		buf_iterator pos = buf_begin() + nColumn;
 		for(size_type i=0; i<rows_; ++i) {
 			data_->erase(pos, pos + nNum);
-			pos = pos + cols_ - nNum;
+			pos += cols_ - nNum;
 		}
 		cols_ -= nNum;
 		if(cols_ == 0) rows_ = 0;
@@ -1131,14 +1131,14 @@ public:
 
 	this_t& Resize(size_type newRows = 0, size_type newCols = 0, buf_value_type fill_val = 0)
 	{
-		//correct rows - just resize
+		// correct rows - just resize
 		if(newRows > 0 && newRows != rows_) {
 			rows_ = newRows;
 			if(cols_ == 0) cols_ = 1;
 			size_ = rows_*cols_;
 			data_->resize(size_);
 		}
-		//resize in columns
+		// resize in columns
 		if(newCols > 0 && newCols != cols_) {
 			if(newCols > cols_) {
 				//reserve memory
@@ -1162,12 +1162,13 @@ public:
 
 	this_t& raw_resize(size_type newRows = 0, size_type newCols = 0, buf_value_type fill_val = 0) {
 		size_ = newRows * newCols;
-		data_->resize(size_, fill_val);
 		if(size_) {
+			data_->resize(size_, fill_val);
 			rows_ = newRows; cols_ = newCols;
 		}
 		else {
 			//matrix cleared
+			data_->clear();
 			rows_ = cols_ = 0;
 		}
 		return *this;
