@@ -395,6 +395,8 @@ namespace NN {
 
 		objnet();
 		virtual ~objnet() {};
+		// operator = for making copies
+		objnet& operator=(const objnet& rhs);
 
 		//access to input layer
 		layer& get_input() {
@@ -457,17 +459,22 @@ namespace NN {
 	{
 	public:
 		bp_layer(objnet& net, ulong neurons_count = 0, int af_type = logsig)
-			:layer(net, neurons_count, af_type)
+			: layer(net, neurons_count, af_type)
 		{}
 
 		bp_layer(objnet& net, const iMatrix& act_fun)
-			:layer(net, act_fun)
+			: layer(net, act_fun)
 		{}
 
 		//copy constructor
 		bp_layer(const layer& l)
-			:layer(l)
+			: layer(l)
 		{}
+
+		bp_layer& operator=(const layer& rhs) {
+			layer::operator=(rhs);
+			return *this;
+		}
 	};
 
 	class _CLASS_DECLSPEC mlp : public objnet

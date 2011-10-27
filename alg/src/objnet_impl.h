@@ -148,6 +148,23 @@ objnet::objnet(nn_opt* opt) :
 	state_.status = not_learned;
 }
 
+objnet& objnet::operator=(const objnet& rhs) {
+	// copy input;
+	input_ = rhs.input_;
+	// copy layers
+	sp_layer l;
+	layers_.NewMatrix(rhs.layers_.size(), 1);
+	for(ulong i = 0; i < rhs.layers_.size(); ++i) {
+		l = new layer(*this);
+		*l = rhs.layers_[i];
+		layers_.at_buf(i) = l;
+	}
+	// copy states
+	state_ = rhs.state_;
+	xvalid_state_ = rhs.xvalid_state_;
+	return *this;
+}
+
 void objnet::set_input_size(ulong inp_size, bitMatrix *const pConMat)
 {
 	input_.init(inp_size, purelin);
@@ -619,7 +636,7 @@ ulong objnet::check_early_stop(nnState& state, const Matrix& test_set, const Mat
 	//check stop conditions with patience
 	xvalid_state_.perf = val_err;
 	xvalid_state_.cycle = state.cycle;
-	check_patience(xvalid_state_, 0.001, 5, stop_test_validation);
+	check_patience(xvalid_state_, 0.1, 50, stop_test_validation);
 	//cout << "check_early_stop: patience_counter = " << xvalid_state_.patience_counter << endl;
 	if(xvalid_state_.status == stop_test_validation)
 		state.status = xvalid_state_.status;
