@@ -17,6 +17,8 @@ using namespace GA;
 using namespace KM;
 
 #define KM_CALC_DIST_MAT_METHOD 1
+#define MERGE_THRESH 0.5
+#define MERGE_EPS 0.005
 
 /*
 void DumpM(ulMatrix* m, char* pFname = NULL)
@@ -198,6 +200,8 @@ private:
 	Matrix f_, v_, oldc_;
 	double preve_;
 	ulong cycle_, ni_cycles_;
+	// statisctics for input data
+	norm_tools::dist_stat srcp_stat_;
 
 	Matrix (*_pNormFcn)(const Matrix&, const Matrix&);
 	Matrix (*_pDerivFcn)(const Matrix&, const Matrix&);
@@ -224,6 +228,7 @@ private:
 	void online_phase(ulong maxiter);
 	void online_phase_simple(ulong maxiter);
 	bool join_phase(ulong maxiter);
+	bool merge_step_classic();
 
 	bool patience_check();
 	//Xie-Beni validity check for current partitioning
@@ -264,67 +269,6 @@ public:
 //----------------------------kmeans_impl implementation--------------------------------------------------------------
 double kmeans::kmeans_impl::_drop_params::init_r_ = 0;
 
-//void kmeans::kmeans_impl::l2_norm(const Matrix& dv, const Matrix& points, Matrix& norm) const {
-//	norm.Resize(1, points.row_num());
-//	//Matrix diff;
-//	for(ulong i = 0; i < points.row_num(); ++i) {
-//		norm[i] = (dv - points.GetRows(i)).norm2();
-//	}
-//}
-//
-//Matrix kmeans::kmeans_impl::l2_deriv(ulong dv_ind, const Matrix& center) const {
-//	return (data_.GetRows(dv_ind) - center);
-//}
-
-//Matrix kmeans::kmeans_impl::l2f_deriv(ulong dv_ind, const Matrix& center) const {
-//	double mult = 1;
-//	//find minimum in current cluster
-//	//double fmin = f_[dv_ind];
-//	//ulong dv_min = dv_ind;
-//	//for(ulong i = 0; i < data_.row_num(); ++i)
-//	//	if(w_[i] == w_[dv_ind] && f_[i] < fmin) {
-//	//		fmin = f_[i];
-//	//		dv_min = i;
-//	//	}
-//	//do a step also in direction to minimum
-//	//return (data_.GetRows(dv_min) - center);
-//	//return (data_.GetRows(dv_ind) - center + data_.GetRows(dv_min) - center)/2;
-//
-//	//mult = 1 + norms_[dv_ind];
-//	//if(mult != 0)
-//	//mult = f_[dv_ind] / (mult*mult);
-//
-//	//double sigma = 0;
-//	//for(ulong i = 0; i < data_.row_num(); ++i) {
-//	//	if(w_[i] == w_[dv_ind]) sigma += norms_[i];
-//	//}
-//	//sigma /= data_.row_num();
-//	//mult = exp(-norms_[dv_ind]/(sigma*sigma)) * f_[dv_ind];
-//
-//	double min_f = f_[dv_ind], sigma = 0;
-//	ulong cnt = 0;
-//	for(ulong i = 1; i < data_.row_num(); ++i) {
-//		if(w_[i] == w_[dv_ind]) {
-//			 if(f_[i] < min_f) min_f = f_[i];
-//			sigma += f_[i];
-//			++cnt;
-//		}
-//	}
-//	sigma -= cnt*min_f;
-//	mult = exp(-(f_[dv_ind] - min_f)/sigma);
-//
-//	return (data_.GetRows(dv_ind) - center) * mult;
-//
-//	//approximate gradient
-//	//Matrix dv(data_.GetRows(dv_ind)), g(1, data_.col_num(), 0);
-//	//for(ulong i = 0; i < data_.row_num(); ++i) {
-//	//	if(w_[i] == w_[dv_ind] && norms_[i] > 0)
-//	//		g += (data_.GetRows(i) - center) / sqrt(norms_[i]);
-//	//}
-//	//g /= data_.row_num();
-//	//return (dv - center + g)/2;
-//}
-
 void kmeans::kmeans_impl::simple_shuffle(ul_vec& porder)
 {
 	random_shuffle(porder.begin(), porder.end(), prg::randIntUB);
@@ -353,7 +297,7 @@ bool kmeans::kmeans_impl::patience_check()
 		ni_cycles_ = 0;
 		preve_ = e_;
 	}
-	else if(preve_ - e_ > opt_.patience*preve_) {
+	else if(abs(preve_ - e_) > opt_.patience*preve_) {
 		ni_cycles_ = 0;
 		preve_ = e_;
 	}
@@ -453,6 +397,10 @@ void kmeans::kmeans_impl::seed(const Matrix& data, ulong clust_num, const Matrix
 	w_.NewMatrix(1, data.row_num());
 	norms_.NewMatrix(1, data.row_num());
 	cycle_ = 0;
+
+	//calc statistics for source points distribution
+	Matrix dist;
+	srcp_stat_ = norm_tools::calc_dist_matrix< norm_tools::l2 >(data, dist);
 }
 
 void kmeans::kmeans_impl::calc_winners(km_data& kmd) const
@@ -589,17 +537,17 @@ void kmeans::kmeans_impl::selection_batch_update()
 	Matrix f;
 	for(ulong i = 0; i < c_.row_num(); ++i) {
 		new_c = 0; pat_cnt = 0;
-		//affilation-based algorithm
-		//collect function values of given cluster
+		// affilation-based algorithm
+		// collect function values of given cluster
 		ul_vec& cent_aff = aff_[i];
-		f.clear();
+		f.clear(); f.reserve(cent_aff.size());
 		for(ulong j = 0; j < cent_aff.size(); ++j)
 			f.push_back(f_[cent_aff[j]], false);
-		//calculate new center
+		// calculate new center
 		if(f.size()) {
-			//calc probabilities of selection
+			// calc probabilities of selection
 			sel_ind <<= get_ps().selection(f);
-			//calculate new center position based on selection indices
+			// calculate new center position based on selection indices
 			for(ulong j = 0; j < sel_ind.size(); ++j)
 				new_c += data_.GetRows(cent_aff[sel_ind[j]]);
 			new_c /= sel_ind.size();
@@ -899,15 +847,69 @@ bool kmeans::kmeans_impl::join_phase(ulong maxiter)
 	for(ulong i = 0; i < merges_cnt.size(); ++i)
 		cout << "Merge criteria " << i << " fires: " << merges_cnt[i] << endl;
 
-	//merge centers
-	//if(c1 < c2) {
-	//	c_.DelRows(c2); c_.DelRows(c1);
-	//}
-	//else {
-	//	c_.DelRows(c1); c_.DelRows(c2);
-	//}
-	//c_ &= c;
 	return true;
+}
+
+bool kmeans::kmeans_impl::merge_step_classic() {
+
+	//test if any centers are coinsident and merge them
+	//first of all calc centers distance matrix
+	Matrix dist;
+	//compute distance between p_xy
+	norm_tools::dist_stat stat = norm_tools::calc_dist_matrix< norm_tools::l2 >(c_, dist);
+
+	//dynamically calc min distance between centers
+	double merge_thresh = MERGE_EPS;
+	if(c_.size() > 2)
+		merge_thresh = (stat.mean_nn_ + srcp_stat_.mean_nn_) * MERGE_THRESH * 0.5;
+
+	//DEBUG
+	//dist.Resize(1, dist.row_num() * dist.col_num());
+	//find closest pairs
+	Matrix::indMatrix pairs;
+	pairs = norm_tools::closest_pairs< norm_tools::l2 >(dist);
+
+	//find merge cutoff
+	ulong merge_cnt = (ulong)(find_if(dist.begin(), dist.end(), bind2nd(greater< double >(), merge_thresh))
+								- dist.begin());
+	if(merge_cnt == dist.size())
+		//nothing to merge
+		return false;
+
+	//merged centers indexes
+	typedef set< ulong, greater< ulong > > merged_idx;
+	merged_idx mc;
+	Matrix new_c;
+
+	//codebook with merged centers
+	//da_data new_cb;
+	ulong cv1, cv2;
+	//first pass - compute merged centers
+	for(ulong i = 0; i < merge_cnt; ++i) {
+		//extract centers pair
+		cv1 = pairs[i] / c_.size(); cv2 = pairs[i] % c_.size();
+		//check if any of these codevectors already marked to merge
+		if(mc.find(cv1) != mc.end() || mc.find(cv2) != mc.end())
+			continue;
+		//mark centers as merged
+		mc.insert(cv1); mc.insert(cv2);
+		new_c &= c_.GetRows(cv1);
+	}
+
+	if(mc.size()) {
+		//remove merged centers
+		for(merged_idx::const_iterator pc = mc.begin(), end = mc.end(); pc != end; ++pc) {
+			c_.DelRows(*pc);
+		}
+		//add discovered centers
+		c_ &= new_c;
+		// update affiliation
+		calc_winners(*this);
+		// disp statistics
+		cout << "Closest merges count: " << new_c.row_num() << endl;
+		return true;
+	}
+	return false;
 }
 
 void kmeans::kmeans_impl::find_clusters(const Matrix& data, ulong clust_num, ulong maxiter,
@@ -930,20 +932,6 @@ void kmeans::kmeans_impl::find_clusters_f(const Matrix& data, const Matrix& f, u
 	//set initial centers
 	seed(data, clust_num, pCent, use_prev_cent);
 	f_ = f;
-	//do batch phase to minimize norm sum
-	//batch_phase(maxiter);
-
-	//calc initial centers-winners for each data point
-	/*
-	Matrix dv, norm;
-	for(ulong i = 0; i < data_.row_num(); ++i) {
-		dv <<= data_.GetRows(i);
-		(this->*pNormFcn)(dv, c_, norm);
-		//norms_.SetRows(norm, i);
-		w_[i] = norm.ElementInd(norm.Min());
-		norms_[i] = norm[w_[i]];
-	}
-	*/
 
 	//now start main online phase
 	//pDerivFcn = &kmeans_impl::l2f_deriv;
@@ -957,12 +945,13 @@ void kmeans::kmeans_impl::find_clusters_f(const Matrix& data, const Matrix& f, u
 		cout << "find_clusters_f: iteration " << i << " finished" << endl;
 		cout << "centers dump (" << c_.row_num() << "):" << endl;
 		c_.Print(cout);
-		//do join phase
-	} while(join_phase(maxiter));
-	//ensure correct center locations after last merging
-	calc_winners(*this);
-	//(this->*_pBUFcn)();
-	//batch_phase(maxiter);
+	} while(merge_step_classic() | join_phase(maxiter));
+	//} while(join_phase(maxiter));
+	
+	// run online_phase
+	online_phase(maxiter);
+	// ensure correct center locations after last merging
+	//calc_winners(*this);
 }
 
 template<class dist_buf>
