@@ -7,7 +7,7 @@
 		#define _LIBAPI extern "C" __declspec(dllexport)
 		#define _CLASS_DECLSPEC __declspec(dllexport)
 	#else
-		#define _LIBAPI __declspec(dllimport)
+		#define _LIBAPI extern "C" __declspec(dllimport)
 		#define _CLASS_DECLSPEC __declspec(dllimport)
 	#endif
 

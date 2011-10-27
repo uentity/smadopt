@@ -432,7 +432,7 @@ public:
 					ulong max_linew = 0;
 					string::size_type line_a = 0, line_b;
 					while(line_a < cell.size() && (line_b = cell.find('\n', line_a)) != string::npos) {
-						max_linew = max(max_linew, line_b - line_a);
+						max_linew = max< ulong >(max_linew, line_b - line_a);
 						line_a = line_b + 1;
 					}
 					if(max_linew == 0) max_linew = cell.size();

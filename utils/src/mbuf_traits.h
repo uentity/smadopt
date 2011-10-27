@@ -2,15 +2,15 @@
 #define _MBUF_TRAITS
 
 #include "common.h"
-#include <boost/pool/pool_alloc.hpp>
+//#include <boost/pool/pool_alloc.hpp>
 
 //-----------------------------------Matrix buffers traits begin-----------------------------------------
 template< class T >
 struct val_buffer
 {
 	typedef T value_type;
-	//typedef std::vector< T > buf_type;
-	typedef std::vector< T, boost::pool_allocator< T > > buf_type;
+	typedef std::vector< T > buf_type;
+	//typedef std::vector< T, boost::pool_allocator< T > > buf_type;
 	typedef typename buf_type::iterator r_iterator;
 	typedef typename buf_type::const_iterator cr_iterator;
 	typedef typename buf_type::reference reference;
