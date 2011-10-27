@@ -42,6 +42,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				AdditionalIncludeDirectories="x:\lib\tbb\include;&quot;$(SolutionDir)alg\src&quot;;&quot;$(SolutionDir)utils\src&quot;;$(BOOST_PATH)"
+				PreprocessorDefinitions="NOMINMAX"
 				RuntimeLibrary="3"
 			/>
 			<Tool
@@ -174,6 +175,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				AdditionalIncludeDirectories="x:\lib\tbb\include;&quot;$(SolutionDir)alg\src&quot;;&quot;$(SolutionDir)utils\src&quot;;$(BOOST_PATH)"
+				PreprocessorDefinitions="NOMINMAX"
 				RuntimeLibrary="2"
 			/>
 			<Tool
@@ -254,6 +256,140 @@
 				AdditionalOptions="/NODEFAULTLIB:libcmt"
 				AdditionalDependencies="ha_utils.lib ha_alg.lib"
 				AdditionalLibraryDirectories="$(SolutionDir)exe\release;x:\lib\tbb\lib\release"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
+		</Configuration>
+		<Configuration
+			Name="Release_x64|Win32"
+			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
+			IntermediateDirectory="$(ConfigurationName)"
+			ConfigurationType="1"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalIncludeDirectories="x:\lib\tbb\include;&quot;$(SolutionDir)alg\src&quot;;&quot;$(SolutionDir)utils\src&quot;;$(BOOST_PATH)"
+				PreprocessorDefinitions="NOMINMAX"
+				RuntimeLibrary="2"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalOptions="/NODEFAULTLIB:libcmt"
+				AdditionalDependencies="ha_utils.lib ha_alg.lib"
+				AdditionalLibraryDirectories="$(SolutionDir)exe\release;x:\lib\tbb\lib\release\ia32"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
+		</Configuration>
+		<Configuration
+			Name="Release_x64|x64"
+			OutputDirectory="$(SolutionDir)$(PlatformName)\$(ConfigurationName)"
+			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
+			ConfigurationType="1"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+				TargetEnvironment="3"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalIncludeDirectories="x:\lib\tbb\include;&quot;$(SolutionDir)alg\src&quot;;&quot;$(SolutionDir)utils\src&quot;"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalOptions="/NODEFAULTLIB:libcmt"
+				AdditionalDependencies="ha_utils.lib ha_alg.lib"
+				AdditionalLibraryDirectories="$(SolutionDir)exe\release;x:\lib\tbb\lib\release"
+				TargetMachine="17"
 			/>
 			<Tool
 				Name="VCALinkTool"

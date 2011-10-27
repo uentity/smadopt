@@ -43,7 +43,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="&quot;$(ProjectDir)&quot;;$(TBB_PATH)\include;$(BOOST_PATH)"
-				PreprocessorDefinitions="__EXPORTING"
+				PreprocessorDefinitions="__EXPORTING;NOMINMAX"
 				RuntimeLibrary="3"
 				WarningLevel="3"
 				DebugInformationFormat="4"
@@ -113,7 +113,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				AdditionalIncludeDirectories="&quot;$(ProjectDir)&quot;;X:\lib\tbb\include"
-				PreprocessorDefinitions="__EXPORTING"
+				PreprocessorDefinitions="__EXPORTING;NOMINMAX"
 				RuntimeLibrary="3"
 			/>
 			<Tool
@@ -130,7 +130,7 @@
 				AdditionalOptions="/NODEFAULTLIB:libcmt"
 				AdditionalDependencies="tbb_debug.lib"
 				OutputFile="$(SolutionDir)\exe\debug\ha_utils.dll"
-				AdditionalLibraryDirectories="X:\lib\tbb\lib\debug"
+				AdditionalLibraryDirectories="X:\lib\tbb\lib\debug\intel64"
 				IgnoreDefaultLibraryNames="tbb.lib"
 			/>
 			<Tool
@@ -185,7 +185,7 @@
 				FavorSizeOrSpeed="1"
 				WholeProgramOptimization="true"
 				AdditionalIncludeDirectories="&quot;$(ProjectDir)&quot;;$(TBB_PATH)\include;$(BOOST_PATH)"
-				PreprocessorDefinitions="__EXPORTING"
+				PreprocessorDefinitions="__EXPORTING;NOMINMAX"
 				RuntimeLibrary="2"
 				WarningLevel="3"
 				DebugInformationFormat="3"
@@ -252,7 +252,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				AdditionalIncludeDirectories="&quot;$(ProjectDir)&quot;;X:\lib\tbb\include"
-				PreprocessorDefinitions="__EXPORTING"
+				PreprocessorDefinitions="__EXPORTING;NOMINMAX"
 				RuntimeLibrary="2"
 			/>
 			<Tool
@@ -269,6 +269,145 @@
 				AdditionalOptions="/NODEFAULTLIB:libcmt"
 				OutputFile="$(SolutionDir)\exe\release\ha_utils.dll"
 				AdditionalLibraryDirectories="X:\lib\tbb\lib\release"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
+		</Configuration>
+		<Configuration
+			Name="Release_x64|Win32"
+			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
+			IntermediateDirectory="$(ConfigurationName)"
+			ConfigurationType="2"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				EnableIntrinsicFunctions="true"
+				FavorSizeOrSpeed="1"
+				WholeProgramOptimization="true"
+				AdditionalIncludeDirectories="&quot;$(ProjectDir)&quot;;$(TBB_PATH)\include;$(BOOST_PATH)"
+				PreprocessorDefinitions="__EXPORTING;NOMINMAX"
+				RuntimeLibrary="2"
+				WarningLevel="3"
+				DebugInformationFormat="3"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalLibraryDirectories="$(TBB_PATH)\lib\release\ia32"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
+		</Configuration>
+		<Configuration
+			Name="Release_x64|x64"
+			OutputDirectory="$(SolutionDir)$(PlatformName)\$(ConfigurationName)"
+			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
+			ConfigurationType="2"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+				TargetEnvironment="3"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalIncludeDirectories="&quot;$(ProjectDir)&quot;;X:\lib\tbb\include"
+				PreprocessorDefinitions="__EXPORTING;NOMINMAX"
+				RuntimeLibrary="2"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalOptions="/NODEFAULTLIB:libcmt"
+				OutputFile="$(SolutionDir)\exe\release\ha_utils.dll"
+				AdditionalLibraryDirectories="X:\lib\tbb\lib\release\intel64"
+				TargetMachine="17"
 			/>
 			<Tool
 				Name="VCALinkTool"

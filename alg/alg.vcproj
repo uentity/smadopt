@@ -43,7 +43,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="&quot;$(SolutionDir)/utils&quot;;&quot;$(SolutionDir)/utils/src&quot;;&quot;$(TBB_PATH)/include&quot;;$(BOOST_PATH)"
-				PreprocessorDefinitions="__EXPORTING;_WIN32_WINNT=0x502"
+				PreprocessorDefinitions="__EXPORTING;_WIN32_WINNT=0x502;NOMINMAX"
 				RuntimeLibrary="3"
 				WarningLevel="3"
 				DebugInformationFormat="4"
@@ -131,7 +131,7 @@
 				AdditionalOptions="/NODEFAULTLIB:libcmt"
 				AdditionalDependencies="ha_utils.lib tbb_debug.lib"
 				OutputFile="$(SolutionDir)\exe\debug\ha_alg.dll"
-				AdditionalLibraryDirectories="$(SolutionDir)\exe\debug;X:\lib\tbb\lib\debug"
+				AdditionalLibraryDirectories="$(SolutionDir)\exe\debug;X:\lib\tbb\lib\debug\intel64"
 				IgnoreAllDefaultLibraries="false"
 				IgnoreDefaultLibraryNames="tbb.lib"
 			/>
@@ -187,7 +187,7 @@
 				FavorSizeOrSpeed="1"
 				WholeProgramOptimization="true"
 				AdditionalIncludeDirectories="&quot;$(SolutionDir)/utils&quot;;&quot;$(SolutionDir)/utils/src&quot;;&quot;$(TBB_PATH)/include&quot;;$(BOOST_PATH)"
-				PreprocessorDefinitions="__EXPORTING;_WIN32_WINNT=0x502"
+				PreprocessorDefinitions="__EXPORTING;_WIN32_WINNT=0x502;NOMINMAX"
 				RuntimeLibrary="2"
 				WarningLevel="3"
 				DebugInformationFormat="3"
@@ -273,6 +273,147 @@
 				AdditionalDependencies="ha_utils.lib"
 				OutputFile="$(SolutionDir)\exe\release\ha_alg.dll"
 				AdditionalLibraryDirectories="$(SolutionDir)\exe\release;X:\lib\tbb\lib\release"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
+		</Configuration>
+		<Configuration
+			Name="Release_x64|Win32"
+			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
+			IntermediateDirectory="$(ConfigurationName)"
+			ConfigurationType="2"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				EnableIntrinsicFunctions="true"
+				FavorSizeOrSpeed="1"
+				WholeProgramOptimization="true"
+				AdditionalIncludeDirectories="&quot;$(SolutionDir)/utils&quot;;&quot;$(SolutionDir)/utils/src&quot;;&quot;$(TBB_PATH)/include&quot;;$(BOOST_PATH)"
+				PreprocessorDefinitions="__EXPORTING;_WIN32_WINNT=0x502;NOMINMAX"
+				RuntimeLibrary="2"
+				WarningLevel="3"
+				DebugInformationFormat="3"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalDependencies="ha_utils.lib"
+				AdditionalLibraryDirectories="$(SolutionDir)\exe\release;$(TBB_PATH)\lib\release\ia32"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
+		</Configuration>
+		<Configuration
+			Name="Release_x64|x64"
+			OutputDirectory="$(SolutionDir)$(PlatformName)\$(ConfigurationName)"
+			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
+			ConfigurationType="2"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+				TargetEnvironment="3"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalIncludeDirectories="$(SolutionDir)/utils;$(SolutionDir)/utils/src;X:\lib\tbb\include"
+				PreprocessorDefinitions="__EXPORTING;_WIN32_WINNT=0x502;NOMINMAX"
+				RuntimeLibrary="2"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalOptions="/NODEFAULTLIB:libcmt"
+				AdditionalDependencies="ha_utils.lib"
+				OutputFile="$(SolutionDir)\exe\release\ha_alg.dll"
+				AdditionalLibraryDirectories="$(SolutionDir)\exe\release;X:\lib\tbb\lib\release\intel64"
+				TargetMachine="17"
 			/>
 			<Tool
 				Name="VCALinkTool"
