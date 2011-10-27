@@ -33,6 +33,71 @@ void DumpM(Matrix* m, char* pFname = NULL)
 }
 */
 
+/*-----------------------------------------------------------------
+ * hidden namespace with impl deails
+ *----------------------------------------------------------------*/
+namespace {
+
+template< typename T >
+inline bool isanyinf(T value) {
+	return value == std::numeric_limits< T >::infinity() ||
+		value == -std::numeric_limits< T >::infinity();
+}
+
+template< typename T >
+inline bool isnan(T value) {
+	return value != value;
+}
+
+template< typename T >
+inline bool isbad(T value) {
+	return isnan(value) || isanyinf(value);
+}
+
+// for matrices
+template< class T, template< class > class m_traits >
+inline bool isbad(const TMatrix< T, m_traits >& m) {
+	typedef typename TMatrix< T, m_traits >::cr_iterator cr_iterator;
+	for(cr_iterator v = m.begin(), end = m.end(); v != end; ++v) {
+		if(isbad(*v))
+			return true;
+	}
+	return false;
+}
+
+// remove from population items with NAN scores
+Matrix filter_bad_scores(const Matrix& src_pop, const Matrix& src_score, Matrix& dst_pop) {
+	// find bad scores
+	std::set< ulong > bad_idx;
+	const ulong main_idx = src_score.col_num() - 1;
+	//Matrix main_score = src_score.GetColumns(src_score.col_num() - 1);
+	for(ulong i = 0; i < src_score.size(); ++i) {
+		if(isbad(src_score(i, main_idx)))
+			bad_idx.insert(i);
+	}
+
+	Matrix dst_score;
+	if(bad_idx.size()) {
+		dst_score.reserve(src_score.size());
+		dst_pop.clear();
+		dst_pop.reserve(src_pop.size());
+
+		for(ulong i = 0; i < src_score.row_num(); ++i) {
+			if(bad_idx.find(i) != bad_idx.end())
+				continue;
+			dst_pop &= src_pop.GetRows(i);
+			dst_score &= src_score.GetRows(i);
+		}
+	}
+	else {
+		dst_pop <<= src_pop;
+		dst_score <<= src_score;
+	}
+	return dst_score;
+}
+
+} // eof hidden namespace
+
 const char* ga_except::explain_error(int code)
 {
 	switch(code) {
@@ -987,7 +1052,7 @@ Matrix ga::StepGA(const Matrix& thisPop, const Matrix& thisScore, const Matrix& 
 					continue;
 				}
 				h_chrom <<= h_addons.GetRows(j);
-				if(h_chrom == h_chrom) {		//check fo NaN's
+				if(!isbad(h_chrom)) {		//check fo NaN's
 					cout << "GA: " << pAddon->GetName() << " addon " << j << " prediction = " << predict[j] << endl;
 					if(opt_.useBitString) h_chrom <<= Convert2BitPop(h_chrom);
 					nextPop &= h_chrom;
@@ -1421,14 +1486,17 @@ ulMatrix ga::EnsureUnique(Matrix& nextPop, const Matrix& thisPop, const Matrix& 
 
 Matrix ga::StepGACall(const Matrix& thisPop, const Matrix& thisScore, ul_vec& elite_ind, ul_vec& addon_ind, ulong nKids)
 {
+	// filter bad score values from input data
+	Matrix good_pop;
+	Matrix good_score = filter_bad_scores(thisPop, thisScore, good_pop);
 	switch(opt_.subpopT) {
 		default:
 		case NoSubpops:
-			return StepGA(thisPop, thisScore, opt_.initRange, elite_ind, addon_ind, 0, nKids);
+			return StepGA(good_pop, good_score, opt_.initRange, elite_ind, addon_ind, 0, nKids);
 		case Horizontal:
-			return HSPStepGA(thisPop, thisScore, elite_ind, addon_ind);
+			return HSPStepGA(good_pop, good_score, elite_ind, addon_ind);
 		case Vertical:
-			return VSPStepGAalt(thisPop, thisScore, elite_ind, addon_ind, nKids);
+			return VSPStepGAalt(good_pop, good_score, elite_ind, addon_ind, nKids);
 	}
 }
 
@@ -2186,7 +2254,10 @@ Matrix ga::FinishGA(double* pBestPop, double* pBestScore)
 
 void ga::Stop(void)
 {
-	if(state_.nStatus != Idle) state_.nStatus = FinishUserStop;
+	if(state_.nStatus != Idle) {
+		state_.nStatus = FinishUserStop;
+		FinishGA();
+	}
 }
 
 Matrix Read2rows(istream& is)
