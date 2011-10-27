@@ -26,7 +26,7 @@ if average
     all_ind = {};
     for i = 1:asteps
         %run clustering
-        !./ga_client_matlab 2 20
+        !./ga_client_matlab 1 20
         %process experiment results
         [centers, ind, pres, err] = process_data(p, f, real_c, plot_2d, plot_3d);
         %save results
