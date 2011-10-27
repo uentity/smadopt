@@ -390,13 +390,15 @@ class determ_annealing::da_impl : public da_data {
 					new_prob[*pos] += prob_quant;
 				//new_prob = (new_prob + prob)/2
 				new_prob += prob;
-				new_prob /= 2;
+				new_prob *= 0.5;
 				//now we have updated probability distribution - check patience
 				//diff = distance between prob & new_prob
 				diff <<= new_prob - prob;
 				diff *= diff;
-				dist = sqrt(diff.Sum());
-				if(dist < sqrt(prob.Mul(prob).Sum()) * 0.05)
+				//dist = sqrt(diff.Sum());
+				//if(dist < sqrt(prob.Mul(prob).Sum()) * 0.05)
+				dist = diff.Sum();
+				if(dist < prob.Mul(prob).Sum() * 0.0025)
 					stop_patience = true;
 				prob = new_prob;
 			}
@@ -708,14 +710,17 @@ public:
 	const Matrix& dithered_px(ulong cv_id) const {
 		//get original distribution
 		Matrix& px = const_cast< Matrix& >((this->*px_fcn)(cv_id));
+
 		//generate random noise
 		Matrix noise(px.row_num(), px.col_num());
 		generate(noise.begin(), noise.end(), prg::rand01);
-		noise -= 0.5;
+		//noise -= 0.5;
 		//calc correction to make sum of noise = 0
 		double n_item = noise.Sum() / noise.size();
 		//make correction
-		if(n_item != 0) transform(noise, bind2nd(minus< double >(), n_item));
+		noise -= n_item;
+		//if(n_item != 0) transform(noise, bind2nd(minus< double >(), n_item));
+
 		//scale noise
 		noise *= (px.norm2() * dither_amount_) / noise.norm2();
 		//add noise
@@ -1296,7 +1301,7 @@ public:
 		cv1.loc_.Resize(1, x_.col_num());
 		//set initial probabilities to 1
 		cv1.p_ = 1; cv1.px_ = 1;
-		//save firsr cv
+		//save first cv
 		y_[0] = cv1;
 
 		hcd_.w_.Resize(1, x_.row_num());
