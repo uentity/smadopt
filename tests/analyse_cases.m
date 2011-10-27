@@ -5,6 +5,8 @@ if nargin < 4
 end
 % cd(root_dir);
 
+cmap = {'-r','-g','-b','-c','-m','-y','-k','--b'};
+
 disp('==================================================================================================');
 res = [];
 graphs = cell(1, exp_num);
@@ -39,6 +41,7 @@ for i=1:exp_num
         end
         %calc mean improvement
         ind = find(a{j}(1:end, 7) ~= 0);
+		ind(find(ind == 1)) = [];
         mean_improve = [mean_improve; a{j}(ind, 3) ./ a{j}(ind - 1, 3)];
         mean_best_val = mean_best_val + min(a{j}(1:end, 3));
         m_epoch = m_epoch + rnum;
@@ -98,7 +101,7 @@ for i=1:exp_num
 	% score = 0.4 * m_phits + 0.2 * mean_improve + 0.1 * mean_dev + 
 	%score = (res(1, i) + res(4, i) + res(5, i)) / (1 + res(2, i) + res(6, i) + res(7, i));
 	%fprintf('Final score: %g\n', score);
-    semilogy(mean_ff, '--k', 'LineWidth', 1);
+    semilogy(mean_ff, cmap{i}, 'LineWidth', 1);
     hold on
 end
 
@@ -122,6 +125,7 @@ disp(scores);
 %display best graph in bold
 %[unused, ind] = sort(scores, 'descend');
 semilogy(graphs{find(scores == max(scores))}, '-k', 'LineWidth', 2);
+legend('1','2','3','4','5','6','7','8');
 
 set(gca,'fontsize',12);
 xlabel('Iterations', 'fontsize', 12);

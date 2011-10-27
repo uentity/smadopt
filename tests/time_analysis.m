@@ -10,7 +10,6 @@ vars_n = [5 100];
 do_tex_export = true;
 
 res = cell(length(algo), length(cases));
-fid = 0;
 % iterate through cases
 for c = 1:length(cases)
 	%if do_tex_export
@@ -31,8 +30,9 @@ for c = 1:length(cases)
 			% display
 			[h m sec] = expand_time(s(3));
 			[h1 m1 sec1] = expand_time(s(4));
-			fprintf('Np = %d: I = %d, Ih = %d, th = %g (%g h %g min %g s), tm = %g (%g h %g min %g s)\n', ...
-				np(p), s(1), s(2), s(3), h, m, sec, s(4), h1, m1, sec1);
+			[h2 m2 sec2] = expand_time(s(5));
+			fprintf('Np = %d: I = %d, Ih = %d, th = %g (%g h %g min %g s), tm = %g (%g h %g min %g s), tmc = %g (%g h %g min %g s) \n', ...
+				np(p), s(1), s(2), s(3), h, m, sec, s(4), h1, m1, sec1, s(5), h2, m2, sec2);
 			%if do_tex_export
 			%	tex_write(fid, np(p), s, p == length(np));
 			%end
@@ -70,13 +70,19 @@ if do_tex_export
 					fprintf(fid, ' & & &');
 				end
 				% print Np, t_m
-				[h mn sec] = expand_time(s(p, 4));
-				fprintf(fid, ' & %d & %d:%.2f \\\\', np(p), mn, sec);
+				[~, mn sec] = expand_time(s(p, 4));
+				fprintf(fid, ' & %d & %d:%.2f', np(p), mn, sec);
+				if s(p, 5) > 0
+					[h1 mn1 sec1] = expand_time(s(p, 5));
+					fprintf(fid, ' & %d:%d:%.2f \\\\', h1, mn1, sec1);
+				else
+					fprintf(fid, ' & < 0 \\\\');
+				end
 				% print full or short hline
 				if p == length(np)
 					fprintf(fid, ' \\hline\n');
 				else
-					fprintf(fid, ' \\cline{5-6}\n');
+					fprintf(fid, ' \\cline{5-7}\n');
 				end
             end
         end
@@ -85,6 +91,8 @@ if do_tex_export
 end
 
 function r = proc_algo(std_g, alg_g, stat, np)
+% constant aux time
+ta = 30;
 % calc th
 th = 0;
 if(stat(2) > 0)
@@ -99,11 +107,13 @@ end
 % calc tm
 I = length(std_g);
 tm = th*Ih/(np*(I - Ih));
-r = [I Ih th tm];
+% calc tm for cluster
+tmc = th*Ih/(I - Ih) - ta*np;
+r = [I Ih th tm tmc];
 
 function tex_write(fid, p, stat, hline)
 [h mn sec] = expand_time(stat(3));
-[h1 mn1 sec1] = expand_time(stat(4));
+[~, mn1 sec1] = expand_time(stat(4));
 if(stat(4) > 0)
     fprintf(fid, ' & %d & %d & %d & %d:%d:%.2f & %d:%.2f \\\\ ', p, stat(1), stat(2), h, mn, sec, mn1, sec1);
     if(hline)

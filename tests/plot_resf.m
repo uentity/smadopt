@@ -17,9 +17,9 @@ end
 
 do_plot = true;
 do_export = true;
-do_tex_export = true;
-do_time_plot = true;
-do_time_export = true;
+do_tex_export = false;
+do_time_plot = false;
+do_time_export = false;
 
 if do_plot == false
     do_export = false;
@@ -29,16 +29,19 @@ if do_time_plot == false
     do_time_export = false;
 end
 
-exp_templ = {rbn_templ; ccn_templ; cga_templ; mlp_templ};
+%exp_templ = {rbn_templ; ccn_templ; cga_templ; mlp_templ};
+exp_templ = {rbn_templ; mlp_templ; cga_templ};
 cga_idx = 3;
 params = [2 3 5 10 50 100];
 cmap = ['b'; 'r'; 'k'; 'g'];
 line_st = {'-'; '--'; '-'; '.-'};
 line_w = [2 2 1 2];
 font_sz = 16;
-algs = {'ГА+НС'; 'ГА+НС+ДО'; 'ГА'; 'ГА+НС (МП)'};
-algs_label = {'GA+NN'; 'GA+NN+AL'; 'GA'; 'GA+NN (MP)'};
-timel_legend = {'GA+NN'; 'GA+NN+AL'; 'GA+NN (MP'};
+%algs = {'ГА+НС'; 'ГА+НС+ДО'; 'ГА'; 'ГА+НС (МП)'};
+algs = {'ГА+НС'; 'ГА+НС (МП)'; 'ГА'};
+%algs_label = {'GA+NN'; 'GA+NN+AL'; 'GA'; 'GA+NN (MP)'};
+algs_label = {'GA+NN'; 'GA+NN (MP)'; 'GA'};
+timel_legend = {'GA+NN'; 'GA+NN+AL'; 'GA+NN (MP)'};
 % cd(root_dir);
 
 root_dir = strcat(root_dir, '/', fun_t);
@@ -118,8 +121,15 @@ for i=1:exp_num
     end
     
     if do_export
-        fig_name = strcat(fun_t, '_gann_perf_', sprintf('%d', params(i)), '.eps');
-        print('-depsc2', fig_name);
+        fig_name = strcat(fun_t, '_gann_perf_');
+		for t = 1:length(exp_templ)
+			if exp_templ{t} == mlp_templ
+				fig_name = strcat(fig_name, 'mlp_');
+				break;
+			end
+		end
+		fig_name = strcat(fig_name, sprintf('%d', params(i)), '.pdf');
+        print('-dpdf', fig_name);
         %unix(['epstopdf ./' fig_name]);
         %unix(['rm -f ' fig_name]);
     end
