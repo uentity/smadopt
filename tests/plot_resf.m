@@ -17,9 +17,15 @@ end
 
 do_plot = true;
 do_export = true;
-do_tex_export = false;
 do_time_plot = false;
-do_time_export = false;
+do_time_export = true;
+do_tex_export = false;
+lng = 1;
+
+% 1 - normal for inclusion in A4 (disser)
+% 2 - autoref
+% 3 - presentation
+plotmode = 1;
 
 if do_plot == false
     do_export = false;
@@ -30,20 +36,63 @@ if do_time_plot == false
 end
 
 %exp_templ = {rbn_templ; ccn_templ; cga_templ; mlp_templ};
-exp_templ = {rbn_templ; mlp_templ; cga_templ};
+exp_templ = {rbn_templ; ccn_templ; cga_templ};
+%exp_templ = {rbn_templ; mlp_templ; cga_templ};
+
 cga_idx = 3;
 params = [2 3 5 10 50 100];
 cmap = ['b'; 'r'; 'k'; 'g'];
 line_st = {'-'; '--'; '-'; '.-'};
 line_w = [2 2 1 2];
-font_sz = 16;
-%algs = {'ГА+НС'; 'ГА+НС+ДО'; 'ГА'; 'ГА+НС (МП)'};
-algs = {'ГА+НС'; 'ГА+НС (МП)'; 'ГА'};
-%algs_label = {'GA+NN'; 'GA+NN+AL'; 'GA'; 'GA+NN (MP)'};
-algs_label = {'GA+NN'; 'GA+NN (MP)'; 'GA'};
-timel_legend = {'GA+NN'; 'GA+NN+AL'; 'GA+NN (MP)'};
-% cd(root_dir);
+font_nm = 'verdana';
 
+% font_sz here denotes main font size on resulting figure
+% it is passed to plotpdftex
+% figwidth = width of printed figure in cm
+% figscale - scale factor of line widths
+font_sz = 17;
+figwidth = 18.5;
+figscale = 1.1;
+if plotmode == 2
+	font_sz = 20;
+	figscale = 1.5;
+elseif plotmode == 3
+	font_sz = 20;
+	figscale = 1.5;
+end
+
+% tune axes font so that legend on figure from laplot fits the border
+font_sz_axes = font_sz * 1.6;
+
+%algs = {'ГА+НС'; 'ГА+НС+ДО'; 'ГА'; 'ГА+НС (МП)'};
+%algs = {'ГА+НС'; 'ГА+НС+ДО'; 'ГА'};
+algs = {'ГА+НС'; 'ГА+НС (МП)'; 'ГА'};
+
+%algs_label = {'GA+NN'; 'GA+NN+AL'; 'GA'; 'GA+NN (MP)'};
+%algs_label = {'GA+NN'; 'GA+NN (MP)'; 'GA'};
+%algs_label = {'ГА+НС'; 'ГА+НС+ДО'; 'ГА'};
+algs_label = {'ГА+НС'; 'ГА+НС (МП)'; 'ГА'};
+
+%timel_legend = {'GA+NN'; 'GA+NN+AL'; 'GA+NN (MP)'};
+%timel_legend = {'ГА+НС'; 'ГА+НС+ДО'; 'ГА'};
+timel_legend = {'ГА+НС'; 'ГА+НС (МП)'; 'ГА'};
+
+param_num_str = 'Число параметров';
+iterations_str = 'Итерации';
+calc_time_str = 'Процессорное время, ч';
+
+if lng == 1
+	% english labels
+	algs = {'GA+NN'; 'GA+NN+AL'; 'GA'};
+	algs_label = {'GA+NN'; 'GA+NN+AL'; 'GA'};
+	timel_legend = {'GA+NN'; 'GA+NN+AL'; 'GA'};
+
+	param_num_str = 'Prarmeters number';
+	iterations_str = 'Iterations';
+	calc_time_str = 'Calculation time, hrs';
+end
+
+% cd(root_dir);
 root_dir = strcat(root_dir, '/', fun_t);
 
 disp('==================================================================================================');
@@ -62,7 +111,7 @@ for i=1:exp_num
         %calc stats and plot graphs for experiment i
         figure(i);
         h = figure(i);
-        set(h, 'Position', [100 500 600 600]);
+        set(h, 'Position', [100 300 800 600]);
     end
     
     %override iterations limit for rosenb_2 case
@@ -98,7 +147,12 @@ for i=1:exp_num
         
         if do_plot
             %plot off-line performance graph
-            semilogy(graph_i, line_st{t}, 'LineWidth', line_w(t), 'Color', cmap(t));
+			% special tuning for rastrigins fcn with 100 params
+			if strcmp(fun_t, 'rastr') && params(i) == 100
+				plot(graph_i, line_st{t}, 'LineWidth', line_w(t), 'Color', cmap(t));
+			else
+				semilogy(graph_i, line_st{t}, 'LineWidth', line_w(t), 'Color', cmap(t));
+			end
             hold on
         end
         
@@ -108,12 +162,28 @@ for i=1:exp_num
     end
     if do_plot
         %format figure
-        set(gca,'fontsize', font_sz);
+        set(gca,'fontsize', font_sz_axes);
+		set(gca,'fontname', font_nm);
         set(gca, 'xlim', [1 100], 'xtick', [1 20 40 60 80 100]);
-        xlabel('Iterations', 'fontsize', font_sz);
-        ylabel('Objective Function Value', 'fontsize', font_sz);
-        title(sprintf('%d params', params(i)), 'fontsize', font_sz);
-        legend(algs_label);
+        xlabel(strcat('\textbf{', iterations_str, '}'), 'fontsize', font_sz, 'fontname', font_nm);
+		ylbl = '$f';
+		if strcmp(fun_t, 'rastr')
+			ylbl = strcat(ylbl, '_{\text{Ras}}');
+			%if params(i) ~= 100
+			%	ylbl = strcat('\log_{10} ', ylbl);
+			%end
+		elseif strcmp(fun_t, 'rosenb')
+			ylbl = strcat(ylbl, '_{\text{Ros}}');
+		end
+        ylabel(strcat(ylbl, '(\mathbf x)$'), 'fontsize', font_sz, 'fontname', font_nm);
+        title(sprintf(strcat('\\textbf{{', param_num_str, '}} $n$ = %d'), params(i)), 'fontsize', font_sz, 'fontname', font_nm);
+        lh = legend(algs_label);
+		%set(lh, 'FontSize', font_sz);
+		if strcmp(fun_t, 'rastr') && params(i) == 5
+			set(lh, 'Location', 'SouthWest');
+		else
+			set(lh, 'Location', 'NorthEast');
+		end
         %legend('GA+NN', 'GA+NN+AL', 'GA');
         %set(gca, 'XLim', [1 xlim]);
         hold off
@@ -128,8 +198,20 @@ for i=1:exp_num
 				break;
 			end
 		end
-		fig_name = strcat(fig_name, sprintf('%d', params(i)), '.pdf');
-        print('-dpdf', fig_name);
+		fig_name = strcat(fig_name, sprintf('%d', params(i)));
+		if plotmode == 2
+			fig_name = strcat(fig_name, '_aref');
+		elseif plotmode == 3
+			fig_name = strcat(fig_name, '_report');
+		end
+		if lng == 1
+			fig_name = strcat(fig_name, '_en');
+		end
+		% add extension
+		fig_name = strcat(fig_name, '.pdf');
+		% do plotting
+		plotpdftex(h, fig_name, [font_sz figwidth figscale]);
+        %print('-dpdf', fig_name);
         %unix(['epstopdf ./' fig_name]);
         %unix(['rm -f ' fig_name]);
     end
@@ -153,7 +235,7 @@ end
 if do_time_plot
     figure(exp_num + 1);
     h = figure(exp_num + 1);
-    set(h, 'Position', [100 500 600 600]);
+    set(h, 'Position', [100 300 800 600]);
     
     time_line = time_line ./ 3600;
     for i = 1:size(time_line, 2)
@@ -168,18 +250,32 @@ if do_time_plot
     %plot([1:size(time_line, 1)], time_line(1:end, 2), '--r', 'LineWidth', 2);
     
     set(gca, 'XTick', [1:length(params)], 'XTickLabel', params);
-    set(gca,'fontsize', font_sz);
-    xlabel('Parameters Number', 'fontsize', font_sz);
-    ylabel('Processor Time', 'fontsize', font_sz);
+    set(gca,'fontsize', font_sz_axes);
+	set(gca,'fontname', font_nm);
+    xlabel(strcat('\textbf{', param_num_str, '}'), 'fontsize', font_sz, 'fontname', font_nm);
+    ylabel(stract('\textbf{', calc_time_str, '}'), 'fontsize', font_sz, 'fontname', font_nm);
     %title(sprintf('%d params', params(i)), 'fontsize', font_sz);
-    legend(timel_legend);
+    lh = legend(timel_legend);
+	%set(lh, 'FontSize', 23, 'Location', 'NorthWest');
     %legend('GA+NN', 'GA+NN+AL');
     grid on
     hold off
     
     if do_time_export
-        fig_name = strcat(fun_t, '_gann_time_plot.eps');
-        print('-depsc2', fig_name);
+        fig_name = strcat(fun_t, '_gann_time_plot');
+		if plotmode == 2
+			fig_name = strcat(fig_name, '_aref');
+		elseif plotmode == 3
+			fig_name = strcat(fig_name, '_report');
+		end
+		if lng == 1
+			fig_name = strcat(fig_name, '_en');
+		end
+		% add extension
+		fig_name = strcat(fig_name, '.pdf');
+		% do plotting
+		plotpdftex(h, fig_name, [font_sz figwidth figscale]);
+        %print('-dpdf', fig_name);
     end
 end
 
@@ -348,8 +444,20 @@ end
 
 function tex_write(fid, alg_name, stat)
 [h mn sec] = expand_time(stat(3));
+% first part of table
+fmt = '%s & %d & %.2f & %d:%d:%.';
+% if time is < 1 sec then use .4 precision for seconds, otherwise round to
+% integer sec
+if stat(3) < 1
+	fmt = strcat(fmt, '3');
+end
+fmt = strcat(fmt, 'f & ');
 if(length(stat) > 3)
-    fprintf(fid, '%s & %d & %.2f & %d:%d:%.2f & %.2f & %.2f & %.4f \\\\ \\hline\n', alg_name{1}, stat(1), stat(2), h, mn, sec, stat(4), stat(5), stat(7));
+	fmt = strcat(fmt, '%.2f & %.2f & %.2f \\\\ \\hline\n');
+	fprintf(fid, fmt, alg_name{1}, stat(1), stat(2), h, mn, sec, stat(4), stat(5), stat(7));
+    %fprintf(fid, '%s & %d & %.2f & %d:%d:%.f & %.2f & %.2f & %.2f \\\\ \\hline\n', alg_name{1}, stat(1), stat(2), h, mn, sec, stat(4), stat(5), stat(7));
 else
-    fprintf(fid, '%s & %d & %.2f & %d:%d:%.2f & --- & --- & --- \\\\ \\hline\n', alg_name{1}, stat(1), stat(2), h, mn, sec);
+	fmt = strcat(fmt, '--- & --- & --- \\\\ \\hline\n');
+	fprintf(fid, fmt, alg_name{1}, stat(1), stat(2), h, mn, sec);
+    %fprintf(fid, '%s & %d & %.2f & %d:%d:%.f & --- & --- & --- \\\\ \\hline\n', alg_name{1}, stat(1), stat(2), h, mn, sec);
 end

@@ -7,6 +7,10 @@ if nargin < 4
 end
 exp_num = 1;
 
+% plot tuning
+font_size = 14;
+font_name = 'verdana';
+
 % calc cnum
 exps = dir(strcat(root_dir, '/', exp_templ, '*'));
 cnum = length(exps);
@@ -97,9 +101,9 @@ if do_plot
 	%display best graph in bold
 	plot(log10(graphs{scores == max(scores)}), '-k', 'LineWidth', 3);
 	grid('on');
-	set(gca,'fontsize',12);
-	xlabel('Iterations', 'fontsize', 12);
-	ylabel('Objective function value', 'fontsize', 12);
+	set(gca,'fontsize', font_size);
+	xlabel('Итерации', 'fontsize', font_size, 'fontname', font_name);
+	ylabel('Значение целевой функции', 'fontsize', font_size, 'fontname', font_name);
 	hold off
 end
 

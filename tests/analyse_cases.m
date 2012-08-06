@@ -6,6 +6,8 @@ end
 % cd(root_dir);
 
 cmap = {'-r','-g','-b','-c','-m','-y','-k','--b'};
+font_size = 14;
+font_name = 'verdana';
 
 disp('==================================================================================================');
 res = [];
@@ -41,7 +43,7 @@ for i=1:exp_num
         end
         %calc mean improvement
         ind = find(a{j}(1:end, 7) ~= 0);
-		ind(find(ind == 1)) = [];
+		ind(ind == 1) = [];
         mean_improve = [mean_improve; a{j}(ind, 3) ./ a{j}(ind - 1, 3)];
         mean_best_val = mean_best_val + min(a{j}(1:end, 3));
         m_epoch = m_epoch + rnum;
@@ -124,12 +126,12 @@ disp(scores);
 
 %display best graph in bold
 %[unused, ind] = sort(scores, 'descend');
-semilogy(graphs{find(scores == max(scores))}, '-k', 'LineWidth', 2);
+semilogy(graphs{scores == max(scores)}, '-k', 'LineWidth', 2);
 legend('1','2','3','4','5','6','7','8');
 
-set(gca,'fontsize',12);
-xlabel('Iterations', 'fontsize', 12);
-ylabel('Objective Function Value', 'fontsize', 12);
+set(gca,'fontsize', font_size);
+xlabel('Итерации', 'fontsize', font_size, 'fontname', font_name);
+ylabel('Значение целевой функции', 'fontsize', font_size, 'fontname', font_name);
 hold off
 grid('on');
 
