@@ -1059,8 +1059,8 @@ public:
 	{
 		if(size_ == 0) return this_t();
 
-		row = min(row, rows_ - 1);
-		num = min(num, rows_ - row);
+		row = std::min(row, rows_ - 1);
+		num = std::min(num, rows_ - row);
 		//thisMPtr r(new thisMatrix(num, cols_));
 		this_t r(num, cols_);
 		copy(buf_begin() + row*cols_, buf_begin() + (row + num)*cols_, r.buf_begin());
@@ -1107,7 +1107,7 @@ public:
 	void DelRows(size_type row, size_type num = 1)
 	{
 		if(row >= rows_) return;
-		num = min(num, rows_ - row);
+		num = std::min(num, rows_ - row);
 		data_->erase(buf_begin() + row*cols_, buf_begin() + (row + num)*cols_);
 
 		rows_ -= num;
@@ -1223,19 +1223,19 @@ public:
 
 		iter pivot = p + (q - p) / 2;
 		ind_iter pivoti = pi + (qi - pi) / 2;
-		swap(*pivot, *q);
-		swap(*pivoti, *qi);
+		std::swap(*pivot, *q);
+		std::swap(*pivoti, *qi);
 
 		iter mid = p;
 		ind_iter midi = pi;
 		for (; p != q; ++p, ++pi) {
 			if (!pr(*p, *q)) continue;
-			swap(*p, *mid);
-			swap(*pi, *midi);
+			std::swap(*p, *mid);
+			std::swap(*pi, *midi);
 			++mid; ++midi;
 		}
-		swap(*q, *mid);
-		swap(*qi, *midi);
+		std::swap(*q, *mid);
+		std::swap(*qi, *midi);
 		quicksort_track_ind(first, mid, first_ind, pr);
 		quicksort_track_ind(mid + 1, last, midi + 1, pr);
 	}
