@@ -175,8 +175,8 @@ void falman_layer::_construct_aft()
 	aft.push_back(logsig);
 	aft.push_back(tansig);
 	aft.push_back(radbas);
-	//aft.push_back(revradbas);
-	//aft.push_back(multiquad);
+	aft.push_back(revradbas);
+	aft.push_back(multiquad);
 	//aft.push_back(revmultiquad);
 	for(iMatrix::r_iterator p_aft(aft_.begin()); p_aft != aft_.end(); ++p_aft) {
 		*p_aft = aft[prg::randIntUB(aft.size())];

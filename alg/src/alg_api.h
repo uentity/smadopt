@@ -51,4 +51,34 @@ _LIBAPI unsigned long BuildApproximation(unsigned long inp_num, unsigned long sa
 _LIBAPI void Sim(unsigned long inp_num, unsigned long sampl_num, const double* samples, double* res);
 _LIBAPI void GetClusterCenters(double* res);
 
+//-------------------- NN building functions exposed - for David
+/// @brief Create Multilayer Perceptron NN
+///
+/// @param layers_num - number of NN layers (including input layer)
+/// @param neurons_num - array of neurons number in each NN layer (inlcuding input layer)
+/// @param neuron_af - array of activation function types for each _hidden_ layer
+///        (not including hidden layer!)
+///
+/// @return void
+_LIBAPI void BuildMP(unsigned long layers_num, unsigned long* neurons_num,
+	unsigned int* neuron_af);
+
+/// @brief Train MP
+///
+/// @param sampl_num - number of training samples
+/// @param samples - array of learning samples, arranged as matrix columns(!)
+/// @param want_resp - array of learning targets, arranged as matrix columns(!)
+///
+/// @return Learning error
+_LIBAPI double LearnMP(unsigned long sampl_num, const double* samples, const double* want_resp);
+
+/// @brief Simulate network
+///
+/// @param sampl_num - number of test samples
+/// @param samples - array of test samples, arranged as matrix columns(!)
+/// @param res - buffer for storing simulation results
+///
+/// @return void
+_LIBAPI void SimMP(unsigned long sampl_num, const double* samples, double* res);
+
 #endif
