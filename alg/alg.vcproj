@@ -457,6 +457,10 @@
 				RelativePath=".\src\alg_api.cpp"
 				>
 			</File>
+			<File
+				RelativePath=".\src\alg_api_mp.cpp"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
