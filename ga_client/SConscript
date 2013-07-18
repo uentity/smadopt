@@ -18,14 +18,18 @@ base_env.Append(
 # construct debug and release env
 debug_env = base_env.Clone();
 debug_env.Append(
-		CPPDEFINES = ['_DEBUG'],
-		CCFLAGS = ['-O0', '-ggdb3'],
-		LIBPATH = [os.path.join(exe_dir, dbg_dir)]);
+	CPPDEFINES = ['_DEBUG'],
+	CCFLAGS = ['-O0', '-ggdb3'],
+	LIBPATH = ['/home/uentity/lib/tbb/lib/debug', os.path.join(exe_dir, dbg_dir)],
+	LIBS = ['tbb_debug']
+);
 
 release_env = base_env.Clone();
 release_env.Append(
-		CCFLAGS = ['-O3'],
-		LIBPATH = [os.path.join(exe_dir, rel_dir)]);
+	CCFLAGS = ['-O3'],
+	LIBPATH = ['/home/uentity/lib/tbb/lib/release', os.path.join(exe_dir, rel_dir)],
+	LIBS = ['tbb']
+);
 
 # make targets
 # debug
