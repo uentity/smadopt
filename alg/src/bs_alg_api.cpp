@@ -84,8 +84,6 @@ void SetVSPFractions(spv_float pFractions) {
 namespace python {
 namespace bspy = boost::python;
 
-
-
 BLUE_SKY_INIT_PY_FUN
 {
 	bspy::def("SetGAInitRange", &smadopt::SetGAInitRange);
@@ -104,6 +102,11 @@ BLUE_SKY_INIT_PY_FUN
 BLUE_SKY_PLUGIN_DESCRIPTOR_EXT("smadopt", "1.0.0", "Smart optimization and adaptation library",
 	"Smart optimization and adaptation library", "smadopt"
 )
+
+BLUE_SKY_REGISTER_PLUGIN_FUN
+{
+	return true;
+}
 
 } /* namespace blue_sky */
 
