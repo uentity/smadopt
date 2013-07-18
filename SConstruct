@@ -16,7 +16,7 @@ custom_env = Environment(ENV = os.environ);
 #custom_env['CXX'] = ['distcc'];
 custom_env.Append(
 	CCFLAGS = ['-W', '-Wall', '-Wno-deprecated', '-Werror=return-type', '-pthread'], #'-fvisibility=hidden', '-fvisibility-inlines-hidden'],
-	CPPPATH = ['/home/uentity/lib/tbb/include', '/home/uentity/lib/boost', '#utils', '#utils/src', '#alg/src', 'src'],
+	CPPPATH = ['/home/uentity/lib/tbb/include', '/home/uentity/lib/boost', '#utils', '#utils/include', '#alg/include'],
 	LIBPATH = ['/home/uentity/lib/boost/lib']
 );
 
