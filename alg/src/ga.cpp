@@ -1889,17 +1889,26 @@ ulong ga::Start(double* pInitPop, int genomeLength, bool bReadOptFromIni)
 		state_.rep_ind.NewMatrix(0, 0);
 
 		Matrix real_pop;
-		if(opt_.creationT == Manual) {
+		if(pInitPop && opt_.creationT == Manual) {
 			real_pop.NewMatrix(opt_.popSize, genomeLength, pInitPop);
 			if(opt_.useBitString)
 				state_.lastPop <<= Convert2BitPop(real_pop);
 			else state_.lastPop <<= real_pop;
 		}
 		else {
-			//copy initial population
-			if(opt_.useBitString) real_pop <<= InterpretBitPop(state_.lastPop);
-			else real_pop <<= state_.lastPop;
-			memcpy(pInitPop, real_pop.GetBuffer(), real_pop.raw_size());
+			if(opt_.creationT == Manual) {
+				// manual creation specified and NULL init population passed
+				// fallback to random creation
+				opt_.creationT = UniformCreation;
+				_pCreationFcn = &ga::CreationUniform;
+				state_.lastPop = (this->*_pCreationFcn)();
+			}
+			else {
+				// return initial population
+				if(opt_.useBitString) real_pop <<= InterpretBitPop(state_.lastPop);
+				else real_pop <<= state_.lastPop;
+				memcpy(pInitPop, real_pop.GetBuffer(), real_pop.raw_size());
+			}
 		}
 		return opt_.popSize;
 	}
@@ -2321,7 +2330,7 @@ Matrix ga::InterpretBitPop(const Matrix& bit_pop)
 			for(ulong j=offset; j<offset + opt_.bitsPerVar; ++j)	//bit_pop columns
 			{
 				if(bit_pop(r, j) > 0) dSum += dPart;
-				dPart /= 2;
+				dPart *= 0.5;
 			}
 			res(r, i) = opt_.initRange(0, i) + dSum*(opt_.initRange(1, i) - opt_.initRange(0, i));
 			offset += opt_.bitsPerVar;
@@ -2344,13 +2353,16 @@ Matrix ga::Convert2BitPop(const Matrix& pop)
 		for(ulong i=0; i<pop.col_num(); ++i)	//population columns
 		{
 			dVal = (pop(r, i) - opt_.initRange(0, i))/(opt_.initRange(1, i) - opt_.initRange(0, i));
+			// cut out-of-bounds values
+			dVal = std::max(0.0, std::min(1.0, dVal));
+
 			dPart = 0.5;
 			for(ulong j=offset; j<offset + opt_.bitsPerVar; ++j)	//bit_pop columns
 			{
 				if(dVal > dPart) bit_pop(r, j) = 1;
 				else bit_pop(r, j) = 0;
 				dVal -= dPart;
-				dPart /= 2;
+				dPart *= 0.5;
 			}
 			offset += opt_.bitsPerVar;
 		}

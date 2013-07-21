@@ -37,7 +37,7 @@ void SetGAInitRange(spv_float pInitRange, int genomeLength) {
 	::SetGAInitRange(pInitRange.lock()->data(), genomeLength);
 }
 
-ulong Start(spv_float pInitPop, int genomeLength, bool bReadFromIni) {
+ulong Start(int genomeLength, spv_float pInitPop, bool bReadFromIni) {
 	return ::Start(pInitPop.lock()->data(), genomeLength, bReadFromIni);
 }
 
@@ -91,7 +91,7 @@ bspy::tuple GetNextPop_py(spv_float pPrevScore, spv_float pNextPop, unsigned lon
 	return bspy::make_tuple(pNextPop, pPrevScore, *pPopSize);
 }
 
-BOOST_PYTHON_FUNCTION_OVERLOADS(start_overl, smadopt::Start, 2, 3);
+BOOST_PYTHON_FUNCTION_OVERLOADS(start_overl, smadopt::Start, 1, 3);
 BOOST_PYTHON_FUNCTION_OVERLOADS(read_opt_overl, smadopt::ReadOptions, 0, 1);
 BOOST_PYTHON_FUNCTION_OVERLOADS(read_addonopt_overl, smadopt::ReadAddonOptions, 0, 2);
 
