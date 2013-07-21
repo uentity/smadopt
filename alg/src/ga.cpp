@@ -1877,7 +1877,7 @@ Matrix ga::Run(FitnessFcnCallback FitFcn, int genomeLength, bool bReadOptFromIni
 	return FinishGA();
 }
 
-void ga::Start(double* pInitPop, int genomeLength, bool bReadOptFromIni)
+ulong ga::Start(double* pInitPop, int genomeLength, bool bReadOptFromIni)
 {
 	try {
 		prepare2run(genomeLength, bReadOptFromIni);
@@ -1901,6 +1901,7 @@ void ga::Start(double* pInitPop, int genomeLength, bool bReadOptFromIni)
 			else real_pop <<= state_.lastPop;
 			memcpy(pInitPop, real_pop.GetBuffer(), real_pop.raw_size());
 		}
+		return opt_.popSize;
 	}
 	catch(alg_except& ex) {
 		state_.nStatus = FinishError;
@@ -1908,6 +1909,7 @@ void ga::Start(double* pInitPop, int genomeLength, bool bReadOptFromIni)
 		_print_err(ex.what());
 		FinishGA();
 	}
+	return 0;
 }
 
 bool ga::NextPop(double* pPrevScore, double* pNextPop, unsigned long* pPopSize)

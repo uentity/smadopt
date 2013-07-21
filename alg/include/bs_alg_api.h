@@ -11,7 +11,7 @@ namespace blue_sky { namespace smadopt {
 
 BS_API void SetGAInitRange(spv_float pInitRange, int genomeLength);	//length(pInitRange) = 2*genomeLength!
 
-BS_API void Start(spv_float pInitPop, int genomeLength, bool bReadFromIni = false);
+BS_API ulong Start(spv_float pInitPop, int genomeLength, bool bReadFromIni = false);
 
 BS_API bool GetNextPop(spv_float pPrevScore, spv_float pNextPop, unsigned long* pPopSize);
 

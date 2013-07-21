@@ -94,9 +94,9 @@ bool SetAddonFname(int addon_fname, unsigned long addon_num, const char* pNewFna
 	else return false;
 }
 
-void Start(double* pInitPop, int genomeLength, bool bReadFromIni)
+ulong Start(double* pInitPop, int genomeLength, bool bReadFromIni)
 {
-	g_ga.Start(pInitPop, genomeLength, bReadFromIni);
+	return g_ga.Start(pInitPop, genomeLength, bReadFromIni);
 }
 
 bool GetNextPop(double* pPrevScore, double* pNextPop, unsigned long* pPopSize)

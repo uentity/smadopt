@@ -37,8 +37,8 @@ void SetGAInitRange(spv_float pInitRange, int genomeLength) {
 	::SetGAInitRange(pInitRange.lock()->data(), genomeLength);
 }
 
-void Start(spv_float pInitPop, int genomeLength, bool bReadFromIni) {
-	::Start(pInitPop.lock()->data(), genomeLength, bReadFromIni);
+ulong Start(spv_float pInitPop, int genomeLength, bool bReadFromIni) {
+	return ::Start(pInitPop.lock()->data(), genomeLength, bReadFromIni);
 }
 
 bool GetNextPop(spv_float pPrevScore, spv_float pNextPop, unsigned long* pPopSize) {
@@ -83,15 +83,26 @@ void SetVSPFractions(spv_float pFractions) {
 
 namespace python {
 namespace bspy = boost::python;
+// we need a wrapper for GetNextPop, because arrays are copied from Python,
+// hence all GA calculations (new population, etc) will be lost
+// solution: return tuple of input arguments
+bspy::tuple GetNextPop_py(spv_float pPrevScore, spv_float pNextPop, unsigned long* pPopSize) {
+	smadopt::GetNextPop(pPrevScore, pNextPop, pPopSize);
+	return bspy::make_tuple(pNextPop, pPrevScore, *pPopSize);
+}
+
+BOOST_PYTHON_FUNCTION_OVERLOADS(start_overl, smadopt::Start, 2, 3);
+BOOST_PYTHON_FUNCTION_OVERLOADS(read_opt_overl, smadopt::ReadOptions, 0, 1);
+BOOST_PYTHON_FUNCTION_OVERLOADS(read_addonopt_overl, smadopt::ReadAddonOptions, 0, 2);
 
 BLUE_SKY_INIT_PY_FUN
 {
 	bspy::def("SetGAInitRange", &smadopt::SetGAInitRange);
-	bspy::def("Start", &smadopt::Start);
-	bspy::def("GetNextPop", &smadopt::GetNextPop);
+	bspy::def("Start", &smadopt::Start, start_overl());
+	bspy::def("GetNextPop", &GetNextPop_py);
 	bspy::def("Stop", &smadopt::Stop);
-	bspy::def("ReadOptions", &smadopt::ReadOptions);
-	bspy::def("ReadAddonOptions", &smadopt::ReadAddonOptions);
+	bspy::def("ReadOptions", &smadopt::ReadOptions, read_opt_overl());
+	bspy::def("ReadAddonOptions", &smadopt::ReadAddonOptions, read_addonopt_overl());
 	bspy::def("SetHSPSizes", &smadopt::SetHSPSizes);
 	bspy::def("SetVSPSizes", &smadopt::SetVSPSizes);
 	bspy::def("SetVSPFractions", &smadopt::SetVSPFractions);
@@ -105,6 +116,7 @@ BLUE_SKY_PLUGIN_DESCRIPTOR_EXT("smadopt", "1.0.0", "Smart optimization and adapt
 
 BLUE_SKY_REGISTER_PLUGIN_FUN
 {
+	(void)bs_init;
 	return true;
 }
 

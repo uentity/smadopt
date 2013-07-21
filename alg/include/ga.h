@@ -181,7 +181,8 @@ namespace GA {
 
 		void prepare2run(int genomeLength, bool bReadOptFromIni = false);
 		Matrix Run(FitnessFcnCallback FitFcn, int genomeLength, bool bReadOptFromIni = false);
-		void Start(double* pInitPop, int genomeLength, bool bReadOptFromIni = false);
+		// return population size
+		ulong Start(double* pInitPop, int genomeLength, bool bReadOptFromIni = false);
 		bool NextPop(double* pPrevScore, double* pNextPop, unsigned long* pPopSize);
 		void Stop(void);
 

@@ -27,7 +27,7 @@ _LIBAPI void* GetGAObject();
 
 _LIBAPI void SetGAInitRange(double* pInitRange, int genomeLength);	//length(pInitRange) = 2*genomeLength!
 
-_LIBAPI void Start(double* pInitPop, int genomeLength, bool bReadFromIni = false);
+_LIBAPI ulong Start(double* pInitPop, int genomeLength, bool bReadFromIni = false);
 
 _LIBAPI bool GetNextPop(double* pPrevScore, double* pNextPop, unsigned long* pPopSize);
 
