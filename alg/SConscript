@@ -31,9 +31,18 @@ release_env.AppendUnique(
 	LIBS = ['tbb']
 );
 
+source_files = Glob(os.path.join('src', '*.cpp'), True, True);
+
 if base_env["bs"] == '1' :
 	debug_env.AppendUnique(LIBS = 'blue_sky_d');
 	release_env.AppendUnique(LIBS = 'blue_sky');
+	source_files += Glob(os.path.join('src/python', '*.cpp'));
+
+def get_sources(build_dir) :
+	res = Glob(os.path.join(build_dir, '*.cpp'), True, True);
+	if base_env["bs"] == '1' :
+		res += Glob(os.path.join(build_dir, 'python/*.cpp'), True, True);
+	return res;
 
 # make targets
 # debug
@@ -44,7 +53,9 @@ def build_debug() :
 
 	VariantDir(build_dir_dbg, 'src', duplicate = 0);
 	#debug = debug_env.SharedLibrary(target = lib_name, source = Glob(os.path.join(build_dir_dbg, '*.cpp'), True, True));
-	ha_alg_debug = debug_env.SharedLibrary(target = os.path.join(exe_dir_dbg, lib_name), source = Glob(os.path.join(build_dir_dbg, '*.cpp'), True, True));
+	ha_alg_debug = debug_env.SharedLibrary(
+		target = os.path.join(exe_dir_dbg, lib_name), source = get_sources(build_dir_dbg)
+	);
 	Depends(ha_alg_debug, ha_utils_debug);
 	#ha_alg_debug = debug_env.Install(exe_dir_dbg, debug);
 	debug_env.Alias('ha_alg', ha_alg_debug);
@@ -57,7 +68,9 @@ def build_release() :
 	exe_dir_rel = os.path.join(exe_dir, rel_dir);
 
 	VariantDir(build_dir_rel, 'src', duplicate = 0);
-	ha_alg_release = release_env.SharedLibrary(target = os.path.join(exe_dir_rel, lib_name), source = Glob(os.path.join(build_dir_rel, '*.cpp'), True, True));
+	ha_alg_release = release_env.SharedLibrary(
+		target = os.path.join(exe_dir_rel, lib_name), source = get_sources(build_dir_rel)
+	);
 	Depends(ha_alg_release, ha_utils_release);
 	#ha_alg_release = release_env.Install(exe_dir_rel, release);
 	release_env.Alias('ha_alg', ha_alg_release);
