@@ -1716,6 +1716,10 @@ void ga::prepare2run(int genomeLength, bool bReadOptFromIni)
 	//create initial population
 	if(opt_.creationT != Manual) state_.lastPop = (this->*_pCreationFcn)();
 
+	// clear existing history stack -- important!
+	state_.stackPop.clear();
+	state_.stackScore.clear();
+	state_.rep_ind.clear();
 	//reserve memory to speedup search
 	if(opt_.calcUnique && opt_.globalSearch) {
 		state_.stackPop.reserve(opt_.popSize*GenLen_*opt_.generations);
@@ -1724,6 +1728,8 @@ void ga::prepare2run(int genomeLength, bool bReadOptFromIni)
 		else
 			state_.stackScore.reserve(opt_.popSize*opt_.generations*(opt_.vspSize.size() + 1));
 	}
+	state_.elite_ind.clear();
+	state_.addon_ind.clear();
 }
 
 void ga::_filterParents(Matrix& thisPop, Matrix& thisScore, ulong parents_num)
@@ -1886,7 +1892,6 @@ ulong ga::Start(double* pInitPop, int genomeLength, bool bReadOptFromIni)
 			state_.lastScore.NewMatrix(opt_.popSize, 1);
 		else
 			state_.lastScore.NewMatrix(opt_.popSize, opt_.vspSize.size() + 1);
-		state_.rep_ind.NewMatrix(0, 0);
 
 		Matrix real_pop;
 		if(pInitPop && opt_.creationT == Manual) {
