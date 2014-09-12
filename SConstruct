@@ -35,7 +35,7 @@ custom_env.Append(
 
 if custom_env["bs"] == '1' :
 	custom_env.Append(
-		CPPDEFINES = ['BLUE_SKY_COMPAT', 'BS_EXPORTING', 'BS_EXPORTING_PLUGIN', 'BSPY_EXPORTING'],
+		CPPDEFINES = ['BLUE_SKY_COMPAT', 'BS_EXPORTING_PLUGIN', 'BSPY_EXPORTING_PLUGIN'],
 		CPPPATH = [
 			osp.join(os.environ['BLUE_SKY_PATH'], 'kernel', 'include'),
 			osp.join(os.environ['BLUE_SKY_PATH'], 'kernel', 'include', 'python'),
