@@ -22,10 +22,17 @@
 
 #ifdef BLUE_SKY_COMPAT
 
-#include "ga.h"
+// remove export decorators from alg_api.h functions
+#ifdef __EXPORTING
+	#undef __EXPORTING
+#endif
+
 #include "bs_alg_api.h"
 #include "alg_api.h"
+#include "ga.h"
+
 //#include "bs_misc.h"
+#include <numpy/arrayobject.h>
 
 #ifdef BSPY_EXPORTING_PLUGIN
 #include <boost/python.hpp>
@@ -95,6 +102,35 @@ void SetPopSize(const ulong pop_size) {
 	ga_obj->opt_.popSize = pop_size;
 }
 
+void get_internal_population(spv_float pop, spv_float score) {
+	GA::ga* ga_obj = reinterpret_cast< GA::ga* >(GetGAObject());
+	const GA::ga::ga_state& state = ga_obj->state();
+	npy_intp shape[2];
+
+	pop->resize(state.lastPop.size());
+	std::copy(state.lastPop.begin(), state.lastPop.end(), pop->begin());
+	shape[0] = state.lastPop.row_num();
+	shape[1] = state.lastPop.col_num();
+	pop->reshape(2, &shape[0]);
+
+	score->resize(state.lastScore.size());
+	std::copy(state.lastScore.begin(), state.lastScore.end(), pop->begin());
+	shape[0] = state.lastScore.row_num();
+	shape[1] = state.lastScore.col_num();
+	score->reshape(2, shape);
+}
+
+void set_internal_population(spv_float pop, spv_float score) {
+	GA::ga* ga_obj = reinterpret_cast< GA::ga* >(GetGAObject());
+	GA::ga::ga_state& state = ga_obj->state();
+
+	ulong sz = std::min(pop->size(), state.lastPop.size());
+	std::copy(pop->begin(), pop->begin() + sz, state.lastPop.begin());
+
+	sz = std::min(score->size(), state.lastScore.size());
+	std::copy(score->begin(), score->begin() + sz, state.lastScore.begin());
+}
+
 } /* namespace blue_sky::smadopt */
 
 #ifdef BSPY_EXPORTING_PLUGIN
@@ -135,6 +171,8 @@ BLUE_SKY_INIT_PY_FUN
 	bspy::def("GetGAOptions", &GetGAOptions_py,
 		bspy::return_value_policy< bspy::reference_existing_object >()
 	);
+	bspy::def("get_internal_population", &smadopt::get_internal_population);
+	bspy::def("set_internal_population", &smadopt::set_internal_population);
 }
 
 } /* namespace python */
