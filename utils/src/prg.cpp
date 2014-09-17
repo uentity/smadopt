@@ -14,7 +14,7 @@ using namespace std;
 using namespace prg;
 using namespace hybrid_adapt;
 
-typedef unsigned long ulong;
+//typedef std::size_t ulong;
 
 namespace prg {
 const ulong os[] = {0x80000000 + 0x40 + 0x20 + 2,  //(32, 7, 6, 2, 0)

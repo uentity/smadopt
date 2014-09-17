@@ -63,7 +63,7 @@ struct int2type {
 };
 
 //common typedefs
-typedef unsigned long ulong;
+typedef std::size_t ulong;
 typedef unsigned int uint;
 typedef std::vector<ulong> ul_vec;
 typedef smart_ptr<ul_vec> sp_ul_vec;

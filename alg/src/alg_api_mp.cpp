@@ -8,7 +8,7 @@
 using namespace std;
 using namespace NN;
 
-typedef unsigned long ulong;
+//typedef unsigned long ulong;
 
 namespace {
 	// hide learn informer from being exported

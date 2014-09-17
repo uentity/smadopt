@@ -28,7 +28,7 @@ namespace prg
 	_LIBAPI double rand01();
 	_LIBAPI double randn(double mu = 0, double q2 = 1);
 	_LIBAPI long randInt(long a, long b);
-	_LIBAPI unsigned long randIntUB(unsigned long upper_bound);
+	_LIBAPI ulong randIntUB(ulong upper_bound);
 
 	// generate random permutation of sequence 0, 2, ..., n - 1
 	_CLASS_DECLSPEC std::vector< ulong > rand_perm(ulong n);
