@@ -13,6 +13,7 @@
 //#endif
 #include <iomanip>
 #include <numeric>
+#include <iterator>
 
 using namespace std;
 //using namespace hybrid_adapt;
