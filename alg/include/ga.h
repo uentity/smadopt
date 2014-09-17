@@ -16,11 +16,11 @@ namespace GA {
 		typedef std::vector<Matrix>::iterator vm_iterator;
 		typedef Matrix::ind_iterator ind_iterator;
 		typedef ulMatrix::r_iterator ulr_iterator;
+
 	public:
 		typedef Matrix::indMatrix indMatrix;
 		typedef smart_ptr<ga_addon> spAddonObj;
 
-	private:
 		struct ga_state {
 			//Matrix bestGens;
 			//Matrix bestScore;
@@ -46,6 +46,7 @@ namespace GA {
 			std::string lastError;
 		};
 
+	private:
 		//std::ifstream iniFile;
 		std::ofstream logFile_;
 		std::ofstream errFile_;
@@ -66,10 +67,6 @@ namespace GA {
 		Matrix (ga::*_pStepGAFcn)(const Matrix&, const Matrix&, ul_vec&);
 		FitnessFcnCallback _pFitFunCallback;
 
-		void MutateUniform(double& gene, ulong pos, const Matrix& range);
-		void MutateNonUniform(double& gene, ulong pos, const Matrix& range);
-		void MutateNormal(double& gene, ulong pos, const Matrix& range);
-
 		void inline _print_err(const char* pErr);
 		ulong inline _getXoverParentsCount(ulong xoverKidsCount);
 		double inline _nonUniformMutDelta(ulong t, double y);
@@ -78,11 +75,6 @@ namespace GA {
 		inline void _filterParents(Matrix& thisPop, Matrix& thisScore, ulong parents_num);
 		inline Matrix _restoreScore(const Matrix& newScore, const ulMatrix& reps);
 
-		//inline Matrix ScalingCall(const Matrix& scores, ulong nParents);
-		//inline Matrix SelectionCall(const Matrix& expect, ulong nParents);
-		//inline Matrix CrossoverCall(const Matrix& pop, const Matrix& scores, const Matrix& parents);
-		//inline Matrix MutationCall(const Matrix& pop, const Matrix& scores, const Matrix& parents);
-		//inline Matrix CreationCall(void);
 		inline Matrix FitnessFcnCall(const Matrix& pop, const ulMatrix& reps);
 		inline void PushGeneration(const Matrix& thisPop, const Matrix& thisScore, const ulMatrix& rep_ind);
 
@@ -114,15 +106,8 @@ namespace GA {
 		void AfterOptionsSet();
 
 	public:
+		// public member variables
 		ga_opt opt_;
-
-		//gaOptions opt_;
-
-		//Matrix _initRange;
-		//Matrix _hspSize, _vspSize, _vspFract;
-
-		//std::string iniFname_;
-
 		Matrix bestChrom_;
 		double bestScore_;
 
@@ -132,21 +117,15 @@ namespace GA {
 		//override set default options
 		void set_def_opt();
 
-		//wrappers for ga operators
-		Matrix ScalingCall(const Matrix& scores) {
-			return (this->*_pScalingFcn)(scores);
-		}
-		indMatrix SelectionCall(Matrix& expect, ulong nParents) {
-			return (this->*_pSelectionFcn)(expect, nParents);
-		}
-		Matrix CrossoverCall(const Matrix& pop, const Matrix& scores, const indMatrix& parents) {
-			return (this->*_pCrossoverFcn)(pop, scores, parents);
-		}
-		Matrix CreationCall() {
-			return (this->*_pCreationFcn)();
-		}
-		inline Matrix StepGACall(const Matrix& thisPop, const Matrix& thisScore, ul_vec& elite_ind, ul_vec& addon_ind,
-			ulong nKids = 0);
+		// ga operators forwarders
+		Matrix ScalingCall(const Matrix& scores);
+		indMatrix SelectionCall(Matrix& expect, ulong nParents);
+		Matrix CrossoverCall(const Matrix& pop, const Matrix& scores, const indMatrix& parents);
+		Matrix CreationCall();
+		Matrix StepGACall(
+			const Matrix& thisPop, const Matrix& thisScore, ul_vec& elite_ind, ul_vec& addon_ind,
+			ulong nKids = 0
+		);
 
 		Matrix ScalingSimplest(const Matrix& scores);
 		Matrix ScalingPropMean(const Matrix& scores);
@@ -174,6 +153,9 @@ namespace GA {
 		Matrix CrossoverArithmetic(const Matrix& pop, const Matrix& scores, const indMatrix& parents);
 		Matrix CrossoverSBX(const Matrix& pop, const Matrix& scores, const indMatrix& parents);
 
+		void MutateUniform(double& gene, ulong pos, const Matrix& range);
+		void MutateNonUniform(double& gene, ulong pos, const Matrix& range);
+		void MutateNormal(double& gene, ulong pos, const Matrix& range);
 		void Mutation(Matrix& pop, const Matrix& range);
 
 		Matrix CreationUniform();
@@ -190,12 +172,15 @@ namespace GA {
 		void SetOptions(const gaOptions* pOpt = NULL);
 		bool SetAddonOptions(const void* pOpt, ulong addon_num = 0);
 		void* GetAddonOptions(ulong addon_num = 0);
+		ga_addon* GetAddonObject(ulong addon_num);
 
 		Matrix InterpretBitPop(const Matrix& bit_pop);
 		Matrix Convert2BitPop(const Matrix& pop);
-		ga_addon* GetAddonObject(ulong addon_num);
 
-		const ga_stat& GetStatistics() { return stat_; }
+		const ga_stat& GetStatistics() const { return stat_; }
+		// access to internal GA state
+		const ga_state& state() const { return state_; }
+		ga_state& state() { return state_; }
 	};
 }
 

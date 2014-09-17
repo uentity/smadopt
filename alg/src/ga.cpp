@@ -98,6 +98,9 @@ Matrix filter_bad_scores(const Matrix& src_pop, const Matrix& src_score, Matrix&
 
 } // eof hidden namespace
 
+/*-----------------------------------------------------------------
+ * GA misc functions
+ *----------------------------------------------------------------*/
 const char* ga_except::explain_error(int code)
 {
 	switch(code) {
@@ -137,14 +140,9 @@ ga::ga(void)
 
 ga::~ga(void) {}
 
-/*
-void ga::ReadAddonOptions()
-{
-	for(ulong i=0; i<apAddon_.size(); ++i)
-		apAddon_[i]->ReadOptions();
-}
-*/
-
+/*-----------------------------------------------------------------
+ * Scaling operators
+ *----------------------------------------------------------------*/
 Matrix ga::ScalingSimplest(const Matrix& scores)
 {
 	//for selection that is based just on comparison
@@ -315,6 +313,9 @@ Matrix ga::ScalingRankSqr(const Matrix& scores)
 	return expect/expect.Sum();
 }
 
+/*-----------------------------------------------------------------
+ * Selection operators
+ *----------------------------------------------------------------*/
 indMatrix ga::SelectionRoulette(Matrix& expect, ulong nParents)
 {
 	/*
@@ -469,7 +470,7 @@ indMatrix ga::SelectionTournament(Matrix& expect, ulong nParents)
 {
 	indMatrix res(1, nParents);
 	ulong popSize = expect.size();
-	const ulong ts = min(opt_.nTournSize, expect.size());
+	const ulong ts = min< ulong >(opt_.nTournSize, expect.size());
 
 	ulong winner, player;
 	double max_expect;
@@ -499,37 +500,12 @@ indMatrix ga::SelectionTournament(Matrix& expect, ulong nParents)
 		res[i] = winner;
 	}
 
-	//third realization - too slow
-	/*
-	ulong winner;
-	double max_expect;
-	//setup initial players ind
-	ul_vec players(expect.size());
-	for(ulong i = 0; i < players.size(); ++i)
-		players[i] = i;
-	ul_vec::iterator pl_beg(players.begin()), pl_end(players.end());
-
-	for(ulong i=0; i<nParents; ++i) {
-		//shuffle indices
-		random_shuffle(pl_beg, pl_end, prg::randIntUB);
-
-		//select first player
-		winner = players[0];
-		max_expect = expect[winner];
-		//test other players
-		for(ulong j = 1; j < ts; ++j) {
-			if(expect[players[j]] > max_expect) {
-				winner = players[j];
-				max_expect = expect[winner];
-			}
-		}
-		res[i] = winner;
-	}
-	*/
-
 	return res;
 }
 
+/*-----------------------------------------------------------------
+ * Crossover operators
+ *----------------------------------------------------------------*/
 Matrix ga::CrossoverOnePoint(const Matrix& pop, const Matrix& scores, const indMatrix& parents)
 {
 	ulong nKids = parents.size() >> 1;
@@ -766,6 +742,9 @@ ulong ga::_getXoverParentsCount(ulong xoverKidsCount)
 		return xoverKidsCount << 1;
 }
 
+/*-----------------------------------------------------------------
+ * Mutation operators
+ *----------------------------------------------------------------*/
 void ga::MutateUniform(double& gene, ulong pos, const Matrix& range)
 {
 	gene = range(0, pos) + prg::rand01()*(range(1, pos) - range(0, pos));
@@ -794,23 +773,14 @@ void ga::MutateNonUniform(double& gene, ulong pos, const Matrix& range)
 
 void ga::Mutation(Matrix& pop, const Matrix& range)
 {
-	//ulong nKids = parents.size();
 	ulong GenomeLength = pop.col_num();
 	prg::prepare_streams(GenomeLength);
 
-	//Matrix mutKids(nKids, GenomeLength);
-
-	//Matrix child;
-	//vector<double> mutPoints(GenomeLength);
-	//double dK;
 	for(ulong i=0; i<pop.row_num(); ++i) {
-		//mutKids.SetRows(pop.GetRows(parents[i]), i);
-		//generate(mutPoints.begin(), mutPoints.end(), prg::rand01);
 		for(ulong j=0; j<GenomeLength; ++j) {
 			prg::switch_stream(j + 1);
 			if(prg::rand01() < opt_.mutProb) {
 				if(!opt_.useBitString) {
-					//prg::switch_stream(0);
 					(this->*_pMutationFcn)(pop(i, j), j, range);
 				}
 				else pop(i, j) = 1 - pop(i, j);
@@ -818,13 +788,13 @@ void ga::Mutation(Matrix& pop, const Matrix& range)
 		}
 	}
 	prg::switch_stream(0);
-	//return mutKids;
 }
 
+/*-----------------------------------------------------------------
+ * Initial population generators
+ *----------------------------------------------------------------*/
 Matrix ga::CreationUniform()
 {
-	//get genome length
-	//ulong GenomeLength = opt_.initRange.col_num();
 	prg::prepare_streams(GenLen_);
 
 	Matrix initPop(opt_.popSize, GenLen_);
@@ -843,6 +813,46 @@ Matrix ga::CreationUniform()
 	return initPop;
 }
 
+/*-----------------------------------------------------------------
+ * Call GA operators configured using options
+ *----------------------------------------------------------------*/
+Matrix ga::ScalingCall(const Matrix& scores) {
+	return (this->*_pScalingFcn)(scores);
+}
+
+indMatrix ga::SelectionCall(Matrix& expect, ulong nParents) {
+	return (this->*_pSelectionFcn)(expect, nParents);
+}
+
+Matrix ga::CrossoverCall(const Matrix& pop, const Matrix& scores, const indMatrix& parents) {
+	return (this->*_pCrossoverFcn)(pop, scores, parents);
+}
+
+Matrix ga::CreationCall() {
+	return (this->*_pCreationFcn)();
+}
+
+Matrix ga::StepGACall(
+	const Matrix& thisPop, const Matrix& thisScore, ul_vec& elite_ind,
+	ul_vec& addon_ind, ulong nKids
+) {
+	// filter bad score values from input data
+	Matrix good_pop;
+	Matrix good_score = filter_bad_scores(thisPop, thisScore, good_pop);
+	switch(opt_.subpopT) {
+		default:
+		case NoSubpops:
+			return StepGA(good_pop, good_score, opt_.initRange, elite_ind, addon_ind, 0, nKids);
+		case Horizontal:
+			return HSPStepGA(good_pop, good_score, elite_ind, addon_ind);
+		case Vertical:
+			return VSPStepGAalt(good_pop, good_score, elite_ind, addon_ind, nKids);
+	}
+}
+
+/*-----------------------------------------------------------------
+ * GA generic fucntions
+ *----------------------------------------------------------------*/
 void ga::Migrate(Matrix& pop, Matrix& score, ul_vec& elite_ind)
 {
 	if(opt_.subpopT != Horizontal || state_.nGen % opt_.migInterval != 0) return;
@@ -852,11 +862,6 @@ void ga::Migrate(Matrix& pop, Matrix& score, ul_vec& elite_ind)
 	ulong dir_ind[2];
 	ulong dir_cnt = 1;
 	if(opt_.migDirection == MigrateBoth) dir_cnt = 2;
-
-	//Matrix main_score;
-	//if(opt_.subpopT == Vertical)
-	//	main_score = score.GetColumns(score.col_num() - 1);
-	//else main_score.NewExtern(score);
 
 	//first pass
 	ulong h_offs = 0;
@@ -914,67 +919,6 @@ void ga::Migrate(Matrix& pop, Matrix& score, ul_vec& elite_ind)
 		}
 	}
 }
-
-/*
-Matrix ga::ScalingCall(const Matrix& scores, ulong nParents)
-{
-	switch(opt_.scalingT) {
-		case Proportional:
-			return ScalingProp(scores, nParents);
-		case ProportionalClassic:
-			return ScalingPropClassic(scores, nParents);
-		default:
-		case Rank:
-			return ScalingRank(scores, nParents);
-	}
-}
-
-Matrix ga::SelectionCall(const Matrix& expect, ulong nParents)
-{
-	switch(opt_.selectionT) {
-		case Roulette:
-			return SelectionRoulette(expect, nParents);
-		default:
-		case StochasticUniform:
-			return SelectionStochUnif(expect, nParents);
-		case Tournament:
-			return SelectionTournament(expect, nParents);
-		case UniformSelection:
-			return SelectionUniform(expect, nParents);
-		case Once:
-			return SelectionOnce(expect, nParents);
-		case Sort:
-			return SelectionSort(expect, nParents);
-	}
-}
-
-Matrix ga::CrossoverCall(const Matrix& pop, const Matrix& scores, const Matrix& parents)
-{
-	switch(opt_.crossoverT) {
-		default:
-		case Heuristic:
-			return CrossoverHeuristic(pop, scores, parents);
-		case OnePoint:
-			return CrossoverOnePoint(pop, scores, parents);
-		case TwoPoint:
-			return CrossoverTwoPoint(pop, scores, parents);
-	}
-}
-
-Matrix ga::MutationCall(const Matrix& pop, const Matrix& scores, const Matrix& parents)
-{
-	return Mutation(pop, scores, parents, opt_.initRange);
-}
-
-Matrix ga::CreationCall(void)
-{
-	switch(opt_.creationT) {
-		default:
-		case UniformCreation:
-			return CreationUniform();
-	}
-}
-*/
 
 void ga::_sepRepeats(Matrix& source, const ulMatrix& rep_ind, Matrix* pRepeats, ul_vec* pPrevReps)
 {
@@ -1482,22 +1426,6 @@ ulMatrix ga::EnsureUnique(Matrix& nextPop, const Matrix& thisPop, const Matrix& 
 	//}
 
 	//return reps;
-}
-
-Matrix ga::StepGACall(const Matrix& thisPop, const Matrix& thisScore, ul_vec& elite_ind, ul_vec& addon_ind, ulong nKids)
-{
-	// filter bad score values from input data
-	Matrix good_pop;
-	Matrix good_score = filter_bad_scores(thisPop, thisScore, good_pop);
-	switch(opt_.subpopT) {
-		default:
-		case NoSubpops:
-			return StepGA(good_pop, good_score, opt_.initRange, elite_ind, addon_ind, 0, nKids);
-		case Horizontal:
-			return HSPStepGA(good_pop, good_score, elite_ind, addon_ind);
-		case Vertical:
-			return VSPStepGAalt(good_pop, good_score, elite_ind, addon_ind, nKids);
-	}
 }
 
 Matrix ga::_restoreScore(const Matrix& newScore, const ulMatrix& reps)
