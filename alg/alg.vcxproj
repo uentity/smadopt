@@ -1,0 +1,248 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release_x64|Win32">
+      <Configuration>Release_x64</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release_x64|x64">
+      <Configuration>Release_x64</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectName>ha_alg</ProjectName>
+    <ProjectGuid>{FBBBB4F1-859A-4DA3-8DE1-F4FAFA6EA772}</ProjectGuid>
+    <RootNamespace>alg</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_x64|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_x64|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release_x64|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release_x64|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)exe\debug\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)build\debug\$(ProjectName)\</IntDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(Platform)\$(Configuration)\</IntDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)exe\release\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)build\release\$(ProjectName)\</IntDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(Platform)\$(Configuration)\</IntDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release_x64|Win32'">$(SolutionDir)$(Configuration)\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release_x64|Win32'">$(Configuration)\</IntDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release_x64|x64'">$(SolutionDir)\exe\release_x64\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release_x64|x64'">$(SolutionDir)build\release_x64\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>$(ProjectDir)/include;$(SolutionDir)/utils/include;$(SolutionDir)/utils;$(SolutionDir)/utils/src;$(TBB_PATH)/include;$(BOOST_PATH);$(BLUE_SKY_PATH)/kernel/include/python;$(BLUE_SKY_PATH)/kernel/include;$(PYTHON_PATH)/include;$(LOKI_PATH)/include;$(BLUE_SKY_PATH)\plugins\bs-eagle\bs_bos_core_base\include;$(NUMPY_PATH)/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>__EXPORTING;_WIN32_WINNT=0x502;NOMINMAX;BOOST_ALL_DYN_LINK;BLUE_SKY_COMPAT;BS_EXPORTING_PLUGIN;BSPY_EXPORTING_PLUGIN;PYTHON_VERSION=27;BS_EXCEPTION_USE_BOOST_FORMAT;BS_DISABLE_MT_LOCKS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>ha_utils.lib;tbb_debug.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)\exe\debug;$(TBB_PATH)\lib\debug\ia32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
+      <IgnoreSpecificDefaultLibraries>tbb.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir)/include;$(SolutionDir)/utils/include;$(SolutionDir)/utils;$(SolutionDir)/utils/src;$(TBB_PATH)/include;$(BOOST_PATH);$(BLUE_SKY_PATH)/kernel/include;$(PYTHON_PATH)/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>__EXPORTING;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <AdditionalOptions>/NODEFAULTLIB:libcmt %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>ha_utils.lib;tbb_debug.lib;blue_sky.dll;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(SolutionDir)\exe\debug\ha_alg.dll</OutputFile>
+      <AdditionalLibraryDirectories>$(SolutionDir)\exe\debug;X:\my_projects\blue-sky.git\exe\win\x86;X:\lib\tbb\lib\vs2010\ia32\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
+      <IgnoreSpecificDefaultLibraries>tbb.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+      <AdditionalIncludeDirectories>$(ProjectDir)/include;$(SolutionDir)/utils/include;$(SolutionDir)/utils;$(SolutionDir)/utils/src;$(TBB_PATH)/include;$(BOOST_PATH);$(BLUE_SKY_PATH)/kernel/include/python;$(BLUE_SKY_PATH)/kernel/include;$(PYTHON_PATH)/include;$(LOKI_PATH)/include;$(BLUE_SKY_PATH)\plugins\bs-eagle\bs_bos_core_base\include;$(NUMPY_PATH)/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>__EXPORTING;_WIN32_WINNT=0x502;NOMINMAX;BOOST_ALL_DYN_LINK;BLUE_SKY_COMPAT;BS_EXPORTING_PLUGIN;BSPY_EXPORTING_PLUGIN;PYTHON_VERSION=27;BS_EXCEPTION_USE_BOOST_FORMAT;BS_DISABLE_MT_LOCKS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>ha_utils.lib;tbb.lib;blue-sky.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)\exe\release;$(TBB_PATH)\lib\vs2010\ia32\Release;$(BLUE_SKY_PATH)\exe\win\x86;$(PYTHON_PATH)\libs;$(BOOST_PATH)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>/FORCE:MULTIPLE %(AdditionalOptions)</AdditionalOptions>
+      <OutputFile>$(SolutionDir)\exe\release\ha_alg.dll</OutputFile>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir)/include;$(SolutionDir)/utils/include;$(SolutionDir)/utils;$(SolutionDir)/utils/src;$(TBB_PATH)/include;$(BOOST_PATH);$(BLUE_SKY_PATH)/kernel/include;$(PYTHON_PATH)/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>__EXPORTING;BLUE_SKY_COMPAT;BS_EXPORTING_PLUGIN;BSPY_EXPORTING_PLUGIN;PYTHON_VERSION=27;BS_EXCEPTION_USE_BOOST_FORMAT;BS_DISABLE_MT_LOCKS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <AdditionalOptions>/NODEFAULTLIB:libcmt %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>ha_utils.lib;tbb.lib;blue_sky.dll;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(SolutionDir)\exe\release\ha_alg.dll</OutputFile>
+      <AdditionalLibraryDirectories>$(SolutionDir)\exe\release;X:\lib\tbb\lib\vs2010\ia32\Release;X:\my_projects\blue-sky.git\exe\win\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_x64|Win32'">
+    <ClCompile>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+      <AdditionalIncludeDirectories>$(ProjectDir)/include;$(SolutionDir)/utils/include;$(SolutionDir)/utils;$(SolutionDir)/utils/src;$(TBB_PATH)/include;$(BOOST_PATH);$(BLUE_SKY_PATH)/kernel/include/python;$(BLUE_SKY_PATH)/kernel/include;$(PYTHON_PATH)/include;$(LOKI_PATH)/include;$(BLUE_SKY_PATH)\plugins\bs-eagle\bs_bos_core_base\include;$(NUMPY_PATH)/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>__EXPORTING;_WIN32_WINNT=0x502;NOMINMAX;BOOST_ALL_DYN_LINK;BLUE_SKY_COMPAT;BS_EXPORTING_PLUGIN;BSPY_EXPORTING_PLUGIN;PYTHON_VERSION=27;BS_EXCEPTION_USE_BOOST_FORMAT;BS_DISABLE_MT_LOCKS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>ha_utils.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)\exe\release;$(TBB_PATH)\lib\release\ia32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_x64|x64'">
+    <Midl>
+      <TargetEnvironment>X64</TargetEnvironment>
+    </Midl>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir)/include;$(SolutionDir)/utils/include;$(SolutionDir)/utils;$(SolutionDir)/utils/src;$(TBB_PATH)/include;$(BOOST_PATH);$(BLUE_SKY_PATH)/kernel/include/python;$(BLUE_SKY_PATH)/kernel/include;$(PYTHON64_PATH)/include;$(LOKI_PATH)/include;$(BLUE_SKY_PATH)\plugins\bs-eagle\bs_bos_core_base\include;$(NUMPY_PATH)/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>__EXPORTING;_WIN32_WINNT=0x502;NOMINMAX;BOOST_ALL_DYN_LINK;BLUE_SKY_COMPAT;BS_EXPORTING_PLUGIN;BSPY_EXPORTING_PLUGIN;PYTHON_VERSION=27;BS_EXCEPTION_USE_BOOST_FORMAT;BS_DISABLE_MT_LOCKS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+    </ClCompile>
+    <Link>
+      <AdditionalOptions>/NODEFAULTLIB:libcmt /FORCE:MULTIPLE %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>ha_utils.lib;tbb.lib;blue-sky.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(SolutionDir)\exe\release_x64\ha_alg.dll</OutputFile>
+      <AdditionalLibraryDirectories>$(SolutionDir)\exe\release_x64;$(BLUE_SKY_PATH)\exe\win\x64;$(TBB_PATH)\lib\vs2010\intel64\Release;$(PYTHON64_PATH)\libs;$(BOOST_PATH)\lib64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <TargetMachine>MachineX64</TargetMachine>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="src\alg.cpp" />
+    <ClCompile Include="src\alg_api.cpp" />
+    <ClCompile Include="src\alg_api_mp.cpp" />
+    <ClCompile Include="src\bs_alg_api.cpp" />
+    <ClCompile Include="src\mnet.cpp" />
+    <ClCompile Include="src\nn_except.cpp" />
+    <ClCompile Include="src\nn_opt.cpp" />
+    <ClCompile Include="src\nna_opt.cpp" />
+    <ClCompile Include="src\objnet.cpp" />
+    <ClCompile Include="src\ga.cpp" />
+    <ClCompile Include="src\ga_opt.cpp" />
+    <ClCompile Include="src\ga_stat.cpp" />
+    <ClCompile Include="src\nn_addon.cpp" />
+    <ClCompile Include="src\km_opt.cpp" />
+    <ClCompile Include="src\kmeans.cpp" />
+    <ClCompile Include="src\determ_annealing.cpp" />
+    <ClCompile Include="src\python\py_ga.cpp" />
+    <ClCompile Include="src\python\py_ga_common.cpp" />
+    <ClCompile Include="src\python\py_nn_common.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\alg_api.h" />
+    <ClInclude Include="include\bs_alg_api.h" />
+    <ClInclude Include="include\determ_annealing.h" />
+    <ClInclude Include="include\ga.h" />
+    <ClInclude Include="include\ga_common.h" />
+    <ClInclude Include="include\kmeans.h" />
+    <ClInclude Include="include\kmeans_common.h" />
+    <ClInclude Include="include\mnet.h" />
+    <ClInclude Include="include\nn_addon.h" />
+    <ClInclude Include="include\nn_addon_common.h" />
+    <ClInclude Include="include\nn_common.h" />
+    <ClInclude Include="include\objnet.h" />
+    <ClInclude Include="src\ccn.h" />
+    <ClInclude Include="src\layer.h" />
+    <ClInclude Include="src\layer_jump.h" />
+    <ClInclude Include="src\mlp.h" />
+    <ClInclude Include="src\neuron.h" />
+    <ClInclude Include="src\objnet_impl.h" />
+    <ClInclude Include="src\pca.h" />
+    <ClInclude Include="src\rbn.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\utils\utils.vcxproj">
+      <Project>{7d5e91a2-91b1-4841-b3fd-d990c508ac59}</Project>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
