@@ -8,8 +8,6 @@
 using namespace std;
 using namespace NN;
 
-//typedef unsigned long ulong;
-
 namespace {
 	// hide learn informer from being exported
 	bool learn_informer(ulong uCycle, double perf, void* pNet) {
@@ -24,7 +22,7 @@ namespace {
 
 smart_ptr< mlp > p_net;
 
-void BuildMP(unsigned long layers_num, unsigned long* neurons_num,
+void BuildMP(ulong layers_num, ulong* neurons_num,
 	unsigned int* neuron_af) {
 
 	p_net = new mlp;
@@ -37,7 +35,7 @@ void BuildMP(unsigned long layers_num, unsigned long* neurons_num,
 		p_net->add_layer(neurons_num[i], neuron_af[i - 1]);
 }
 
-double LearnMP(unsigned long sampl_num, const double* samples, const double* want_resp) {
+double LearnMP(ulong sampl_num, const double* samples, const double* want_resp) {
 	// sanity check
 	if(!p_net) return -1;
 
@@ -52,7 +50,7 @@ double LearnMP(unsigned long sampl_num, const double* samples, const double* wan
 	return p_net->state().perf;
 }
 
-void SimMP(unsigned long sampl_num, const double* samples, double* res) {
+void SimMP(ulong sampl_num, const double* samples, double* res) {
 	const ulong inp_sz = p_net->inp_size();
 	Matrix input(inp_sz, sampl_num, samples);
 	Matrix sim_r = p_net->sim(input);

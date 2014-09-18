@@ -15,7 +15,7 @@ BS_API_PLUGIN void SetGAInitRange(spv_float pInitRange, int genomeLength);	//len
 
 BS_API_PLUGIN ulong Start(int genomeLength, spv_float pInitPop, bool bReadFromIni = false);
 
-BS_API_PLUGIN bool GetNextPop(spv_float pPrevScore, spv_float pNextPop, unsigned long* pPopSize);
+BS_API_PLUGIN bool GetNextPop(spv_float pPrevScore, spv_float pNextPop, ulong* pPopSize);
 
 BS_API_PLUGIN void Stop();
 
@@ -23,7 +23,7 @@ BS_API_PLUGIN void Stop();
 
 BS_API_PLUGIN void ReadOptions(const std::string& psFileName = "");
 
-BS_API_PLUGIN bool ReadAddonOptions(unsigned long addon_num = 0, const std::string& psFileName = "");
+BS_API_PLUGIN bool ReadAddonOptions(ulong addon_num = 0, const std::string& psFileName = "");
 
 BS_API_PLUGIN void SetHSPSizes(ulong nSubpops, spv_ulong pSizes);
 

@@ -27,9 +27,9 @@
 	#undef __EXPORTING
 #endif
 
-#include "bs_alg_api.h"
-#include "alg_api.h"
 #include "ga.h"
+#include "alg_api.h"
+#include "bs_alg_api.h"
 
 //#include "bs_misc.h"
 #include <numpy/arrayobject.h>
@@ -54,7 +54,7 @@ ulong Start(int genomeLength, spv_float pInitPop, bool bReadFromIni) {
 	return ::Start(pInitPop.lock()->data(), genomeLength, bReadFromIni);
 }
 
-bool GetNextPop(spv_float pPrevScore, spv_float pNextPop, unsigned long* pPopSize) {
+bool GetNextPop(spv_float pPrevScore, spv_float pNextPop, ulong* pPopSize) {
 	return ::GetNextPop(pPrevScore.lock()->data(), pNextPop.lock()->data(), pPopSize);
 }
 
@@ -71,7 +71,7 @@ void ReadOptions(const std::string& psFileName) {
 	::ReadOptions(psFileName.c_str());
 }
 
-bool ReadAddonOptions(unsigned long addon_num, const std::string& psFileName) {
+bool ReadAddonOptions(ulong addon_num, const std::string& psFileName) {
 //#ifdef UNIX
 //	std::string fname = wstr2str(psFileName);
 //#else
@@ -140,7 +140,7 @@ namespace bspy = boost::python;
 // we need a wrapper for GetNextPop, because arrays are copied from Python,
 // hence all GA calculations (new population, etc) will be lost
 // solution: return tuple of input arguments
-bspy::tuple GetNextPop_py(spv_float pPrevScore, spv_float pNextPop, unsigned long pPopSize) {
+bspy::tuple GetNextPop_py(spv_float pPrevScore, spv_float pNextPop, ulong pPopSize) {
 	bool res = smadopt::GetNextPop(pPrevScore, pNextPop, &pPopSize);
 	return bspy::make_tuple(pNextPop, pPopSize, res);
 }

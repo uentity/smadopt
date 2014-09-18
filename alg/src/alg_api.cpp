@@ -28,14 +28,14 @@ void* GetGAOptions()
 	return g_ga.opt_.GetOptions();
 }
 
-bool SetAddonOptions(const void* pOpt, unsigned long addon_num)
+bool SetAddonOptions(const void* pOpt, ulong addon_num)
 {
 	//DEBUG - remove this line
 	//((gaOptions*)pOpt)->calcUnique = false;
 	return g_ga.SetAddonOptions(pOpt, addon_num);
 }
 
-void* GetAddonOptions(unsigned long addon_num)
+void* GetAddonOptions(ulong addon_num)
 {
 	return g_ga.GetAddonOptions(addon_num);
 }
@@ -87,7 +87,7 @@ bool SetGAFname(int ga_fname, const char* pNewFname)
 	return false;
 }
 
-bool SetAddonFname(int addon_fname, unsigned long addon_num, const char* pNewFname)
+bool SetAddonFname(int addon_fname, ulong addon_num, const char* pNewFname)
 {
 	ga_addon* pAddon = g_ga.GetAddonObject(addon_num);
 	if(pAddon) return pAddon->SetFname(addon_fname, pNewFname);
@@ -99,7 +99,7 @@ ulong Start(double* pInitPop, int genomeLength, bool bReadFromIni)
 	return g_ga.Start(pInitPop, genomeLength, bReadFromIni);
 }
 
-bool GetNextPop(double* pPrevScore, double* pNextPop, unsigned long* pPopSize)
+bool GetNextPop(double* pPrevScore, double* pNextPop, ulong* pPopSize)
 {
 	return g_ga.NextPop(pPrevScore, pNextPop, pPopSize);
 }
@@ -121,7 +121,7 @@ void ReadOptions(const char* psFileName)
 	g_ga.ReadOptions(psFileName);
 }
 
-bool ReadAddonOptions(unsigned long addon_num, const char* psFileName)
+bool ReadAddonOptions(ulong addon_num, const char* psFileName)
 {
 	ga_addon* const pAddon = g_ga.GetAddonObject(addon_num);
 	if(pAddon) {
@@ -157,7 +157,7 @@ void SetVSPFractions(double* pFractions)
 	g_ga.opt_.vspFract.SetBuffer(pFractions);
 }
 
-unsigned long BuildApproximation(ulong inp_num, ulong sampl_num, const double* pSamples, const double* pResp)
+ulong BuildApproximation(ulong inp_num, ulong sampl_num, const double* pSamples, const double* pResp)
 {
 	Matrix samples(inp_num, sampl_num, pSamples), resp(1, sampl_num, pResp);
 	g_nna.ReadOptions();
@@ -171,7 +171,7 @@ void GetClusterCenters(double* res)
 	memcpy(res, g_nna.GetClusterCenters().GetBuffer(), g_nna.GetClusterCenters().raw_size());
 }
 
-void Sim(unsigned long inp_num, unsigned long sampl_num, const double* pSamples, double* res)
+void Sim(ulong inp_num, ulong sampl_num, const double* pSamples, double* res)
 {
 	Matrix samples(inp_num, sampl_num, pSamples);
 	Matrix est = g_nna.Sim(samples);

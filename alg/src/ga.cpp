@@ -1854,7 +1854,7 @@ ulong ga::Start(double* pInitPop, int genomeLength, bool bReadOptFromIni)
 	return 0;
 }
 
-bool ga::NextPop(double* pPrevScore, double* pNextPop, unsigned long* pPopSize)
+bool ga::NextPop(double* pPrevScore, double* pNextPop, ulong* pPopSize)
 {
 	//rep_ind should stay valid between calls to NextPop
 
