@@ -12,7 +12,7 @@ Import('*');
 base_env = custom_env.Clone();
 base_env.Append(
 	#CPPPATH = ['/home/uentity/lib/tbb/include', '#utils', '#utils/src', 'src'],
-	LIBS = ['ha_utils']
+	LIBS = ['ha_utils', 'tbb', 'tbbmalloc_proxy']
 );
 
 # construct debug and release env
@@ -20,15 +20,17 @@ debug_env = base_env.Clone();
 debug_env.AppendUnique(
 	CPPDEFINES = ['_DEBUG'],
 	CCFLAGS = ['-O0', '-ggdb3'], 
-	LIBPATH = ['/home/uentity/lib/tbb/lib/debug', os.path.join(exe_dir, dbg_dir)],
-	LIBS = ['tbb_debug']
+	#LIBPATH = ['/home/uentity/lib/tbb/lib/debug', os.path.join(exe_dir, dbg_dir)],
+	#RPATH = ['/home/uentity/lib/tbb/lib/debug'],
+	#LIBS = ['tbb_debug']
 );
 
 release_env = base_env.Clone();
 release_env.AppendUnique(
 	CCFLAGS = ['-O3'],
-	LIBPATH = ['/home/uentity/lib/tbb/lib/release', os.path.join(exe_dir, rel_dir)],
-	LIBS = ['tbb']
+	#LIBPATH = ['/home/uentity/lib/tbb/lib/release', os.path.join(exe_dir, rel_dir)],
+	#RPATH = ['/home/uentity/lib/tbb/lib/release'],
+	#LIBS = ['tbb']
 );
 
 source_files = Glob(os.path.join('src', '*.cpp'), True, True);

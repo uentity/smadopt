@@ -28,8 +28,9 @@ vars.Update(custom_env);
 #custom_env['CXX'] = ['distcc'];
 custom_env.Append(
 	CCFLAGS = ['-W', '-Wall', '-Wno-deprecated', '-Werror=return-type', '-pthread'], #'-fvisibility=hidden', '-fvisibility-inlines-hidden'],
-	CPPPATH = ['/home/uentity/lib/tbb/include', [os.environ['BOOST_PATH']], '#utils', '#utils/include', '#alg/include', '/usr/include/${python_name}'],
+	CPPPATH = [[os.environ['BOOST_PATH']], '#utils', '#utils/include', '#alg/include', '/usr/include/${python_name}'],
 	LIBPATH = ['/home/uentity/lib/boost/lib'],
+	RPATH = ['/home/uentity/lib/boost/lib'],
 	CPPDEFINES = ['UNIX', 'PYTHON_VERSION=27']
 );
 
