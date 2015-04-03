@@ -2190,8 +2190,10 @@ Matrix ga::FinishGA(double* pBestPop, double* pBestScore)
 
 	//delete all addons
 	apAddon_.clear();
-	//set idle status if no error
-	if(state_.nStatus != FinishError) state_.nStatus = Idle;
+	// set idle status if no error
+	// update: always set idle status, otherwise we can't escape from error state
+	state_.nStatus = Idle;
+	//if(state_.nStatus != FinishError) state_.nStatus = Idle;
 
 	return bestChrom_;
 }
